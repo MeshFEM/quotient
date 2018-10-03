@@ -27,3 +27,9 @@ random_access_heap_test_exe = executable(
     ['test/random_access_heap_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir)
 test('RandomAccessHeap tests', random_access_heap_test_exe)
+
+minimum_degree_test_exe = executable(
+    'minimum_degree_test',
+    ['test/minimum_degree_test.cc', 'include/quotient.hpp'],
+    include_directories : include_dir)
+test('MinimumDegree tests', minimum_degree_test_exe)

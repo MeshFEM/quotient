@@ -273,6 +273,17 @@ void RandomAccessHeap<T>::Initialize(const std::vector<T>& values) {
 template<typename T>
 std::pair<Int, T> RandomAccessHeap<T>::MinimalEntry() const {
   std::pair<Int, T> entry;
+  if (num_active_ == 0) {
+    entry.first = -1;
+    entry.second = 0;
+    return entry;
+  }
+  if (num_active_ == 1) {
+    entry.first = inverse_perm_[0];
+    entry.second = values_[entry.first];
+    return entry;
+  }
+
   entry.first = inverse_perm_[comparison_tree_[0]];
   entry.second = values_[entry.first];
   return entry;
@@ -295,6 +306,9 @@ std::pair<Int, Int> RandomAccessHeap<T>::ParentLevelAndIndex(
 
 template<typename T>
 void RandomAccessHeap<T>::PropagateComparisons(Int index) {
+  if (num_active_ == 1) {
+    return;
+  }
   const Int tree_index = perm_[index];
   std::pair<Int, Int> tree_pos = ParentLevelAndIndex(tree_index);
   UpdateComparisonUsingChildren(tree_pos.first, tree_pos.second);
@@ -365,8 +379,11 @@ void RandomAccessHeap<T>::DisableIndex(Int index) {
 
   // Disable the last index of the tree.
   --num_active_;
-  comparison_tree_.pop_back();
   num_comparison_levels_ = CeilLog2(num_active_);
+  if (num_active_ == 0) {
+    return;
+  }
+  comparison_tree_.pop_back();
 
   // Ensure that the comparison metadata is udpated. There are at most two
   // locations where we must manually propagate changes:

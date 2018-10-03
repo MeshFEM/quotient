@@ -797,6 +797,7 @@ MinimumDegreeAnalysis MinimumDegree(
     //   V := V \ {p}.
     quotient_graph.variables.erase(pivot);
 #endif
+    external_degree_heap.DisableIndex(pivot);
     SwapClearVector(&quotient_graph.adjacency_lists[pivot]);
     SwapClearVector(&quotient_graph.element_lists[pivot]);
     quotient_graph.num_eliminated_vertices +=
