@@ -15,19 +15,6 @@
 
 namespace quotient {
 
-inline Int PowerOfTwo(UInt exponent) {
-  return UInt(1) << exponent;
-}
-
-inline UInt CeilLog2(UInt n) {
-  UInt ceil_log2 = 0;
-  while (n) {
-    ++ceil_log2;
-    n >>= UInt(1);
-  }
-  return ceil_log2;
-}
-
 // A data structure that, given an array of 'n' items of type 'T', supports:
 //   * Random access lookups in O(1) time.
 //   * Retrieval of an index with minimal value in O(1) time.
@@ -86,6 +73,12 @@ class RandomAccessHeap {
   // If there are 'num_active' active indices, then this should require
   // O(lg(num_active)) time to update the minimal value cache.
   void DisableIndex(Int index);
+
+  // Returns 2^exponent.
+  static Int PowerOfTwo(UInt exponent);
+
+  // Returns ceil(log2(n)).
+  static UInt CeilLog2(UInt n);
 
  private:
    // Returns the offset into 'comparison_tree_' of the given level.
@@ -375,6 +368,21 @@ void RandomAccessHeap<T>::DisableIndex(Int index) {
     PropagateComparisons(inverse_perm_[old_tree_index]);
   }
   PropagateComparisons(inverse_perm_[num_active_ - 1]);
+}
+
+template<typename T>
+inline Int RandomAccessHeap<T>::PowerOfTwo(UInt exponent) {
+  return UInt(1) << exponent;
+}
+
+template<typename T>
+inline UInt RandomAccessHeap<T>::CeilLog2(UInt n) {
+  UInt ceil_log2 = 0;
+  while (n) {
+    ++ceil_log2;
+    n >>= UInt(1);
+  }
+  return ceil_log2;
 }
 
 } // namespace quotient
