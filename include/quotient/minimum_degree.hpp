@@ -31,7 +31,7 @@ namespace quotient {
 //   "An Approximate Minimum Degree Ordering Algorithm",
 //   SIAM J. Matrix Analysis & Applic., Vol. 17, No. 4, pp. 886--905, 1996.
 //
-// There appears to be a plethora of publicly available preprints. We 
+// There appears to be a plethora of publicly available preprints.
 //
 struct QuotientGraph {
   // The number of vertices in the original graph.
