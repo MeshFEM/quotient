@@ -64,11 +64,18 @@ class RandomAccessHeap {
   // O(lg(num_active)) time to update the minimal value cache.
   std::pair<Int, T> MinimalEntry() const;
 
-  // Retrieves the value of an index in O(1) time.
-  const T& Value(Int index) const;
+  // Retrieves a reference to the underlying vector of booleans denoting if
+  // each value is currently valid.
+  const std::vector<bool>& ValidValues() const;
+
+  // Retrieves the validity of a given index.
+  bool ValidValue(Int index) const;
 
   // Retrieves a reference to the underlying vector of values.
   const std::vector<T>& Values() const;
+
+  // Retrieves the value of an index in O(1) time.
+  const T& Value(Int index) const;
 
   // Modifies the value of an active index.
   //
@@ -373,13 +380,23 @@ void RandomAccessHeap<T>::PropagateComparisons(Int index) {
 }
 
 template<typename T>
-const T& RandomAccessHeap<T>::Value(Int index) const {
-  return values_[index];
+const std::vector<bool>& RandomAccessHeap<T>::ValidValues() const {
+  return valid_values_;
+}
+
+template<typename T>
+bool RandomAccessHeap<T>::ValidValue(Int index) const {
+  return valid_values_[index];
 }
 
 template<typename T>
 const std::vector<T>& RandomAccessHeap<T>::Values() const {
   return values_;
+}
+
+template<typename T>
+const T& RandomAccessHeap<T>::Value(Int index) const {
+  return values_[index];
 }
 
 template<typename T>

@@ -12,8 +12,22 @@
 
 using quotient::Int;
 
-// A reproduction of Figs. 1 and 2 from [AMD-96].
-TEST_CASE("AMD-96", "[AMD-96]") {
+// A reproduction of Figs. 1 and 2 from [ADD-96].
+// Several details not discussed in the paper are worth noting:
+//
+//   1) The Amestoy external degree bound produces an overestimate for index
+//      5 (6 with 1-based indexing) just before the third pivot is selected.
+//      This helps lead to a deviation between Figs. 1-2 and the AMD results.
+//
+//   2) The supernode of {6, 7, 8} ({7, 8, 9} with 1-based indexing) detected
+//      within G^6 in Fig. 2 of [ADD-96] is an elmination graph supernode,
+//      but *not* a quotient graph supernode. Because AMD only measures the
+//      latter, there is another reason for deviation.
+//
+// Thus, if an exact external degree computation is requested, then the
+// elimination order is (0, 1, ..., 9), and the supernodes are all trivial.
+//
+TEST_CASE("ADD-96", "[ADD-96]") {
   quotient::CoordinateGraph graph;
   graph.Resize(10);
 
@@ -61,12 +75,15 @@ TEST_CASE("AMD-96", "[AMD-96]") {
   graph.AddEdge(8, 9);
   graph.AddEdge(9, 8);
 
-  const quotient::MinimumDegreeAnalysis amestoy_analysis =
-    quotient::MinimumDegree(graph, quotient::kAmestoyExternalDegree);
+  const quotient::MinimumDegreeAnalysis analysis =
+    quotient::MinimumDegree(graph, quotient::kExactExternalDegree);
 
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
   };
+
+  // See the comment at the top of this test for why we do not expect any
+  // nontrivial supernodes.
   const std::vector<std::vector<Int>> kExpectedSupernodes{
       {0},
       {1},
@@ -74,12 +91,12 @@ TEST_CASE("AMD-96", "[AMD-96]") {
       {3},
       {4},
       {5},
-      {6, 7, 8},
-      {},
-      {},
+      {6},
+      {7},
+      {8},
       {9},
   };
 
-  REQUIRE(amestoy_analysis.elimination_order == kExpectedEliminationOrder);
-  REQUIRE(amestoy_analysis.supernodes == kExpectedSupernodes);
+  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
+  REQUIRE(analysis.supernodes == kExpectedSupernodes);
 }

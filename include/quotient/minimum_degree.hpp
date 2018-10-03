@@ -153,6 +153,37 @@ inline std::vector<Int> QuotientGraph::FormSupernodalAdjacencyList(Int i)
   return supernodal_adjacency_list;
 }
 
+// Pretty-prints an std::vector<T>.
+template<typename T>
+void PrintVector(const std::vector<T>& vec, const std::string& msg) {
+  std::cout << msg << ": ";
+  for (std::size_t i = 0; i < vec.size(); ++i) {
+    std::cout << vec[i] << " ";
+  }
+  std::cout << "\n";
+}
+
+// Pretty-prints a QuotientGraph.
+void PrintGraph(
+    const QuotientGraph& graph,
+    const RandomAccessHeap<Int>& external_degree_heap) {
+  for (Int i = 0; i < graph.num_original_vertices; ++i) {
+    if (graph.supernodes[i].empty()) {
+      continue;
+    }
+    std::cout << "Supernode " << i << "\n";
+    PrintVector(graph.supernodes[i], "  members");
+    std::cout << "  external_degree: " << external_degree_heap.Value(i) << "\n";
+    if (external_degree_heap.ValidValue(i)) {
+      PrintVector(graph.adjacency_lists[i], "  adjacency_list");
+      PrintVector(graph.element_lists[i], "  element_list");
+    } else {
+      PrintVector(graph.structures[i], "  structure");
+    }
+    std::cout << "\n";
+  }
+}
+
 // A sequence of external degree approximations of decreasing accuracy.
 // Please see Theorem 4.1 of [ADD-96] for accuracy guarantees.
 enum ExternalDegreeType {
