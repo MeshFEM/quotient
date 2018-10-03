@@ -374,12 +374,12 @@ void RandomAccessHeap<T>::DisableIndex(Int index) {
 }
 
 template<typename T>
-inline Int RandomAccessHeap<T>::PowerOfTwo(UInt exponent) {
+Int RandomAccessHeap<T>::PowerOfTwo(UInt exponent) {
   return UInt(1) << exponent;
 }
 
 template<typename T>
-inline UInt RandomAccessHeap<T>::CeilLog2(UInt n) {
+UInt RandomAccessHeap<T>::CeilLog2(UInt n) {
   UInt ceil_log2 = 0;
   while (n) {
     ++ceil_log2;
