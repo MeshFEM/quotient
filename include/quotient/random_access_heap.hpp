@@ -31,10 +31,20 @@ namespace quotient {
 // permutation array, and shrinking the variable denoting the number of kept
 // elements.
 //
+// The high-level inspiration for the data structure is:
+//
+//   https://dxr.mozilla.org/mozilla-central/rev/1b822c694681/dom/canvas/WebGLElementArrayCache.cpp,
+//
+// which was written by Benoit Jacob to aid in preventing malicious OpenGL
+// indexing attacks.
+//
 // TODO(Jack Poulson): Add support for a PushBack(const T& value) method and
 // a DeleteIndex(Int index) method.
 //
 // TODO(Jack Poulson): Provide support for overloading operator <.
+//
+// TODO(Jack Poulson): Add support for aggolmerating the first few levels of
+// the tree for performance reasons.
 //
 template<typename T>
 class RandomAccessHeap {
