@@ -16,9 +16,14 @@ include_dir = include_directories('include')
 cpp_compiler = meson.get_compiler('cpp')
 libgomp_cpp = cpp_compiler.find_library('gomp')
 
-# A Catch-based unit test.
 graph_test_exe = executable(
     'graph_test',
     ['test/graph_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir)
 test('Graph tests', graph_test_exe)
+
+random_access_heap_test_exe = executable(
+    'random_access_heap_test',
+    ['test/random_access_heap_test.cc', 'include/quotient.hpp'],
+    include_directories : include_dir)
+test('RandomAccessHeap tests', random_access_heap_test_exe)

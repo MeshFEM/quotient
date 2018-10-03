@@ -5,8 +5,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-#ifndef QUOTIENT_SHRINKABLE_CACHED_BINARY_TREE_H_
-#define QUOTIENT_SHRINKABLE_CACHED_BINARY_TREE_H_
+#ifndef QUOTIENT_RANDOM_ACCESS_HEAP_H_
+#define QUOTIENT_RANDOM_ACCESS_HEAP_H_
 
 #include <iostream>
 #include <vector>
@@ -47,12 +47,13 @@ inline UInt CeilLog2(UInt n) {
 // TODO(Jack Poulson): Provide support for overloading operator <.
 //
 template<typename T>
-class ShrinkableCachedBinaryTree {
+class RandomAccessHeap {
+ public:
   // A trivial constructor.
-  ShrinkableCachedBinaryTree();
+  RandomAccessHeap();
 
   // A trivial destructor.
-  ~ShrinkableCachedBinaryTree();
+  ~RandomAccessHeap();
 
   // Initializes the cached tree based upon a given list of values.
   //
@@ -95,11 +96,16 @@ class ShrinkableCachedBinaryTree {
 
    // Returns the flattened tree index of a minimal entry in the child's
    // subtree.
-   Int ChildMinimalTreeIndex(Int level, Int index, bool right_child) const;
+   Int ChildMinimalTreeIndex(
+       Int level, Int level_index, bool right_child) const;
+
+   // Updates all relevant ancestral metadata for the leaf node with given
+   // index.
+   void PropagateComparisons(Int index);
 
    // Updates the entry of 'comparison_tree_' corresponding to the given level
    // and index within said level using its two children.
-   void UpdateComparisonUsingChildren(Int level, Int index);
+   void UpdateComparisonUsingChildren(Int level, Int level_index);
 
    // Returns a pair of the tree level and index of the parent node of the
    // given leaf node.
@@ -119,41 +125,42 @@ class ShrinkableCachedBinaryTree {
    // [0, num_active_) into the original positions in [0, values_.size()).
    std::vector<Int> inverse_perm_;
 
-   // An array of length 'num_active_ - 1' that stores the packed indices of
-   // the minimal (permuted) active index of the minimal descendant.
-   //
-   // For example, if there are four active indices, say, with values:
-   //   [7, 2, 5, 3],
-   // then 'comparison_tree_' will store a packed version of the binary tree:
-   //
-   //           1
-   //          / \
-   //         -   -
-   //       1       3
-   //      / \     / \
-   //     0   1   2   3
-   //
-   // The packing would be the serialization of [[1], [1, 3]], where the root
-   // node (level 0) is stored first, then the nodes at level 1, etc. And, in
-   // cases where there are not a power of two number of nodes, the bottom-most
-   // level is truncated so that there are exactly 'num_active_ - 1' nodes in
-   // the tree. For example, if there are five active indices, say, with values:
-   //   [4, 8, 0, 5, 2],
-   // then we would have the binary tree:
-   //
-   //               2
-   //              / \
-   //            --   --
-   //          2         4         
-   //         / \       / \
-   //        0   2     3   4
-   //       / \
-   //      0   1
-   //
-   // The packing would be the serialization of [[2], [2, 4], [0]].
-   //
-   // Programatically, the j'th level of the tree is stored in indices:
-   //   [2^j - 1, ..., max(2^{j + 1} - 2, num_active_ - 1)].
+   /* An array of length 'num_active_ - 1' that stores the packed indices of
+      the minimal (permuted) active index of the minimal descendant.
+
+      For example, if there are four active indices, say, with values:
+        [7, 2, 5, 3],
+      then 'comparison_tree_' will store a packed version of the binary tree:
+   
+                1
+               / \
+              -   -
+            1       3
+           / \     / \
+          0   1   2   3
+     
+      The packing would be the serialization of [[1], [1, 3]], where the root
+      node (level 0) is stored first, then the nodes at level 1, etc. And, in
+      cases where there are not a power of two number of nodes, the bottom-most
+      level is truncated so that there are exactly 'num_active_ - 1' nodes in
+      the tree. For example, if there are five active indices, say, with values:
+        [4, 8, 0, 5, 2],
+      then we would have the binary tree:
+   
+                    2
+                   / \
+                 --   --
+               2         4         
+              / \       / \
+             0   2     3   4
+            / \
+           0   1
+     
+      The packing would be the serialization of [[2], [2, 4], [0]].
+     
+      Programatically, the j'th level of the tree is stored in indices:
+        [2^j - 1, ..., max(2^{j + 1} - 2, num_active_ - 1)].
+   */
    std::vector<Int> comparison_tree_;
 
    // The number of levels of comparison metadata.
@@ -161,18 +168,18 @@ class ShrinkableCachedBinaryTree {
 };
 
 template<typename T>
-ShrinkableBinaryTree<T>::ShrinkableBinaryTree() { }
+RandomAccessHeap<T>::RandomAccessHeap() { }
 
 template<typename T>
-ShrinkableBinaryTree<T>::~ShrinkableBinaryTree() { }
+RandomAccessHeap<T>::~RandomAccessHeap() { }
 
 template<typename T>
-Int ShrinkableBinaryTree<T>::LevelOffset(Int level) const {
+Int RandomAccessHeap<T>::LevelOffset(Int level) const {
   return PowerOfTwo(level) - 1;
 }
 
 template<typename T>
-Int ShrinkableBinaryTree<T>::LevelSize(Int level) const {
+Int RandomAccessHeap<T>::LevelSize(Int level) const {
 #ifdef QUOTIENT_DEBUG
   if (level < 0 || level >= num_comparison_levels_) {
     std::cerr << "Requested level size of invalid level." << std::endl;
@@ -186,48 +193,55 @@ Int ShrinkableBinaryTree<T>::LevelSize(Int level) const {
 }
 
 template<typename T>
-void ShrinkableBinaryTree<T>::ChildMinimalTreeIndex(
-    Int level, Int index, bool right_child) const {
+Int RandomAccessHeap<T>::ChildMinimalTreeIndex(
+    Int level, Int level_index, bool right_child) const {
 #ifdef QUOTIENT_DEBUG
   if (level < 0 || level >= num_comparison_levels_) {
     std::cerr << "Requested level size of invalid level." << std::endl;
     return;
   }
-  if (index < 0 || index >= LevelSize(level)) {
+  if (level_index < 0 || index >= LevelSize(level)) {
     std::cerr << "Requested invalid index of level." << std::endl;
     return;
   }
 #endif
-  const Int child_index = right_child ? 2 * index + 1 : 2 * index;
+  const Int child_index = right_child ? 2 * level_index + 1 : 2 * level_index;
   if (level == num_comparison_levels_ - 1) {
     return child_index;
   }
   if (child_index >= LevelSize(level + 1)) {
     // This should only be possible when level is num_comparison_levels_ - 2.
+#ifdef QUOTIENT_DEBUG
+    if (level != num_comparison_levels_ - 2) {
+      std::cerr << "Impossible level comparison." << std::endl;
+    }
+#endif
+    const Int last_level_size = LevelSize(level + 1);
     return 2 * last_level_size + (child_index - last_level_size);
   }
   return comparison_tree_[LevelOffset(level + 1) + child_index];
 }
 
 template<typename T>
-bool ShrinkableBinaryTree<T>::UpdateComparisonUsingChildren(
-    Int level, Int index) {
+void RandomAccessHeap<T>::UpdateComparisonUsingChildren(
+    Int level, Int level_index) {
   const Int left_tree_index = ChildMinimalTreeIndex(
-      level, index, false /* right_child */);
+      level, level_index, false /* right_child */);
   const Int right_tree_index = ChildMinimalTreeIndex(
-      level, index, true /* right_child */);
+      level, level_index, true /* right_child */);
+
+  const T& left_value = values_[inverse_perm_[left_tree_index]];
+  const T& right_value = values_[inverse_perm_[right_tree_index]];
+
+  const Int new_tree_index =
+      left_value <= right_value ? left_tree_index : right_tree_index;
+
   const Int level_offset = LevelOffset(level);
-  const bool left_is_small =
-      values_[inverse_perm_[left_tree_index]] <=
-      values_[inverse_perm_[right_tree_index]];
-  const Int new_index = left_is_small ? left_tree_index : right_tree_index;
-  const Int old_index = comparison_tree_[level_offset + index];
-  comparison_tree_[level_offset + index] = new_index;
-  return new_index == old_index;
+  comparison_tree_[level_offset + level_index] = new_tree_index;
 }
 
 template<typename T>
-void ShrinkableCachedBinaryTree<T>::Initialize(const std::vector<T>& values) {
+void RandomAccessHeap<T>::Initialize(const std::vector<T>& values) {
   values_ = values;
   num_active_ = values.size();
   num_comparison_levels_ = CeilLog2(num_active_);
@@ -242,16 +256,16 @@ void ShrinkableCachedBinaryTree<T>::Initialize(const std::vector<T>& values) {
 
   // Compute the comparison metadata from the leaves up (in linear time).
   comparison_tree_.resize(num_active_ - 1);
-  for (Int level = num_comparison_levels - 1; level >= 0; --level) {
+  for (Int level = num_comparison_levels_ - 1; level >= 0; --level) {
     const Int level_size = LevelSize(level);
-    for (Int index = 0; index < level_size; ++index) {
-      UpdateComparisonUsingChildren(level, index);
+    for (Int level_index = 0; level_index < level_size; ++level_index) {
+      UpdateComparisonUsingChildren(level, level_index);
     }
   }
 }
 
 template<typename T>
-std::pair<Int, T> ShrinkableCachedBinaryTree<T>::MinimalEntry() const {
+std::pair<Int, T> RandomAccessHeap<T>::MinimalEntry() const {
   std::pair<Int, T> entry;
   entry.first = inverse_perm_[comparison_tree_[0]];
   entry.second = values_[entry.first];
@@ -259,7 +273,7 @@ std::pair<Int, T> ShrinkableCachedBinaryTree<T>::MinimalEntry() const {
 }
 
 template<typename T>
-std::pair<Int, Int> ShrinkableCachedBinaryTree<T>::ParentLevelAndIndex(
+std::pair<Int, Int> RandomAccessHeap<T>::ParentLevelAndIndex(
     Int tree_index) const {
   std::pair<Int, Int> tree_pos;
   const Int last_level_size = LevelSize(num_comparison_levels_ - 1);
@@ -268,30 +282,30 @@ std::pair<Int, Int> ShrinkableCachedBinaryTree<T>::ParentLevelAndIndex(
     tree_pos.second = tree_index / 2;
   } else {
     tree_pos.first = num_comparison_levels_ - 2;
-    tree_pos.second = tree_index - 2 * last_level_size;
+    tree_pos.second = (tree_index - last_level_size) / 2;
   }
   return tree_pos;
 }
 
 template<typename T>
-void ShrinkableCachedBinaryTree<T>::PropagateComparisons(Int index) {
+void RandomAccessHeap<T>::PropagateComparisons(Int index) {
   const Int tree_index = perm_[index];
   std::pair<Int, Int> tree_pos = ParentLevelAndIndex(tree_index);
-  bool done = UpdateComparisonUsingChildren(tree_pos.first, tree_pos.second);
-  while (!done && tree_pos.first != 0) {
+  UpdateComparisonUsingChildren(tree_pos.first, tree_pos.second);
+  while (tree_pos.first != 0) {
     --tree_pos.first;
     tree_pos.second /= 2;
-    done = UpdateComparisonUsingChildren(tree_pos.first, tree_pos.second);
+    UpdateComparisonUsingChildren(tree_pos.first, tree_pos.second);
   }
 }
 
 template<typename T>
-const T& ShrinkableCachedBinaryTree<T>::GetValue(Int index) const {
+const T& RandomAccessHeap<T>::GetValue(Int index) const {
   return values_[index];
 }
 
 template<typename T>
-void ShrinkableCachedBinaryTree<T>::SetValue(Int index, const T& value) {
+void RandomAccessHeap<T>::SetValue(Int index, const T& value) {
   if (values_[index] == value) {
     return;
   }
@@ -300,7 +314,7 @@ void ShrinkableCachedBinaryTree<T>::SetValue(Int index, const T& value) {
 }
 
 template<typename T>
-void ShrinkableCachedBinaryTree<T>::UpdateValue(Int index, const T& value) {
+void RandomAccessHeap<T>::UpdateValue(Int index, const T& value) {
   if (value == T(0)) {
     return;
   }
@@ -309,29 +323,60 @@ void ShrinkableCachedBinaryTree<T>::UpdateValue(Int index, const T& value) {
 }
 
 template<typename T>
-void ShrinkableCachedBinaryTree<T>::DisableIndex(Int index) {
-  const Int tree_index = perm_[index];
+void RandomAccessHeap<T>::DisableIndex(Int index) {
+  const Int old_tree_index = perm_[index];
 #ifdef QUOTIENT_DEBUG
-  if (tree_index >= num_active_) {
+  if (old_tree_index >= num_active_) {
     std::cerr << "Index was already disabled." << std::endl;
     return;
   }
 #endif
-  const Int index0 = inverse_perm_[tree_index];
-  const Int index1 = inverse_perm_[num_active_ - 1];
-  if (tree_index != num_active_ - 1) {
-    std::swap(inverse_perm_[tree_index], inverse_perm_[num_active_ - 1]);
-    std::swap(perm_[index0], perm_[index1]);
-  }
 
+  // Apply the transposition (old_tree_index, num_active_ - 1) to the current
+  // permutation from the left.
+  //
+  // More generally, a permutation and its inverse may be quickly updated to
+  // represent the original permutation with a swap (a, b) applied from the
+  // left by:
+  //
+  //   1) Storing a' := inverse_perm[a], b' := inverse_perm[b].
+  //
+  //   2) Updating inverse_perm via swap(inverse_perm[a], inverse_perm[b]).
+  //
+  //   3) Updating perm via swap(perm[a'], perm[b']).
+  //
+  // But, since exchanging steps (2) and (1) does not change the effect of the
+  // sequence, we may instead execute:
+  //
+  //   1) Updating inverse_perm via swap(inverse_perm[a], inverse_perm[b]).
+  //
+  //   2) Updating perm via swap(perm[inverse_perm[a]], perm[inverse_perm[b]]).
+  //
+  const Int swap_ind0 = old_tree_index;
+  const Int swap_ind1 = num_active_ - 1;
+  std::swap(inverse_perm_[swap_ind0], inverse_perm_[swap_ind1]);
+  std::swap(perm_[inverse_perm_[swap_ind0]], perm_[inverse_perm_[swap_ind1]]);
+
+  // Disable the last index of the tree.
   --num_active_;
-  num_comparison_levels_ = CeilLog2(num_active_);
   comparison_tree_.pop_back();
+  num_comparison_levels_ = CeilLog2(num_active_);
 
-  PropagateComparisons(tree_index);
-  PropagateComparisons(num_active - 1);
+  // Ensure that the comparison metadata is udpated. There are at most two
+  // locations where we must manually propagate changes:
+  //
+  //  1) Tree index 'old_tree_index'.
+  //
+  //  2) Tree index 'num_active_ - 1'.
+  //
+  // The former must be skipped if 'old_tree_index == num_active_'.
+  //
+  if (old_tree_index != num_active_) {
+    PropagateComparisons(inverse_perm_[old_tree_index]);
+  }
+  PropagateComparisons(inverse_perm_[num_active_ - 1]);
 }
 
 } // namespace quotient
 
-#endif // ifndef QUOTIENT_SHRINKABLE_CACHED_BINARY_TREE_H_
+#endif // ifndef QUOTIENT_RANDOM_ACCESS_HEAP_H_

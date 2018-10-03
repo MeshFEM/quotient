@@ -8,6 +8,9 @@
 #ifndef QUOTIENT_H_
 #define QUOTIENT_H_
 
+#include "quotient/config.hpp"
 #include "quotient/coordinate_graph.hpp"
+#include "quotient/minimum_degree.hpp"
+#include "quotient/random_access_heap.hpp"
 
 #endif // ifndef QUOTIENT_H_

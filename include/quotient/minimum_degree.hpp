@@ -15,99 +15,172 @@
 
 #include "quotient/config.hpp"
 #include "quotient/coordinate_graph.hpp"
-#include "quotient/shrinkable_cached_binary_tree.hpp"
+#include "quotient/random_access_heap.hpp"
 
 namespace quotient {
 
-// TODO(Jack Poulson): Carefully describe this data structure.
+// A data structure representing the "quotient graph" interpretation of the
+// original graph after eliminating a sequence of vertices. This is the
+// primary data structure of the (Approximate) Minimum Degree reordering
+// algorithm.
+//
+// Please see:
+//
+//   [ADD-96]
+//   Patrick R. Amestoy, Timothy A. Davis, and Iain S. Duff,
+//   "An Approximate Minimum Degree Ordering Algorithm",
+//   SIAM J. Matrix Analysis & Applic., Vol. 17, No. 4, pp. 886--905, 1996.
+//
+// There appears to be a plethora of publicly available preprints. We 
+//
 struct QuotientGraph {
-  Int num_orignal_vertices;
+  // The number of vertices in the original graph.
+  Int num_original_vertices;
 
+  // The number of vertices that have been eliminated from the original graph.
   Int num_eliminated_vertices;
 
-  std::vector<std::vector<Int>> supervariables;
+  // A list of length 'num_original_vertices' of supernodal sets. If index
+  // 'i' is a principal vertex of a supernode, then 'supernodes[i]'
+  // is a nontrivial, sorted list of integers that composes supernode(i).
+  std::vector<std::vector<Int>> supernodes;
 
+  // A list of length 'num_original_vertices' of element nonzero structures.
+  // The 'element' index of the list, 'structures[element]', will be created
+  // when supernode 'element' is converted from a variable to an element.
+  //
+  // The structure lists connect to each individual member of any supernode.
   std::vector<std::vector<Int>> structures;
 
+  // A list of length 'num_original_vertices' of the (unmodified) variable
+  // adjacencies of each principal variable. For example, if index 'i' is a
+  // principal variable, then 'adjacency_lists[i]' contains the set of neighbor
+  // variables for variable i that are not redundant with respect to edges
+  // implied by 'structures'.
+  //
+  // The adjacency lists connect to each individual member of any supernode.
   std::vector<std::vector<Int>> adjacency_lists;
 
+  // A list of length 'num_original_vertices' of the elements adjacent to
+  // each principal variable. For example, if index 'i' is a principal
+  // variable, then 'element_lists[i]' contains the list of elements adjacent
+  // to supervariable 'i'.
+  //
+  // The element lists only contain the principal member of any supernode.
   std::vector<std::vector<Int>> element_lists;
 
 #ifdef QUOTIENT_DEBUG
+  // The list of all (principal) variables.
   std::set<Int> variables;
 
+  // The list of all (principal) elements (principal members of eliminated
+  // variables).
   std::set<Int> elements;
 #endif
 
-  QuotientGraph(const CoordinateGraph& graph)
-  : num_original_vertices(graph.NumSources()), num_eliminated_vertices(0) {
-    // Initialize the supervariables as simple.
-    supervariables.resize(num_original_vertices);
-    for (Int source = 0; source < num_original_vertices; ++source) {
-      supervariables[source].push_back(source);
-    }
+  // Initializes the quotient graph from a symmetric graph.
+  QuotientGraph(const CoordinateGraph& graph);
 
-    // Trivially initialize the lower-triangular nonzero structures.
-    structures.resize(num_original_vertices);
+  // Uses 'supernodes' to filter 'structures[element]' into just its entries
+  // which are principal members of a supernode.
+  std::vector<Int> FormSupernodalStructure(Int element) const;
 
-    // Initialize the adjacency lists from the original graph.
-    adjacency_lists.resize(num_original_vertices);
-    const std::vector<GraphEdge>& edges = graph.Edges();
-    for (Int source = 0; source < num_original_vertices; ++source) {
-      const Int source_edge_offset = graph.SourceEdgeOffset(source);
-      const Int next_source_edge_offset = graph.SourceEdgeOffset(source + 1);
-      const Int num_connections = next_source_edge_offset - source_edge_offset;
-      std::vector<Int>& adjacency_list = adjacency_lists[source];
-  
-      adjacency_list.reserve(num_connections);
-      for (Int edge_index = source_edge_offset;
-           edge_index < next_source_edge_offset; ++edge_index) {
-        const GraphEdge& edge = edges[edge_index];
-        if (edge.target != source) {
-          adjacency_list.push_back(edge.target);
-        }
-      }
-    }
-
-    // Trivially initialize the element lists.
-    element_lists.resize(num_original_vertices);
-
-#ifdef QUOTIENT_DEBUG
-    // Initialize the (principal) variable and element lists.
-    for (Int source = 0; source < num_original_vertices; ++source) {
-      variables.insert(source);
-    }
-#endif
-  }
+  // Uses 'supernodes' to filter 'adjaency_lists[i]' into just its entries
+  // which are principal members of a supernode.
+  std::vector<Int> FormSupernodalAdjacencyList(Int i) const;
 };
 
+inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
+: num_original_vertices(graph.NumSources()), num_eliminated_vertices(0) {
+  // Initialize the supernodes as simple.
+  supernodes.resize(num_original_vertices);
+  for (Int source = 0; source < num_original_vertices; ++source) {
+    supernodes[source].push_back(source);
+  }
+
+  // Trivially initialize the lower-triangular nonzero structures.
+  structures.resize(num_original_vertices);
+
+  // Initialize the adjacency lists from the original graph.
+  adjacency_lists.resize(num_original_vertices);
+  const std::vector<GraphEdge>& edges = graph.Edges();
+  for (Int source = 0; source < num_original_vertices; ++source) {
+    const Int source_edge_offset = graph.SourceEdgeOffset(source);
+    const Int next_source_edge_offset = graph.SourceEdgeOffset(source + 1);
+    const Int num_connections = next_source_edge_offset - source_edge_offset;
+    std::vector<Int>& adjacency_list = adjacency_lists[source];
+
+    adjacency_list.reserve(num_connections);
+    for (Int edge_index = source_edge_offset;
+         edge_index < next_source_edge_offset; ++edge_index) {
+      const GraphEdge& edge = edges[edge_index];
+      if (edge.target != source) {
+        adjacency_list.push_back(edge.target);
+      }
+    }
+  }
+
+  // Trivially initialize the element lists.
+  element_lists.resize(num_original_vertices);
+
+#ifdef QUOTIENT_DEBUG
+  // Initialize the (principal) variable and element lists.
+  for (Int source = 0; source < num_original_vertices; ++source) {
+    variables.insert(source);
+  }
+#endif
+}
+
+inline std::vector<Int> QuotientGraph::FormSupernodalStructure(Int element)
+    const {
+  std::vector<Int> supernodal_structure;
+  for (const Int& i : structures[element]) {
+    if (!supernodes[i].empty()) {
+      supernodal_structure.push_back(i);
+    }
+  }
+  return supernodal_structure;
+}
+
+inline std::vector<Int> QuotientGraph::FormSupernodalAdjacencyList(Int i)
+    const {
+  std::vector<Int> supernodal_adjacency_list;
+  for (const Int& j : adjacency_lists[i]) {
+    if (!supernodes[j].empty()) {
+      supernodal_adjacency_list.push_back(j);
+    }
+  }
+  return supernodal_adjacency_list;
+}
+
 // A sequence of external degree approximations of decreasing accuracy.
+// Please see Theorem 4.1 of [ADD-96] for accuracy guarantees.
 enum ExternalDegreeType {
-  // In the notation of Amestoy et al. 1996,
-  //   d_i = |A_i \ supervar(i)| + |(\cup_{e in E_i} L_e) \ supervar(i)|.
+  // In the notation of [ADD-96],
+  //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i} L_e) \ supernode(i)|.
   kExactExternalDegree,
 
-  // In the notation of Amestoy et al. 1996,
+  // In the notation of [ADD-96],
   //   \bar{d_i}^k = min(
   //     n - k,
-  //     \bar{d_i}^{k - 1} + |L_p \ supervar(i)|, 
-  //     |A_i \ supervar(i)| + |L_p \ supervar(i)| +
+  //     \bar{d_i}^{k - 1} + |L_p \ supernode(i)|, 
+  //     |A_i \ supernode(i)| + |L_p \ supernode(i)| +
   //         \sum_{e in E_i \ {p}} |L_e | L_p|).
   kAmestoyExternalDegree,
 
-  // In the notation of Amestoy et al. 1996,
+  // In the notation of [ADD-96],
   //   \tilde{d_i} = d_i if |E_i| = 2, \hat{d_i}, otherwise.
   kAshcraftExternalDegree,
 
-  // In the notation of Amestoy et al. 1996,
-  //   \hat{d_i} = |A_i \ supervar(i)| + \sum_{e in E_i} |L_e \ supervar(i)|.
+  // In the notation of [ADD-96],
+  //   \hat{d_i} = |A_i \ supernode(i)| + \sum_{e in E_i} |L_e \ supernode(i)|.
   kGilbertExternalDegree,
 };
 
 // Returns the number of entries in {vec} \cap {blacklist}, where both vectors
 // are assumed sorted and unique.
 template<typename T>
-Int CardinalityOfIntersection(
+Int SizeOfIntersection(
     const std::vector<T>& vec, const std::vector<T>& blacklist) {
   Int num_intersections = 0;
   auto vec_iter = vec.cbegin(); 
@@ -119,7 +192,7 @@ Int CardinalityOfIntersection(
       blacklist_iter = std::lower_bound(
           blacklist_iter, blacklist.cend(), *vec_iter);
     } else {
-      ++num_removed;
+      ++num_intersections;
       ++vec_iter;
       ++blacklist_iter;
     }
@@ -127,15 +200,29 @@ Int CardinalityOfIntersection(
   return num_intersections;
 }
 
-// Returns the sorted serialization of {vec} \ {blacklist}, where 'vec' and
-// 'blacklist' are both sorted, unique vectors.
+// Returns the number of entries in {vec} \ {blacklist}, where both vectors are
+// assumed to be sorted and unique.
+template<typename T>
+Int SizeOfDifference(
+    const std::vector<T>& vec, const std::vector<T>& blacklist) {
+  return vec.size() - SizeOfIntersection(vec, blacklist);
+}
+
+// Returns the number of entries in {vec0} \cup {vec1}, where both vectors are
+// assumed to be sorted and unique.
+template<typename T>
+Int SizeOfUnion(const std::vector<T>& vec0, const std::vector<T>& vec1) {
+  return vec0.size() + vec1.size() - SizeOfIntersection(vec0, vec1);
+}
+
+// Fills 'filtered_vec' with the sorted serialization of {vec} \ {blacklist},
+// where 'vec' and 'blacklist' are both sorted, unique vectors.
 template<typename T>
 void FilterSet(
     const std::vector<T>& vec,
     const std::vector<T>& blacklist,
     std::vector<T>* filtered_vec) {
-  const Int num_intersections = CardinalityOfIntersection(vec, blacklist);
-  const Int filtered_size = vec.size() - num_intersections;
+  const Int filtered_size = SizeOfDifference(vec, blacklist);
   filtered_vec->resize(0);
   filtered_vec->resize(filtered_size);
 #ifdef QUOTIENT_DEBUG
@@ -154,13 +241,14 @@ void FilterSet(
 #endif
 }
 
+// Fills 'sorted_union' with the sorted serialization of {vec0} \cup {vec1},
+// where 'vec0' and 'vec1' are sorted, unique vectors.
 template<typename T>
 void MergeSets(
     const std::vector<T>& vec0,
     const std::vector<T>& vec1, 
     std::vector<T>* sorted_union) {
-  const Int num_intersections = CardinalityOfIntersection(vec0, vec1);
-  const Int union_size = vec0.size() + vec1.size() - num_intersections;
+  const Int union_size = SizeOfUnion(vec0, vec1);
   sorted_union->resize(0);
   sorted_union->resize(union_size);
 #ifdef QUOTIENT_DEBUG
@@ -179,95 +267,101 @@ void MergeSets(
 #endif
 }
 
-inline void InsertEntryIntoSet(Int value, std::vector<Int>* vec) {
+// Inserts 'value' into the sorted, unique vector, 'vec', so that the result
+// is sorted.
+template<typename T>
+void InsertEntryIntoSet(const T& value, std::vector<T>* vec) {
   auto iter = std::lower_bound(vec->begin(), vec->end(), value);
   vec->insert(iter, value);
 }
 
-// A definition of Ashcraft's hash function (as described in Amestoy et al.,
-// "An Approximate Minimum Degree Ordering Algorithm").
-inline std::size_t AshcraftVariableHash(
-    Int num_orig_vertices,
-    const std::vector<Int>& adjacency_list,
-    const std::vector<Int>& element_list) {
+// A definition of Ashcraft's hash function (as described in [ADD-96]).
+// Note that only principal members of A_i are incorporated in the hash.
+inline std::size_t AshcraftVariableHash(const QuotientGraph& graph, Int i) {
   std::size_t result = 0;
-  for (const Int& index : adjacency_list) {
-    result = (result + index) % (num_orig_vertices - 1);
+  for (const Int& index : graph.adjacency_lists[i]) {
+    if (!graph.supernodes[index].empty()) {
+      result = (result + index) % (graph.num_original_vertices - 1);
+    }
   }
-  for (const Int& index : element_list) {
-    result = (result + index) % (num_orig_vertices - 1);
+  for (const Int& index : graph.element_lists[i]) {
+    result = (result + index) % (graph.num_original_vertices - 1);
   }
   return result + 1;
 };
 
-// Returns true if supernodes 'i' and 'i' are considered indistinguishable with
+// Returns true if supernodes 'i' and 'j' are considered indistinguishable with
 // respect to their quotient graph representation.
 //
-// The elimination graph definition (e.g., as given by Amestoy et al.)
+// The elimination graph definition (e.g., as given by [ADD-96])
 // involves testing if
 //   Adj_{GElim}(i) \cup {i} = Adj_{GElim}(j) \cup {j},
 // but we instead use the stricter, and easier to measure, test that
 //   Adj_{GQuotient}(i) \cup {i} = Adj_{GQuotient}(j) \cup {j}.
 //
 // The second test is easier to compute because
-///  Adj_{GQuotient}(i) \cup {i} = A_i \cup E_i \cup {i},
-// where A_i, E_i, and {i} are nonoverlapping, sorted lists.
+//   Adj_{GQuotient}(i) \cup {i} = A_i \cup E_i \cup {i},
+// and
+//   A_i \cup E_i \cup {i} = A_j \cup E_j \cup {j}
+// if and only if
+//   A_i \cup {i} = A_j \cup {j} and E_i = E_j.
 //
-// We can therefore test for indistinguishability by advancing three pointers
-// for each supervariable.
 inline bool SupernodesAreQuotientIndistinguishable(
     const QuotientGraph& graph, Int i, Int j) {
-  const Int adj_i_size = graph.adjacency_lists[i].size();
-  const Int adj_j_size = graph.adjacency_lists[j].size();
-  const Int elem_i_size = graph.element_lists[i].size();
-  const Int elem_j_size = graph.element_lists[j].size();
-  const Int set_size = adj_i_size + elem_i_size + 1;
+  const std::size_t adj_size = graph.adjacency_lists[i].size();
+  const std::size_t elem_size = graph.element_lists[i].size();
 
   // Early exit if the set cardinalities disagree.
-  if (set_size != adj_j_size + elem_j_size + 1) {
+  if (adj_size != graph.adjacency_lists[j].size() ||
+      elem_size != graph.element_lists[j].size()) {
     return false;
   }
 
-  // Set up iterator bounds for the adjacency list, element list, and singleton.
-  const std::vector<Int> i_vec{i};
-  const std::vector<Int> j_vec{j}; 
+  // Check if E_i = E_j.
+  for (std::size_t index = 0; index < elem_size; ++index) {
+    if (graph.element_lists[i][index] != graph.element_lists[j][index]) {
+      return false;
+    }
+  }
+
+  // Check if A_i \cup {i} = A_j \cup {j}.
+  const std::vector<Int> i_vec{i}, j_vec{j};
   std::vector<std::vector<Int>::const_iterator> i_iters{
-    graph.adjacency_lists[i].cbegin(),
-    graph.element_lists[i].cbegin(),
-    i_vec.cbegin(),
+    graph.adjacency_lists[i].cbegin(), i_vec.cbegin(),
   };
   std::vector<std::vector<Int>::const_iterator> j_iters{
-    graph.adjacency_lists[j].cbegin(),
-    graph.element_lists[j].cbegin(),
-    j_vec.cbegin(),
+    graph.adjacency_lists[j].cbegin(), j_vec.cbegin(),
   };
   const std::vector<std::vector<Int>::const_iterator> i_ends{
-    graph.adjacency_lists[i].cend(),
-    graph.element_lists[i].cend(),
-    i_vec.cend(),
+    graph.adjacency_lists[i].cend(), i_vec.cend(),
   };
   const std::vector<std::vector<Int>::const_iterator> j_ends{
-    graph.adjacency_lists[j].cend(),
-    graph.element_lists[j].cend(),
-    j_vec.cend(),
+    graph.adjacency_lists[j].cend(), j_vec.cend(),
   };
  
-  for (Int index = 0; index < set_size; ++index) {
+  for (std::size_t index = 0; index < adj_size + 1; ++index) {
     bool found_match = false;
-    for (Int i_set = 0; i_set < 3; ++i_set) {
-      if (i_iters[i_set] != i_ends[i_set]) {
-        for (Int j_set = 0; j_set < 3; ++j_set) {
-          if (j_iters[j_set] != j_ends[j_set] &&
-              *i_iters[i_set] == *j_iters[j_set]) {
-            ++i_iters[i_set];
-            ++j_iters[j_set];
-            found_match = true;
-            break;
-          }
+    for (std::size_t i_set = 0; i_set < i_iters.size(); ++i_set) {
+      auto& i_iter = i_iters[i_set];
+      if (i_iter == i_ends[i_set]) {
+        continue;
+      }
+
+      for (std::size_t j_set = 0; j_set < j_iters.size(); ++j_set) {
+        auto& j_iter = j_iters[j_set]; 
+        if (j_iter == j_ends[j_set]) {
+          continue;
         }
-        if (found_match) {
+
+        if (*i_iter == *j_iter) {
+          ++i_iter;
+          ++j_iter;
+          found_match = true;
           break;
         }
+      }
+      if (found_match) {
+        break;
       }
     }
     if (!found_match) {
@@ -275,12 +369,12 @@ inline bool SupernodesAreQuotientIndistinguishable(
     }
   }
 #ifdef QUOTIENT_DEBUG
-  for (Int i_set = 0; i_set < 3; ++i_set) {
+  for (Int i_set = 0; i_set < 2; ++i_set) {
     if (i_iters[i_set] != i_ends[i_set]) {
       std::cerr << "i_iters[" << i_set << "] != end." << std::endl;
     }
   }
-  for (Int j_set = 0; j_set < 3; ++j_set) {
+  for (Int j_set = 0; j_set < 2; ++j_set) {
     if (j_iters[j_set] != j_ends[j_set]) {
       std::cerr << "j_iters[" << j_set << "] != end." << std::endl;
     }
@@ -290,52 +384,95 @@ inline bool SupernodesAreQuotientIndistinguishable(
   return true;
 }
 
-// An implementation of Algorithm 2 from Amestoy et al., 1996.
-// It implicitly computes |L_e \ L_p| for all elements e within an
-// unordered map from the element index to the cardinality. If no key exists
-// for a particular element index, the cardinality is implied to be |L_e|.
-inline std::unordered_map<Int, Int> ExternalStructureCardinalities(
-    const QuotientGraph& graph, Int pivot) {
-  std::unordered_map<Int, Int> external_structure_cardinalities;
-  for (const Int& i : graph.structures[pivot]) {
+// An implementation of Algorithm 2 from [ADD-96].
+// On exit, it holds |L_e \ L_p| for all elements e in the element list
+// of a supernode in the pivot structure.
+inline std::unordered_map<Int, Int> ExternalStructureSizes(
+    const QuotientGraph& graph,
+    const std::vector<Int>& supernodal_pivot_structure) {
+  std::unordered_map<Int, Int> external_structure_sizes;
+  for (const Int& i : supernodal_pivot_structure) {
     for (const Int& element : graph.element_lists[i]) {
-      if (!external_structure_cardinalities.count(element)) {
-        external_structure_cardinalities[element] =
-            graph.structures[element].size();
+      if (!external_structure_sizes.count(element)) {
+        external_structure_sizes[element] = graph.structures[element].size();
       }
-      external_structure_cardinalities[element] -= graph.structures[i].size();
+      external_structure_sizes[element] -= graph.structures[i].size();
     }
   }
-  return external_structure_cardinalities;
+  return external_structure_sizes;
 }
 
+// Computes the exact external degree of supernode i using Eq. (2) of [ADD-96].
+//   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
 inline Int ExactExternalDegree(const QuotientGraph& graph, Int i) {
-  // TODO(Jack Poulson)
+  // Add the cardinality of A_i \ supernode(i).
+  Int external_degree = SizeOfDifference(
+      graph.adjacency_lists[i], graph.supernodes[i]);
+
+  // Add the cardinality of (\cup_{e in E_i} L_e) \ supernode(i).
+  std::vector<Int> filtered_struct;
+  std::vector<Int> element_struct_union;
+  std::vector<Int> temp_int_vec;
+  for (const Int& element : graph.element_lists[i]) {
+    FilterSet(graph.structures[element], graph.supernodes[i], &filtered_struct);
+    auto temp_int_vec = element_struct_union;
+    MergeSets(temp_int_vec, filtered_struct, &element_struct_union);
+  }
+  external_degree += element_struct_union.size();
+
+  return external_degree;
 }
 
+// Computes an approximation of the external degree of supernode i using Eq. (4)
+// of [ADD-96].
 inline Int AmestoyExternalDegree(
     const QuotientGraph& graph,
     Int i,
     Int pivot,
     Int old_external_degree,
-    const std::unordered_map<Int, Int>& external_structure_cardinalities) {
+    const std::unordered_map<Int, Int>& external_structure_sizes) {
   const Int num_vertices_left =
       graph.num_original_vertices - graph.num_eliminated_vertices;
-  // TODO(Jack Poulson)
+
+  // Note that this usage of 'external' refers to |L_p \ supernode(i)| and not
+  // |L_e \ L_p|, as is the case for 'external_structure_sizes'.
+  const Int external_pivot_structure_size = SizeOfDifference(
+      graph.structures[pivot], graph.supernodes[i]);
+
+  const Int bound0 = num_vertices_left;
+  const Int bound1 = old_external_degree + external_pivot_structure_size;
+
+  Int bound2 =
+    SizeOfDifference(graph.adjacency_lists[i], graph.supernodes[i]) +
+    SizeOfDifference(graph.structures[pivot], graph.supernodes[i]);
+  for (const Int& element : graph.element_lists[i]) {
+    if (element == pivot) {
+      continue;
+    }
+    if (external_structure_sizes.count(element)) {
+      bound2 += graph.structures[element].size();
+    } else {
+      auto iter = external_structure_sizes.find(element);
+#ifdef QUOTIENT_DEBUG
+      if (iter == external_structure_sizes.end()) {
+        std::cerr << "Did not find element." << std::endl;
+      }
+#endif
+      bound2 += iter->second;
+    }
+  }
+
+  return std::min(bound0, std::min(bound1, bound2));
 }
 
 // Returns the external degree approximation of Gilbert, Moler, and Schreiber,
-//   \hat{d_i} = |A_i \ supervar(i)|  + \sum_{e in E_i} |L_e \ supervar(i)|.
+//   \hat{d_i} = |A_i \ supernode(i)|  + \sum_{e in E_i} |L_e \ supernode(i)|.
 inline Int GilbertExternalDegree(const QuotientGraph& graph, Int i) {
-  Int external_degree = graph.adjacency_lists[i].size() -
-      CardinalityOfIntersection(
-          graph.adjacency_lists[i],
-          graph.supervariables[i]);
-  for (const Int& element : element_list) {
-    external_degree += graph.structures[element] -
-        CardinalityOfIntersection(
-            graph.structures[element],
-            graph.supervariables[i]);
+  Int external_degree = SizeOfDifference(
+      graph.adjacency_lists[i], graph.supernodes[i]);
+  for (const Int& element : graph.element_lists[i]) {
+    external_degree += SizeOfDifference(
+        graph.structures[element], graph.supernodes[i]);
   }
   return external_degree;
 }
@@ -355,51 +492,62 @@ inline Int ExternalDegree(
     Int i,
     Int pivot,
     Int old_external_degree,
-    const std::unordered_map<Int, Int>& external_structure_cardinalities,
+    const std::unordered_map<Int, Int>& external_structure_sizes,
     ExternalDegreeType degree_type) {
+  Int external_degree = -1;
   switch(degree_type) {
     case kExactExternalDegree: { 
-      return ExactExternalDegree(graph, i);
+      external_degree = ExactExternalDegree(graph, i);
+      break;
     }
     case kAmestoyExternalDegree: {
-      return AmestoyExternalDegree(
-          graph, i, pivot, old_external_degree,
-          external_structure_cardinalities);
+      external_degree = AmestoyExternalDegree(
+          graph, i, pivot, old_external_degree, external_structure_sizes);
+      break;
     }
     case kAshcraftExternalDegree: { 
-      return AshcraftExternalDegree(graph, i);
+      external_degree = AshcraftExternalDegree(graph, i);
+      break;
     }
     case kGilbertExternalDegree: {
-      return GilbertExternalDegree(graph, i);
+      external_degree = GilbertExternalDegree(graph, i);
+      break;
     }
   }
+  return external_degree;
 }
 
+// The result of running the MinimumDegree reordering algorithm. It contains
+// the ordered list of eliminated principal vertices, the list of supernodes,
+// and the supernodal nonzero structure of each principal column.
 struct MinimumDegreeAnalysis {
+  // The recommended elimination order of the supernodes (with each supernode
+  // represented by its principal member).
   std::vector<Int> elimination_order;
 
-  std::vector<std::vector<Int>> supervariables;
+  // The list of supernodes. Entry 'i' is nonempty if and only if 'i' is the
+  // principal member of the supernode, in which case 'supernodes[i]' contains
+  // the sorted list of members of the supernode.
+  std::vector<std::vector<Int>> supernodes;
 
-  std::vector<std::vector<Int>> structures;
+  // The supernodal nonzero structure of the principal columns of the
+  // factorization.
+  std::vector<std::vector<Int>> supernodal_structures;
 
   // We will push to elimination order as the reordering algorithm progresses,
   // so we will allocate an upper bound for the amount of required space.
-  // The 'supervariables' and 'structures' variables will be copied over from
+  // The 'supernodes' and 'structures' variables will be copied over from
   // the quotient graph just before the analysis completes.
-  Analysis(Int num_vertices) {
+  MinimumDegreeAnalysis(Int num_vertices) {
     elimination_order.reserve(num_vertices);
   }
 };
 
-// Returns a list of supernodes of the given (symmetric) graph in an order
-// meant to approximately minimize fill-in during Cholesky factorization.
-// The input graph must be explicitly symmetric.
+// Returns a supernodal reordering and the corresponding supernodal nonzero
+// structure of the implied factorization using the (Approximate) Minimum
+// Degree reordering algorithm. Please see [ADD-96] for details.
 //
-// Please see:
-//   Patrick R. Amestoy, Timothy A. Davis, and Iain S. Duff,
-//   "An Approximate Minimum Degree Ordering Algorithm",
-//   SIAM J. Matrix Analysis & Applic., Vol. 17, No. 4, pp. 886--905, 1996.
-// There appears to be a plethora of publicly available preprints.
+// The input graph must be explicitly symmetric.
 //
 MinimumDegreeAnalysis MinimumDegree(
   const CoordinateGraph& graph, ExternalDegreeType degree_type) {
@@ -411,17 +559,17 @@ MinimumDegreeAnalysis MinimumDegree(
   }
 #endif
   QuotientGraph quotient_graph(graph);
-  const Int num_orig_vert = quotient_graph.num_original_vertices;
+  const Int num_orig_vertices = quotient_graph.num_original_vertices;
 
-  // Initialize the shrinkable cached binary tree of external degrees.
-  ShrinkableCachedBinaryTree<Int> external_degrees;
+  // Initialize the cached binary tree of external degrees.
+  RandomAccessHeap<Int> external_degree_heap;
   {
-    std::vector<Int> external_degrees_vec(num_orig_vert);
-    for (Int source = 0; source < num_orig_vert; ++source) {
+    std::vector<Int> external_degrees_vec(num_orig_vertices);
+    for (Int source = 0; source < num_orig_vertices; ++source) {
       external_degrees_vec[source] =
           quotient_graph.adjacency_lists[source].size();
     }
-    external_degrees.Initialize(external_degrees_vec);
+    external_degree_heap.Initialize(external_degrees_vec);
   }
 
   // Buffers used to store a temporary integer vector.
@@ -429,10 +577,10 @@ MinimumDegreeAnalysis MinimumDegree(
   std::vector<Int> temp_int_vec0, temp_int_vec1;
 
   // Eliminate the variables.
-  MinimumDegreeAnalysis analysis(num_orig_vert);
-  while (quotient_graph.num_eliminated_vertices < num_orig_vert) {
+  MinimumDegreeAnalysis analysis(num_orig_vertices);
+  while (quotient_graph.num_eliminated_vertices < num_orig_vertices) {
     // Retrieve a variable with minimal (approximate) external degree.
-    const std::pair<Int, Int> pivot_pair = external_degrees.MinimalEntry(); 
+    const std::pair<Int, Int> pivot_pair = external_degree_heap.MinimalEntry(); 
     const Int pivot = pivot_pair.first;
 
     // Compute the structure of the pivot:
@@ -443,12 +591,12 @@ MinimumDegreeAnalysis MinimumDegree(
     // optimal time complexity.
     FilterSet(
       quotient_graph.adjacency_lists[pivot],
-      quotient_graph.supervariables[pivot],
+      quotient_graph.supernodes[pivot],
       &quotient_graph.structures[pivot]);
     for (const Int& element : quotient_graph.element_lists[pivot]) {
       FilterSet(
         quotient_graph.structures[element],
-        quotient_graph.supervariables[pivot],
+        quotient_graph.supernodes[pivot],
         &temp_int_vec0);
 
       temp_int_vec1 = quotient_graph.structures[pivot];
@@ -457,23 +605,25 @@ MinimumDegreeAnalysis MinimumDegree(
         temp_int_vec0,
         &quotient_graph.structures[pivot]);
     }
+    const std::vector<Int> supernodal_pivot_structure =
+        quotient_graph.FormSupernodalStructure(pivot);
 
     // Update the adjacency lists.
-    for (const Int& i : quotient_graph.structures[pivot]) {
+    for (const Int& i : supernodal_pivot_structure) {
       // Remove redundant adjacency entries:
-      //   A_i := (A_i \ L_p) \ supervar(p).
+      //   A_i := (A_i \ L_p) \ supernode(p).
       FilterSet(
           quotient_graph.adjacency_lists[i],
           quotient_graph.structures[pivot],
           &temp_int_vec0);
       FilterSet(
           temp_int_vec0,
-          quotient_graph.supervariables[pivot],
+          quotient_graph.supernodes[pivot],
           &quotient_graph.adjacency_lists[i]);
     }
 
     // Update the element lists.
-    for (const Int& i : quotient_graph.structures[pivot]) {
+    for (const Int& i : supernodal_pivot_structure) {
       // Element absorption:
       //   E_i := (E_i \ E_p) \cup {p}.
       temp_int_vec0 = quotient_graph.element_lists[i];
@@ -486,70 +636,82 @@ MinimumDegreeAnalysis MinimumDegree(
 
     // Compute the external structure cardinalities of the elements.
     // (but only if the Amestoy external degree approximation is requested).
-    std::unordered_map<Int, Int> external_structure_cardinalities;
+    std::unordered_map<Int, Int> external_structure_sizes;
     if (degree_type == kAmestoyExternalDegree) {
-      external_structure_cardinalities = ExternalStructureCardinalities(
-          quotient_graph, pivot);
+      external_structure_sizes = ExternalStructureSizes(
+          quotient_graph, supernodal_pivot_structure);
     }
 
-    // Compute the external degree approximations of the supervariables
+    // Compute the external degree approximations of the supernodes
     // adjacent to the current pivot.
-    for (const Int& i : quotient_graph.structures[pivot]) {
+    //
+    // TODO(Jack Poulson): Add support for a batch interface to
+    // 'external_degree_heap.SetValue' so that comparison propagations can be
+    // potentially shared.
+    for (const Int& i : supernodal_pivot_structure) {
       // Compute the external degree (or approximation) of supervariable i:
-      //   d_i := |A_i \ supervar(i)| + |(\cup_{e in E_i} L_e) \ supervar(i)|.
-      const Int old_external_degree = external_degrees.GetValue(i); 
+      //   d_i := |A_i \ supernode(i)| + |(\cup_{e in E_i} L_e) \ supernode(i)|.
+      const Int old_external_degree = external_degree_heap.GetValue(i); 
       const Int external_degree = ExternalDegree(
-        quotient_graph, i, pivot, old_external_degree,
-        external_structure_cardinalities, degree_type);
-      external_degrees.SetValue(i, external_degree);
+        quotient_graph, i, pivot, old_external_degree, external_structure_sizes,
+        degree_type);
+      external_degree_heap.SetValue(i, external_degree);
     }
 
-    // Fill a set of buckets for the hashes of the supervariables adjacent to
+    // Fill a set of buckets for the hashes of the supernodes adjacent to
     // the current pivot.
-    const Int struct_size = quotient_graph.structures[pivot].size();
-    std::vector<Int> bucket_list(struct_size);
-    std::unordered_map<Int, std::unordered_set<Int>> variable_hash_map;
-    for (Int i_index = 0; i_index < struct_size; ++i_index) {
-      const Int i = quotient_graph.structures[pivot][i_index];
+    const Int supernodal_pivot_struct_size = supernodal_pivot_structure.size();
+    std::vector<Int> bucket_list(supernodal_pivot_struct_size);
+    std::unordered_map<Int, std::vector<Int>> variable_hash_map;
+    for (Int i_index = 0; i_index < supernodal_pivot_struct_size; ++i_index) {
+      const Int i = supernodal_pivot_structure[i_index];
 
       // Append this principal variable to its hash bucket.
-      const Int bucket = AshcraftVariableHash(
-        quotient_graph.num_orig_vertices,
-        quotient_graph.adjacency_list[i],
-        quotient_graph.element_list[i]);
+      // TODO(Jack Poulson): Add configurable support for other hashes.
+      // For example, one could mod by (std::numeric_limits<Int>::max() - 1).
+      const std::size_t bucket = AshcraftVariableHash(quotient_graph, i);
       bucket_list[i_index] = bucket;
       variable_hash_map[bucket].push_back(i_index);
     }
 
-    // Supervariable detection.
-    for (Int i_index = 0; i_index < pivot_struct_size; ++i_index) {
-      const Int i = quotient_graph.structures[pivot][i_index];
+    // Supervariable detection. While the supernodal merges will potentially
+    // shrink the supernodal adjacency lists (and thus change the associated
+    // Ashcraft hash of variables), if two variables are indistinguishable,
+    // their cached bucket might be wrong, but they would be wrong together.
+    //
+    // The test for indistinguishability does not depend upon the variable
+    // supernodal structure and is thus invariant to supervariable merges.
+    std::vector<bool> merged_supernode(supernodal_pivot_struct_size, false);
+    for (Int i_index = 0; i_index < supernodal_pivot_struct_size; ++i_index) {
+      if (merged_supernode[i_index]) {
+        continue;
+      }
+      const Int i = supernodal_pivot_structure[i_index];
       const Int bucket = bucket_list[i_index];
       for (const Int& j_index : variable_hash_map[bucket]) {
-        if (j_index <= i_index) {
+        if (j_index <= i_index || merged_supernode[j_index]) {
           continue;
         }
-        const Int j = quotient_graph.structures[pivot][j_index];
+        const Int j = supernodal_pivot_structure[j_index];
         const bool indistinguishable =
             SupernodesAreQuotientIndistinguishable(quotient_graph, i, j);
         if (indistinguishable) {
-          // Absorb supervar(j) into supervar(i). 
-          {
-            temp_int_vec0 = quotient_graph.supervariables[i];
-            MergeSets(
-                temp_int_vec0,
-                quotient_graph.supervariables[j],
-                &quotient_graph.supervariables[i]);
-          }
-          external_degrees.UpdateValue(
-              i, -quotient_graph.supervariables[j].size());
-          external_degrees.DisableIndex(j);
+          // Absorb supernode(j) into supernode(i). 
+          temp_int_vec0 = quotient_graph.supernodes[i];
+          MergeSets(
+              temp_int_vec0,
+              quotient_graph.supernodes[j],
+              &quotient_graph.supernodes[i]);
+          external_degree_heap.UpdateValue(
+              i, -quotient_graph.supernodes[j].size());
+          external_degree_heap.DisableIndex(j);
 #ifdef QUOTIENT_DEBUG
           quotient_graph.variables.erase(j);
 #endif
-          SwapClearVector(quotient_graph.supervariables[j]);
-          SwapClearVector(quotient_graph.adjacency_lists[j]);
-          SwapClearVector(quotient_graph.element_lists[j]);
+          SwapClearVector(&quotient_graph.supernodes[j]);
+          SwapClearVector(&quotient_graph.adjacency_lists[j]);
+          SwapClearVector(&quotient_graph.element_lists[j]);
+          merged_supernode[j_index] = true;
         }
       }
     }
@@ -566,15 +728,20 @@ MinimumDegreeAnalysis MinimumDegree(
     //   V := V \ {p}.
     quotient_graph.variables.erase(pivot);
 #endif
-    SwapClearVector(quotient_graph.adjacency_lists[pivot]);
-    SwapClearVector(quotient_graph.element_lists[pivot]);
-    quotient_graph.elimination_order.push_back(pivot);
+    SwapClearVector(&quotient_graph.adjacency_lists[pivot]);
+    SwapClearVector(&quotient_graph.element_lists[pivot]);
     quotient_graph.num_eliminated_vertices +=
-        quotient_graph.supervariables[pivot].size();
+        quotient_graph.supernodes[pivot].size();
+
+    analysis.elimination_order.push_back(pivot);
   }
 
-  analysis.supervariables = quotient_graph.supervariables;
-  analysis.structures = quotient_graph.structures;
+  analysis.supernodes = quotient_graph.supernodes;
+  analysis.supernodal_structures.resize(num_orig_vertices);
+  for (const Int& i : analysis.elimination_order) {
+    analysis.supernodal_structures[i] =
+        quotient_graph.FormSupernodalStructure(i);
+  }
   return analysis;
 }
 
