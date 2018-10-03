@@ -97,6 +97,22 @@ TEST_CASE("ADD-96", "[ADD-96]") {
       {9},
   };
 
+  // This structure is defined directly (modulo translation from 1-based to
+  // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
+  const std::vector<std::vector<Int>> kExpectedSupernodalStructures{
+      {3, 5},
+      {4, 5, 8},
+      {4, 5, 6},
+      {5, 6, 7},
+      {5, 6, 8},
+      {6, 7, 8},
+      {7, 8, 9},
+      {8, 9},
+      {9},
+      {},
+  };
+
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
+  REQUIRE(analysis.supernodal_structures == kExpectedSupernodalStructures);
 }
