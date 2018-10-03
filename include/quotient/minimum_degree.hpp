@@ -177,24 +177,23 @@ enum ExternalDegreeType {
   kGilbertExternalDegree,
 };
 
-// Returns the number of entries in {vec} \cap {blacklist}, where both vectors
+// Returns the number of entries in {vec0} \cap {vec1}, where both vectors
 // are assumed sorted and unique.
 template<typename T>
 Int SizeOfIntersection(
-    const std::vector<T>& vec, const std::vector<T>& blacklist) {
+    const std::vector<T>& vec0, const std::vector<T>& vec1) {
   Int num_intersections = 0;
-  auto vec_iter = vec.cbegin(); 
-  auto blacklist_iter = blacklist.cbegin();
-  while (vec_iter != vec.cend() && blacklist_iter != blacklist.cend()) {
-    if (*vec_iter < *blacklist_iter) {
-      vec_iter = std::lower_bound(vec_iter, vec.cend(), *blacklist_iter);
-    } else if (*vec_iter > *blacklist_iter) {
-      blacklist_iter = std::lower_bound(
-          blacklist_iter, blacklist.cend(), *vec_iter);
+  auto vec0_iter = vec0.cbegin(); 
+  auto vec1_iter = vec1.cbegin();
+  while (vec0_iter != vec0.cend() && vec1_iter != vec1.cend()) {
+    if (*vec0_iter < *vec1_iter) {
+      vec0_iter = std::lower_bound(vec0_iter, vec0.cend(), *vec1_iter);
+    } else if (*vec0_iter > *vec1_iter) {
+      vec1_iter = std::lower_bound(vec1_iter, vec1.cend(), *vec0_iter);
     } else {
       ++num_intersections;
-      ++vec_iter;
-      ++blacklist_iter;
+      ++vec0_iter;
+      ++vec1_iter;
     }
   }
   return num_intersections;
@@ -213,6 +212,58 @@ Int SizeOfDifference(
 template<typename T>
 Int SizeOfUnion(const std::vector<T>& vec0, const std::vector<T>& vec1) {
   return vec0.size() + vec1.size() - SizeOfIntersection(vec0, vec1);
+}
+
+// Returns the number of entries in ({vec0} \cup {vec1}) \ {blacklist}, where
+// all vectors are assumed sorted and unique.
+template<typename T>
+Int SizeOfBlacklistedUnion(
+    const std::vector<T>& vec0,
+    const std::vector<T>& vec1,
+    const std::vector<T>& blacklist) {
+  auto vec0_iter = vec0.cbegin(); 
+  auto blacklist_iter0 = blacklist.cbegin();
+
+  auto vec1_iter = vec1.cbegin();
+  auto blacklist_iter1 = blacklist.cbegin();
+
+  Int num_vec0_blacklisted = 0;
+  Int num_vec1_blacklisted = 0;
+  Int num_blacklisted_intersections = 0;
+  while (vec0_iter != vec0.cend() && vec1_iter != vec1.cend()) {
+    // Skip this entry of vec0 if it is blacklisted.
+    blacklist_iter0 =
+      std::lower_bound(blacklist_iter0, blacklist.cend(), *vec0_iter);
+    if (blacklist_iter0 != blacklist.cend() && *vec0_iter == *blacklist_iter0) {
+      ++vec0_iter; 
+      ++blacklist_iter0;
+      ++num_vec0_blacklisted;
+      continue;
+    }
+
+    // Skip this entry of vec1 if it is blacklisted.
+    blacklist_iter1 =
+      std::lower_bound(blacklist_iter1, blacklist.cend(), *vec1_iter);
+    if (blacklist_iter1 != blacklist.cend() && *vec1_iter == *blacklist_iter1) {
+      ++vec1_iter;
+      ++blacklist_iter1;
+      ++num_vec1_blacklisted;
+      continue;
+    }
+
+    if (*vec0_iter < *vec1_iter) {
+      vec0_iter = std::lower_bound(vec0_iter, vec0.cend(), *vec1_iter);
+    } else if (*vec0_iter > *vec1_iter) {
+      vec1_iter = std::lower_bound(vec1_iter, vec1.cend(), *vec0_iter);
+    } else {
+      ++num_blacklisted_intersections;
+      ++vec0_iter;
+      ++vec1_iter;
+    }
+  }
+
+  return (vec0.size() - num_vec0_blacklisted) +
+      (vec1.size() - num_vec1_blacklisted) - num_blacklisted_intersections;
 }
 
 // Fills 'filtered_vec' with the sorted serialization of {vec} \ {blacklist},
@@ -295,15 +346,23 @@ inline std::size_t AshcraftVariableHash(const QuotientGraph& graph, Int i) {
 //
 // The elimination graph definition (e.g., as given by [ADD-96])
 // involves testing if
+//
 //   Adj_{GElim}(i) \cup {i} = Adj_{GElim}(j) \cup {j},
+//
 // but we instead use the stricter, and easier to measure, test that
+//
 //   Adj_{GQuotient}(i) \cup {i} = Adj_{GQuotient}(j) \cup {j}.
 //
 // The second test is easier to compute because
+//
 //   Adj_{GQuotient}(i) \cup {i} = A_i \cup E_i \cup {i},
+//
 // and
+//
 //   A_i \cup E_i \cup {i} = A_j \cup E_j \cup {j}
+//
 // if and only if
+//
 //   A_i \cup {i} = A_j \cup {j} and E_i = E_j.
 //
 inline bool SupernodesAreQuotientIndistinguishable(
@@ -410,15 +469,25 @@ inline Int ExactExternalDegree(const QuotientGraph& graph, Int i) {
       graph.adjacency_lists[i], graph.supernodes[i]);
 
   // Add the cardinality of (\cup_{e in E_i} L_e) \ supernode(i).
-  std::vector<Int> filtered_struct;
-  std::vector<Int> element_struct_union;
-  std::vector<Int> temp_int_vec;
-  for (const Int& element : graph.element_lists[i]) {
-    FilterSet(graph.structures[element], graph.supernodes[i], &filtered_struct);
-    auto temp_int_vec = element_struct_union;
-    MergeSets(temp_int_vec, filtered_struct, &element_struct_union);
+  if (graph.element_lists[i].size() == 2) {
+    const Int element0 = graph.element_lists[i][0];
+    const Int element1 = graph.element_lists[i][1];
+    external_degree += SizeOfBlacklistedUnion(
+      graph.structures[element0],
+      graph.structures[element1],
+      graph.supernodes[i]);
+  } else {
+    std::vector<Int> filtered_struct;
+    std::vector<Int> element_struct_union;
+    std::vector<Int> temp_int_vec;
+    for (const Int& element : graph.element_lists[i]) {
+      FilterSet(graph.structures[element], graph.supernodes[i],
+                &filtered_struct);
+      auto temp_int_vec = element_struct_union;
+      MergeSets(temp_int_vec, filtered_struct, &element_struct_union);
+    }
+    external_degree += element_struct_union.size();
   }
-  external_degree += element_struct_union.size();
 
   return external_degree;
 }
@@ -481,7 +550,7 @@ inline Int GilbertExternalDegree(const QuotientGraph& graph, Int i) {
 //   \tilde{d_i} = d_i if |E_i| = 2, \hat{d_i} otherwise.
 inline Int AshcraftExternalDegree(const QuotientGraph& graph, Int i) {
   if (graph.element_lists[i].size() == 2) {
-    // TODO(Jack Poulson)
+    return ExactExternalDegree(graph, i);
   }
   return GilbertExternalDegree(graph, i);
 }

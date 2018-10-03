@@ -249,7 +249,7 @@ void RandomAccessHeap<T>::Initialize(const std::vector<T>& values) {
     return;
   }
 
-  // Create an identity permutation
+  // Create an identity permutation.
   perm_.resize(values.size());
   std::iota(perm_.begin(), perm_.end(), 0);
   inverse_perm_ = perm_;

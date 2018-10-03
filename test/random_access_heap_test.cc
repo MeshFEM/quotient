@@ -123,7 +123,6 @@ TEST_CASE("Disable last tree index", "[disable-last]") {
       8., 4., 6., 2., 6., 4., 3., 3., 8., 3., 2., 7., 9., 5., 0., 2., 8., -1.,
   };
 
-
   quotient::RandomAccessHeap<double> heap; 
   heap.Initialize(orig_values);
 
