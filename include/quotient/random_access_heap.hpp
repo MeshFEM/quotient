@@ -31,6 +31,9 @@ namespace quotient {
 // permutation array, and shrinking the variable denoting the number of kept
 // elements.
 //
+// TODO(Jack Poulson): Add support for a PushBack(const T& value) method and
+// a DeleteIndex(Int index) method.
+//
 // TODO(Jack Poulson): Provide support for overloading operator <.
 //
 template<typename T>
