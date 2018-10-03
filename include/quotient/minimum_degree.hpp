@@ -638,7 +638,7 @@ MinimumDegreeAnalysis MinimumDegree(
       external_degrees_vec[source] =
           quotient_graph.adjacency_lists[source].size();
     }
-    external_degree_heap.Initialize(external_degrees_vec);
+    external_degree_heap.Reset(external_degrees_vec);
   }
 
   // Buffers used to store a temporary integer vector.
@@ -720,7 +720,7 @@ MinimumDegreeAnalysis MinimumDegree(
     for (const Int& i : supernodal_pivot_structure) {
       // Compute the external degree (or approximation) of supervariable i:
       //   d_i := |A_i \ supernode(i)| + |(\cup_{e in E_i} L_e) \ supernode(i)|.
-      const Int old_external_degree = external_degree_heap.GetValue(i); 
+      const Int old_external_degree = external_degree_heap.Value(i); 
       const Int external_degree = ExternalDegree(
         quotient_graph, i, pivot, old_external_degree, external_structure_sizes,
         degree_type);

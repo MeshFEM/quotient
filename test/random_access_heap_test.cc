@@ -19,7 +19,7 @@ TEST_CASE("Simple example", "[simple]") {
   };
 
   quotient::RandomAccessHeap<double> heap; 
-  heap.Initialize(orig_values);
+  heap.Reset(orig_values);
 
   // The heap now contains:
   //  3., 1., 4., 1., 5., 9., 2., 6., 5., 3., 5., 8., 9., 7., 9., 3., 2., 3.,
@@ -124,7 +124,7 @@ TEST_CASE("Disable last tree index", "[disable-last]") {
   };
 
   quotient::RandomAccessHeap<double> heap; 
-  heap.Initialize(orig_values);
+  heap.Reset(orig_values);
 
   // The heap now contains:
   //  3., 1., 4., 1., 5., 9., 2., 6., 5., 3., 5., 8., 9., 7., 9., 3., 2.,  3.,

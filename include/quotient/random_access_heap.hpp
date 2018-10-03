@@ -17,19 +17,17 @@ namespace quotient {
 
 // A data structure that, given an array of 'n' items of type 'T', supports:
 //   * Random access lookups in O(1) time.
-//   * Retrieval of an index with minimal value in O(1) time.
+//   * Retrieval of the left-most index with minimal value in O(1) time.
 //   * Value modification in O(lg(n)) time.
 //
 // The associated storage mechanisms are:
 //   * The list of 'n' values of type 'T'.
 //   * The integer list of cached pointers to a minimal (reordered) child
 //     leaf index.
-//   * The permutation performed to make the kept indices contiguous.
+//   * A boolean list of whether or not indices are still valid.
 //
-// Nodes can be 'deleted' in O(lg(n)) time by swapping the 'deleted' index with
-// the last active index, updating the two ancestor caches, updating the
-// permutation array, and shrinking the variable denoting the number of kept
-// elements.
+// Indices can be 'disabled' in O(lg(n)) time by setting the valid flag to
+// false and then propagating the comparison changes up the tree.
 //
 // The high-level inspiration for the data structure is:
 //
@@ -58,7 +56,7 @@ class RandomAccessHeap {
   // Initializes the cached tree based upon a given list of values.
   //
   // If there are 'n' members of 'values', this should require O(n) time.
-  void Initialize(const std::vector<T>& values);
+  void Reset(const std::vector<T>& values);
 
   // Retrieves the index and value of a minimal active entry.
   //
@@ -67,7 +65,10 @@ class RandomAccessHeap {
   std::pair<Int, T> MinimalEntry() const;
 
   // Retrieves the value of an index in O(1) time.
-  const T& GetValue(Int index) const;
+  const T& Value(Int index) const;
+
+  // Retrieves a reference to the underlying vector of values.
+  const std::vector<T>& Values() const;
 
   // Modifies the value of an active index.
   //
@@ -102,39 +103,46 @@ class RandomAccessHeap {
 
    // Returns the flattened tree index of a minimal entry in the child's
    // subtree.
-   Int ChildMinimalTreeIndex(
-       Int level, Int level_index, bool right_child) const;
+   Int ChildMinimalIndex(Int level, Int level_index, bool right_child) const;
 
    // Updates all relevant ancestral metadata for the leaf node with given
    // index.
    void PropagateComparisons(Int index);
 
+   // In order to guarantee that the left-most (in the original ordering)
+   // minimal entry is chosen in the case of a tie, we need to incorporate the
+   // permutation into the tie-breaking decision.
+   //
+   // But we also avoid allowing an invalid index from being chosen (unless
+   // both indices are invalid).
+   bool UseLeftIndex(Int left_index, Int right_index) const;
+
    // Updates the entry of 'comparison_tree_' corresponding to the given level
    // and index within said level using its two children.
    void UpdateComparisonUsingChildren(Int level, Int level_index);
 
+   // Returns true if the comparison metadata at the given tree position is
+   // valid.
+   bool ComparisonIsValid(Int level, Int level_index) const;
+
+   // Returns true if the entire tree is valid.
+   bool TreeIsValid() const;
+
    // Returns a pair of the tree level and index of the parent node of the
    // given leaf node.
-   std::pair<Int, Int> ParentLevelAndIndex(Int tree_index) const;
+   std::pair<Int, Int> ParentLevelAndIndex(Int index) const;
 
    // An ordered list of values of type 'T'.
    std::vector<T> values_;
 
-   // The number of members of 'values_' that have not been implicitly deleted.
-   Int num_active_;
+   // An ordered list of booleans indicating if each member of 'values_' is
+   // an acceptable minimum.
+   std::vector<bool> valid_values_;
 
-   // A permutation over [0, values_.size()) such that the 'active' values
-   // map to [0, num_active_).
-   std::vector<Int> perm_; 
-
-   // The inverse of 'perm_': a map over [0, values_.size()) that maps
-   // [0, num_active_) into the original positions in [0, values_.size()).
-   std::vector<Int> inverse_perm_;
-
-   /* An array of length 'num_active_ - 1' that stores the packed indices of
+   /* An array of length 'num_values - 1' that stores the packed indices of
       the minimal (permuted) active index of the minimal descendant.
 
-      For example, if there are four active indices, say, with values:
+      For example, if there are four valid indices, say, with values:
         [7, 2, 5, 3],
       then 'comparison_tree_' will store a packed version of the binary tree:
    
@@ -148,8 +156,8 @@ class RandomAccessHeap {
       The packing would be the serialization of [[1], [1, 3]], where the root
       node (level 0) is stored first, then the nodes at level 1, etc. And, in
       cases where there are not a power of two number of nodes, the bottom-most
-      level is truncated so that there are exactly 'num_active_ - 1' nodes in
-      the tree. For example, if there are five active indices, say, with values:
+      level is truncated so that there are exactly 'num_values - 1' nodes in
+      the tree. For example, if there are five valid indices, say, with values:
         [4, 8, 0, 5, 2],
       then we would have the binary tree:
    
@@ -165,7 +173,7 @@ class RandomAccessHeap {
       The packing would be the serialization of [[2], [2, 4], [0]].
      
       Programatically, the j'th level of the tree is stored in indices:
-        [2^j - 1, ..., max(2^{j + 1} - 2, num_active_ - 1)].
+        [2^j - 1, ..., max(2^{j + 1} - 2, num_values - 1)].
    */
    std::vector<Int> comparison_tree_;
 
@@ -174,7 +182,8 @@ class RandomAccessHeap {
 };
 
 template<typename T>
-RandomAccessHeap<T>::RandomAccessHeap() { }
+RandomAccessHeap<T>::RandomAccessHeap()
+: num_comparison_levels_(0) { }
 
 template<typename T>
 RandomAccessHeap<T>::~RandomAccessHeap() { }
@@ -193,13 +202,13 @@ Int RandomAccessHeap<T>::LevelSize(Int level) const {
   }
 #endif
   if (level == num_comparison_levels_ - 1) {
-    return num_active_ - PowerOfTwo(num_comparison_levels_ - 1);
+    return values_.size() - PowerOfTwo(num_comparison_levels_ - 1);
   }
   return PowerOfTwo(level);
 }
 
 template<typename T>
-Int RandomAccessHeap<T>::ChildMinimalTreeIndex(
+Int RandomAccessHeap<T>::ChildMinimalIndex(
     Int level, Int level_index, bool right_child) const {
 #ifdef QUOTIENT_DEBUG
   if (level < 0 || level >= num_comparison_levels_) {
@@ -229,39 +238,85 @@ Int RandomAccessHeap<T>::ChildMinimalTreeIndex(
 }
 
 template<typename T>
-void RandomAccessHeap<T>::UpdateComparisonUsingChildren(
-    Int level, Int level_index) {
-  const Int left_tree_index = ChildMinimalTreeIndex(
-      level, level_index, false /* right_child */);
-  const Int right_tree_index = ChildMinimalTreeIndex(
-      level, level_index, true /* right_child */);
-
-  const T& left_value = values_[inverse_perm_[left_tree_index]];
-  const T& right_value = values_[inverse_perm_[right_tree_index]];
-
-  const Int new_tree_index =
-      left_value <= right_value ? left_tree_index : right_tree_index;
-
-  const Int level_offset = LevelOffset(level);
-  comparison_tree_[level_offset + level_index] = new_tree_index;
+bool RandomAccessHeap<T>::UseLeftIndex(Int left_index, Int right_index) const {
+  bool use_left_index;
+  if (valid_values_[left_index] && valid_values_[right_index]) {
+    const T& left_value = values_[left_index];
+    const T& right_value = values_[right_index];
+    use_left_index = left_value < right_value ||
+        (left_value == right_value && left_index < right_index);
+  } else if (valid_values_[left_index]) {
+    use_left_index = true;
+  } else if (valid_values_[right_index]) {
+    use_left_index = false;
+  } else {
+    // Fall back on the left index.
+    use_left_index = true;
+  }
+  return use_left_index;
 }
 
 template<typename T>
-void RandomAccessHeap<T>::Initialize(const std::vector<T>& values) {
+void RandomAccessHeap<T>::UpdateComparisonUsingChildren(
+    Int level, Int level_index) {
+  const Int left_index = ChildMinimalIndex(
+      level, level_index, false /* right_child */);
+  const Int right_index = ChildMinimalIndex(
+      level, level_index, true /* right_child */);
+
+  const bool use_left_index = UseLeftIndex(left_index, right_index);
+  const Int new_index = use_left_index ? left_index : right_index;
+
+  const Int level_offset = LevelOffset(level);
+  comparison_tree_[level_offset + level_index] = new_index;
+}
+
+template<typename T>
+bool RandomAccessHeap<T>::ComparisonIsValid(Int level, Int level_index)  const {
+  const Int left_index = ChildMinimalIndex(
+      level, level_index, false /* right_child */);
+  const Int right_index = ChildMinimalIndex(
+      level, level_index, true /* right_child */);
+
+  const bool use_left_index = UseLeftIndex(left_index, right_index);
+  const Int valid_index = use_left_index ? left_index : right_index;
+
+  const Int level_offset = LevelOffset(level);
+  return comparison_tree_[level_offset + level_index] == valid_index;
+}
+
+template<typename T>
+bool RandomAccessHeap<T>::TreeIsValid() const {
+  for (Int level = num_comparison_levels_ - 1; level >= 0; --level) {
+    const Int level_size = LevelSize(level);
+    for (Int level_index = 0; level_index < level_size; ++level_index) {
+      if (!ComparisonIsValid(level, level_index)) {
+#ifdef QUOTIENT_DEBUG
+        std::cerr << "Comparison at position (" << level << ", "
+                  << level_index << ") was invalid." << std::endl;
+#endif
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+template<typename T>
+void RandomAccessHeap<T>::Reset(const std::vector<T>& values) {
   values_ = values;
-  num_active_ = values.size();
-  num_comparison_levels_ = CeilLog2(num_active_);
-  if (num_active_ == 0) {
+  num_comparison_levels_ = CeilLog2(values_.size());
+
+  // Initialize all of the values as valid.
+  valid_values_.clear();
+  valid_values_.resize(values_.size(), true);
+
+  if (values_.empty()) {
     return;
   }
 
-  // Create an identity permutation.
-  perm_.resize(values.size());
-  std::iota(perm_.begin(), perm_.end(), 0);
-  inverse_perm_ = perm_;
-
   // Compute the comparison metadata from the leaves up (in linear time).
-  comparison_tree_.resize(num_active_ - 1);
+  comparison_tree_.resize(values_.size() - 1);
   for (Int level = num_comparison_levels_ - 1; level >= 0; --level) {
     const Int level_size = LevelSize(level);
     for (Int level_index = 0; level_index < level_size; ++level_index) {
@@ -273,44 +328,42 @@ void RandomAccessHeap<T>::Initialize(const std::vector<T>& values) {
 template<typename T>
 std::pair<Int, T> RandomAccessHeap<T>::MinimalEntry() const {
   std::pair<Int, T> entry;
-  if (num_active_ == 0) {
+  if (values_.empty()) {
     entry.first = -1;
     entry.second = 0;
     return entry;
   }
-  if (num_active_ == 1) {
-    entry.first = inverse_perm_[0];
+  if (values_.size() == 1) {
+    entry.first = 0;
     entry.second = values_[entry.first];
     return entry;
   }
 
-  entry.first = inverse_perm_[comparison_tree_[0]];
+  entry.first = comparison_tree_[0];
   entry.second = values_[entry.first];
   return entry;
 }
 
 template<typename T>
-std::pair<Int, Int> RandomAccessHeap<T>::ParentLevelAndIndex(
-    Int tree_index) const {
+std::pair<Int, Int> RandomAccessHeap<T>::ParentLevelAndIndex(Int index) const {
   std::pair<Int, Int> tree_pos;
   const Int last_level_size = LevelSize(num_comparison_levels_ - 1);
-  if (tree_index < 2 * last_level_size) {
+  if (index < 2 * last_level_size) {
     tree_pos.first = num_comparison_levels_ - 1;
-    tree_pos.second = tree_index / 2;
+    tree_pos.second = index / 2;
   } else {
     tree_pos.first = num_comparison_levels_ - 2;
-    tree_pos.second = (tree_index - last_level_size) / 2;
+    tree_pos.second = (index - last_level_size) / 2;
   }
   return tree_pos;
 }
 
 template<typename T>
 void RandomAccessHeap<T>::PropagateComparisons(Int index) {
-  if (num_active_ == 1) {
+  if (values_.size() <= 1) {
     return;
   }
-  const Int tree_index = perm_[index];
-  std::pair<Int, Int> tree_pos = ParentLevelAndIndex(tree_index);
+  std::pair<Int, Int> tree_pos = ParentLevelAndIndex(index);
   UpdateComparisonUsingChildren(tree_pos.first, tree_pos.second);
   while (tree_pos.first != 0) {
     --tree_pos.first;
@@ -320,8 +373,13 @@ void RandomAccessHeap<T>::PropagateComparisons(Int index) {
 }
 
 template<typename T>
-const T& RandomAccessHeap<T>::GetValue(Int index) const {
+const T& RandomAccessHeap<T>::Value(Int index) const {
   return values_[index];
+}
+
+template<typename T>
+const std::vector<T>& RandomAccessHeap<T>::Values() const {
+  return values_;
 }
 
 template<typename T>
@@ -330,7 +388,9 @@ void RandomAccessHeap<T>::SetValue(Int index, const T& value) {
     return;
   }
   values_[index] = value;
-  PropagateComparisons(index);
+  if (valid_values_[index]) {
+    PropagateComparisons(index);
+  }
 }
 
 template<typename T>
@@ -339,65 +399,24 @@ void RandomAccessHeap<T>::UpdateValue(Int index, const T& value) {
     return;
   }
   values_[index] += value;
-  PropagateComparisons(index);
+  if (valid_values_[index]) {
+    PropagateComparisons(index);
+  }
 }
 
 template<typename T>
 void RandomAccessHeap<T>::DisableIndex(Int index) {
-  const Int old_tree_index = perm_[index];
 #ifdef QUOTIENT_DEBUG
   if (old_tree_index >= num_active_) {
     std::cerr << "Index was already disabled." << std::endl;
     return;
   }
 #endif
-
-  // Apply the transposition (old_tree_index, num_active_ - 1) to the current
-  // permutation from the left.
-  //
-  // More generally, a permutation and its inverse may be quickly updated to
-  // represent the original permutation with a swap (a, b) applied from the
-  // left by:
-  //
-  //   1) Storing a' := inverse_perm[a], b' := inverse_perm[b].
-  //
-  //   2) Updating inverse_perm via swap(inverse_perm[a], inverse_perm[b]).
-  //
-  //   3) Updating perm via swap(perm[a'], perm[b']).
-  //
-  // But, since exchanging steps (2) and (1) does not change the effect of the
-  // sequence, we may instead execute:
-  //
-  //   1) Updating inverse_perm via swap(inverse_perm[a], inverse_perm[b]).
-  //
-  //   2) Updating perm via swap(perm[inverse_perm[a]], perm[inverse_perm[b]]).
-  //
-  const Int swap_ind0 = old_tree_index;
-  const Int swap_ind1 = num_active_ - 1;
-  std::swap(inverse_perm_[swap_ind0], inverse_perm_[swap_ind1]);
-  std::swap(perm_[inverse_perm_[swap_ind0]], perm_[inverse_perm_[swap_ind1]]);
-
-  // Disable the last index of the tree.
-  --num_active_;
-  num_comparison_levels_ = CeilLog2(num_active_);
-  if (num_active_ == 0) {
+  if (!valid_values_[index]) {
     return;
   }
-  comparison_tree_.pop_back();
-
-  // Ensure that the comparison metadata is udpated. There are at most two
-  // locations where we must manually propagate changes:
-  //
-  //  1) Tree index 'old_tree_index'.
-  //
-  //  2) Tree index 'num_active_ - 1'.
-  //
-  // The former must be skipped if 'old_tree_index == num_active_'.
-  //
-  if (old_tree_index != num_active_) {
-    PropagateComparisons(inverse_perm_[old_tree_index]);
-  }
-  PropagateComparisons(inverse_perm_[num_active_ - 1]);
+  valid_values_[index] = false;
+  PropagateComparisons(index);
 }
 
 template<typename T>
