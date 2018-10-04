@@ -96,6 +96,9 @@ struct QuotientGraph {
   // Initializes the quotient graph from a symmetric graph.
   QuotientGraph(const CoordinateGraph& graph);
 
+  // Pretty-prints the QuotientGraph.
+  void Print() const;
+
   // Uses 'supernodes' to filter 'structures[element]' into just its entries
   // which are principal members of a supernode.
   std::vector<Int> FormSupernodalStructure(Int element) const;
@@ -108,8 +111,37 @@ struct QuotientGraph {
   // Note that only principal members of A_i are incorporated in the hash.
   std::size_t AshcraftVariableHash(Int i) const;
 
-  // Pretty-prints the QuotientGraph.
-  void Print() const;
+  // Returns true if supernodes 'i' and 'j' are considered indistinguishable
+  // with respect to their quotient graph representation.
+  //
+  // The elimination graph definition (e.g., as given by [ADD-96])
+  // involves testing if
+  //
+  //   Adj_{GElim}(i) \cup {i} = Adj_{GElim}(j) \cup {j},
+  //
+  // but we instead use the stricter, and easier to measure, test that
+  //
+  //   Adj_{GQuotient}(i) \cup {i} = Adj_{GQuotient}(j) \cup {j}.
+  //
+  // The second test is easier to compute because
+  //
+  //   Adj_{GQuotient}(i) \cup {i} = A_i \cup E_i \cup {i},
+  //
+  // and
+  //
+  //   A_i \cup E_i \cup {i} = A_j \cup E_j \cup {j}
+  //
+  // if and only if
+  //
+  //   A_i \cup {i} = A_j \cup {j} and E_i = E_j.
+  //
+  bool VariablesAreQuotientIndistinguishable(Int i, Int j) const;
+
+  // An implementation of Algorithm 2 from [ADD-96].
+  // On exit, it holds |L_e \ L_p| for all elements e in the element list
+  // of a supernode in the structure, L_p.
+  std::unordered_map<Int, Int> ExternalStructureSizes(
+    const std::vector<Int>& supernodal_structure) const;
 };
 
 inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
@@ -160,6 +192,24 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
   external_degree_heap.Reset(external_degrees_vec);
 }
 
+inline void QuotientGraph::Print() const {
+  for (Int i = 0; i < num_original_vertices; ++i) {
+    if (supernodes[i].empty()) {
+      continue;
+    }
+    std::cout << "Supernode " << i << "\n";
+    PrintVector(supernodes[i], "  members");
+    std::cout << "  external_degree: " << external_degree_heap.Value(i) << "\n";
+    if (external_degree_heap.ValidValue(i)) {
+      PrintVector(adjacency_lists[i], "  adjacency_list");
+      PrintVector(element_lists[i], "  element_list");
+    } else {
+      PrintVector(structures[i], "  structure");
+    }
+    std::cout << "\n";
+  }
+}
+
 inline std::vector<Int> QuotientGraph::FormSupernodalStructure(Int element)
     const {
   std::vector<Int> supernodal_structure;
@@ -182,8 +232,6 @@ inline std::vector<Int> QuotientGraph::FormSupernodalAdjacencyList(Int i)
   return supernodal_adjacency_list;
 }
 
-// A definition of Ashcraft's hash function (as described in [ADD-96]).
-// Note that only principal members of A_i are incorporated in the hash.
 inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
   std::size_t result = 0;
   for (const Int& index : adjacency_lists[i]) {
@@ -197,23 +245,96 @@ inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
   return result + 1;
 };
 
-// Pretty-prints a QuotientGraph.
-inline void QuotientGraph::Print() const {
-  for (Int i = 0; i < num_original_vertices; ++i) {
-    if (supernodes[i].empty()) {
-      continue;
-    }
-    std::cout << "Supernode " << i << "\n";
-    PrintVector(supernodes[i], "  members");
-    std::cout << "  external_degree: " << external_degree_heap.Value(i) << "\n";
-    if (external_degree_heap.ValidValue(i)) {
-      PrintVector(adjacency_lists[i], "  adjacency_list");
-      PrintVector(element_lists[i], "  element_list");
-    } else {
-      PrintVector(structures[i], "  structure");
-    }
-    std::cout << "\n";
+inline bool QuotientGraph::VariablesAreQuotientIndistinguishable(
+    Int i, Int j) const {
+  const std::size_t adj_size = adjacency_lists[i].size();
+  const std::size_t elem_size = element_lists[i].size();
+
+  // Early exit if the set cardinalities disagree.
+  if (adj_size != adjacency_lists[j].size() ||
+      elem_size != element_lists[j].size()) {
+    return false;
   }
+
+  // Check if E_i = E_j.
+  for (std::size_t index = 0; index < elem_size; ++index) {
+    if (element_lists[i][index] != element_lists[j][index]) {
+      return false;
+    }
+  }
+
+  // Check if A_i \cup {i} = A_j \cup {j}.
+  const std::vector<Int> i_vec{i}, j_vec{j};
+  std::vector<std::vector<Int>::const_iterator> i_iters{
+    adjacency_lists[i].cbegin(), i_vec.cbegin(),
+  };
+  std::vector<std::vector<Int>::const_iterator> j_iters{
+    adjacency_lists[j].cbegin(), j_vec.cbegin(),
+  };
+  const std::vector<std::vector<Int>::const_iterator> i_ends{
+    adjacency_lists[i].cend(), i_vec.cend(),
+  };
+  const std::vector<std::vector<Int>::const_iterator> j_ends{
+    adjacency_lists[j].cend(), j_vec.cend(),
+  };
+
+  for (std::size_t index = 0; index < adj_size + 1; ++index) {
+    bool found_match = false;
+    for (std::size_t i_set = 0; i_set < i_iters.size(); ++i_set) {
+      auto& i_iter = i_iters[i_set];
+      if (i_iter == i_ends[i_set]) {
+        continue;
+      }
+
+      for (std::size_t j_set = 0; j_set < j_iters.size(); ++j_set) {
+        auto& j_iter = j_iters[j_set];
+        if (j_iter == j_ends[j_set]) {
+          continue;
+        }
+
+        if (*i_iter == *j_iter) {
+          ++i_iter;
+          ++j_iter;
+          found_match = true;
+          break;
+        }
+      }
+      if (found_match) {
+        break;
+      }
+    }
+    if (!found_match) {
+      return false;
+    }
+  }
+#ifdef QUOTIENT_DEBUG
+  for (Int i_set = 0; i_set < 2; ++i_set) {
+    if (i_iters[i_set] != i_ends[i_set]) {
+      std::cerr << "i_iters[" << i_set << "] != end." << std::endl;
+    }
+  }
+  for (Int j_set = 0; j_set < 2; ++j_set) {
+    if (j_iters[j_set] != j_ends[j_set]) {
+      std::cerr << "j_iters[" << j_set << "] != end." << std::endl;
+    }
+  }
+#endif
+
+  return true;
+}
+
+inline std::unordered_map<Int, Int> QuotientGraph::ExternalStructureSizes(
+    const std::vector<Int>& supernodal_structure) const {
+  std::unordered_map<Int, Int> external_structure_sizes;
+  for (const Int& i : supernodal_structure) {
+    for (const Int& element : element_lists[i]) {
+      if (!external_structure_sizes.count(element)) {
+        external_structure_sizes[element] = structures[element].size();
+      }
+      external_structure_sizes[element] -= structures[i].size();
+    }
+  }
+  return external_structure_sizes;
 }
 
 } // namespace quotient
