@@ -79,10 +79,10 @@ inline Int AmestoyExternalDegree(
     const QuotientGraph& graph,
     Int i,
     Int pivot,
-    Int old_external_degree,
     const std::unordered_map<Int, Int>& external_structure_sizes) {
   const Int num_vertices_left =
       graph.num_original_vertices - graph.num_eliminated_vertices;
+  const Int old_external_degree = graph.external_degree_heap.Value(i); 
 
   // Note that this usage of 'external' refers to |L_p \ supernode(i)| and not
   // |L_e \ L_p|, as is the case for 'external_structure_sizes'.
@@ -141,7 +141,6 @@ inline Int ExternalDegree(
     const QuotientGraph& graph,
     Int i,
     Int pivot,
-    Int old_external_degree,
     const std::unordered_map<Int, Int>& external_structure_sizes,
     ExternalDegreeType degree_type) {
   Int external_degree = -1;
@@ -152,7 +151,7 @@ inline Int ExternalDegree(
     }
     case kAmestoyExternalDegree: {
       external_degree = AmestoyExternalDegree(
-          graph, i, pivot, old_external_degree, external_structure_sizes);
+          graph, i, pivot, external_structure_sizes);
       break;
     }
     case kAshcraftExternalDegree: { 

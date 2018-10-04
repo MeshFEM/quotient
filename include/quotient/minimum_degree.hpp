@@ -20,21 +20,6 @@
 
 namespace quotient {
 
-// A definition of Ashcraft's hash function (as described in [ADD-96]).
-// Note that only principal members of A_i are incorporated in the hash.
-inline std::size_t AshcraftVariableHash(const QuotientGraph& graph, Int i) {
-  std::size_t result = 0;
-  for (const Int& index : graph.adjacency_lists[i]) {
-    if (!graph.supernodes[index].empty()) {
-      result = (result + index) % (graph.num_original_vertices - 1);
-    }
-  }
-  for (const Int& index : graph.element_lists[i]) {
-    result = (result + index) % (graph.num_original_vertices - 1);
-  }
-  return result + 1;
-};
-
 // Returns true if supernodes 'i' and 'j' are considered indistinguishable with
 // respect to their quotient graph representation.
 //
@@ -199,17 +184,6 @@ MinimumDegreeAnalysis MinimumDegree(
   QuotientGraph quotient_graph(graph);
   const Int num_orig_vertices = quotient_graph.num_original_vertices;
 
-  // Initialize the cached binary tree of external degrees.
-  RandomAccessHeap<Int> external_degree_heap;
-  {
-    std::vector<Int> external_degrees_vec(num_orig_vertices);
-    for (Int source = 0; source < num_orig_vertices; ++source) {
-      external_degrees_vec[source] =
-          quotient_graph.adjacency_lists[source].size();
-    }
-    external_degree_heap.Reset(external_degrees_vec);
-  }
-
   // Buffers used to store a temporary integer vector.
   // They are declared here to avoid unnecessary garbage collection.
   std::vector<Int> temp_int_vec0, temp_int_vec1;
@@ -218,7 +192,8 @@ MinimumDegreeAnalysis MinimumDegree(
   MinimumDegreeAnalysis analysis(num_orig_vertices);
   while (quotient_graph.num_eliminated_vertices < num_orig_vertices) {
     // Retrieve a variable with minimal (approximate) external degree.
-    const std::pair<Int, Int> pivot_pair = external_degree_heap.MinimalEntry(); 
+    const std::pair<Int, Int> pivot_pair =
+        quotient_graph.external_degree_heap.MinimalEntry(); 
     const Int pivot = pivot_pair.first;
 
     // Compute the structure of the pivot:
@@ -289,11 +264,9 @@ MinimumDegreeAnalysis MinimumDegree(
     for (const Int& i : supernodal_pivot_structure) {
       // Compute the external degree (or approximation) of supervariable i:
       //   d_i := |A_i \ supernode(i)| + |(\cup_{e in E_i} L_e) \ supernode(i)|.
-      const Int old_external_degree = external_degree_heap.Value(i); 
       const Int external_degree = ExternalDegree(
-        quotient_graph, i, pivot, old_external_degree, external_structure_sizes,
-        degree_type);
-      external_degree_heap.SetValue(i, external_degree);
+          quotient_graph, i, pivot, external_structure_sizes, degree_type);
+      quotient_graph.external_degree_heap.SetValue(i, external_degree);
     }
 
     // Fill a set of buckets for the hashes of the supernodes adjacent to
@@ -307,7 +280,7 @@ MinimumDegreeAnalysis MinimumDegree(
       // Append this principal variable to its hash bucket.
       // TODO(Jack Poulson): Add configurable support for other hashes.
       // For example, one could mod by (std::numeric_limits<Int>::max() - 1).
-      const std::size_t bucket = AshcraftVariableHash(quotient_graph, i);
+      const std::size_t bucket = quotient_graph.AshcraftVariableHash(i);
       bucket_list[i_index] = bucket;
       variable_hash_map[bucket].push_back(i_index);
     }
@@ -340,9 +313,9 @@ MinimumDegreeAnalysis MinimumDegree(
               temp_int_vec0,
               quotient_graph.supernodes[j],
               &quotient_graph.supernodes[i]);
-          external_degree_heap.UpdateValue(
+          quotient_graph.external_degree_heap.UpdateValue(
               i, -quotient_graph.supernodes[j].size());
-          external_degree_heap.DisableIndex(j);
+          quotient_graph.external_degree_heap.DisableIndex(j);
 #ifdef QUOTIENT_DEBUG
           quotient_graph.variables.erase(j);
 #endif
@@ -366,7 +339,7 @@ MinimumDegreeAnalysis MinimumDegree(
     //   V := V \ {p}.
     quotient_graph.variables.erase(pivot);
 #endif
-    external_degree_heap.DisableIndex(pivot);
+    quotient_graph.external_degree_heap.DisableIndex(pivot);
     SwapClearVector(&quotient_graph.adjacency_lists[pivot]);
     SwapClearVector(&quotient_graph.element_lists[pivot]);
     quotient_graph.num_eliminated_vertices +=

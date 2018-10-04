@@ -18,6 +18,17 @@
 
 namespace quotient {
 
+// Pretty-prints an std::vector<T>.
+// TODO(Jack Poulson): Find a better location for this utility function.
+template<typename T>
+void PrintVector(const std::vector<T>& vec, const std::string& msg) {
+  std::cout << msg << ": ";
+  for (std::size_t i = 0; i < vec.size(); ++i) {
+    std::cout << vec[i] << " ";
+  }
+  std::cout << "\n";
+}
+
 // A data structure representing the "quotient graph" interpretation of the
 // original graph after eliminating a sequence of vertices. This is the
 // primary data structure of the (Approximate) Minimum Degree reordering
@@ -77,6 +88,11 @@ struct QuotientGraph {
   std::set<Int> elements;
 #endif
 
+  // A cached binary tree of external degrees that allows for O(lg(n))
+  // random modification, O(1) random access, and O(1) extraction of the
+  // left-most minimal index.
+  RandomAccessHeap<Int> external_degree_heap;
+
   // Initializes the quotient graph from a symmetric graph.
   QuotientGraph(const CoordinateGraph& graph);
 
@@ -87,6 +103,13 @@ struct QuotientGraph {
   // Uses 'supernodes' to filter 'adjaency_lists[i]' into just its entries
   // which are principal members of a supernode.
   std::vector<Int> FormSupernodalAdjacencyList(Int i) const;
+
+  // A definition of Ashcraft's hash function (as described in [ADD-96]).
+  // Note that only principal members of A_i are incorporated in the hash.
+  std::size_t AshcraftVariableHash(Int i) const;
+
+  // Pretty-prints the QuotientGraph.
+  void Print() const;
 };
 
 inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
@@ -128,6 +151,13 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
     variables.insert(source);
   }
 #endif
+
+  // Initialize the cached binary tree of external degrees.
+  std::vector<Int> external_degrees_vec(num_original_vertices);
+  for (Int source = 0; source < num_original_vertices; ++source) {
+    external_degrees_vec[source] = adjacency_lists[source].size();
+  }
+  external_degree_heap.Reset(external_degrees_vec);
 }
 
 inline std::vector<Int> QuotientGraph::FormSupernodalStructure(Int element)
@@ -152,32 +182,35 @@ inline std::vector<Int> QuotientGraph::FormSupernodalAdjacencyList(Int i)
   return supernodal_adjacency_list;
 }
 
-// Pretty-prints an std::vector<T>.
-template<typename T>
-void PrintVector(const std::vector<T>& vec, const std::string& msg) {
-  std::cout << msg << ": ";
-  for (std::size_t i = 0; i < vec.size(); ++i) {
-    std::cout << vec[i] << " ";
+// A definition of Ashcraft's hash function (as described in [ADD-96]).
+// Note that only principal members of A_i are incorporated in the hash.
+inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
+  std::size_t result = 0;
+  for (const Int& index : adjacency_lists[i]) {
+    if (!supernodes[index].empty()) {
+      result = (result + index) % (num_original_vertices - 1);
+    }
   }
-  std::cout << "\n";
-}
+  for (const Int& index : element_lists[i]) {
+    result = (result + index) % (num_original_vertices - 1);
+  }
+  return result + 1;
+};
 
 // Pretty-prints a QuotientGraph.
-void PrintGraph(
-    const QuotientGraph& graph,
-    const RandomAccessHeap<Int>& external_degree_heap) {
-  for (Int i = 0; i < graph.num_original_vertices; ++i) {
-    if (graph.supernodes[i].empty()) {
+inline void QuotientGraph::Print() const {
+  for (Int i = 0; i < num_original_vertices; ++i) {
+    if (supernodes[i].empty()) {
       continue;
     }
     std::cout << "Supernode " << i << "\n";
-    PrintVector(graph.supernodes[i], "  members");
+    PrintVector(supernodes[i], "  members");
     std::cout << "  external_degree: " << external_degree_heap.Value(i) << "\n";
     if (external_degree_heap.ValidValue(i)) {
-      PrintVector(graph.adjacency_lists[i], "  adjacency_list");
-      PrintVector(graph.element_lists[i], "  element_list");
+      PrintVector(adjacency_lists[i], "  adjacency_list");
+      PrintVector(element_lists[i], "  element_list");
     } else {
-      PrintVector(graph.structures[i], "  structure");
+      PrintVector(structures[i], "  structure");
     }
     std::cout << "\n";
   }
