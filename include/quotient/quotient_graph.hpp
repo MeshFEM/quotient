@@ -92,6 +92,9 @@ struct QuotientGraph {
   // the absorbing supervariable, i, and the absorbed supervariable, j.
   std::vector<std::pair<Int, Int>> variable_merges;
 
+  // Trivial constructor.
+  QuotientGraph();
+
   // Initializes the quotient graph from a symmetric graph.
   QuotientGraph(const CoordinateGraph& graph);
 
@@ -128,11 +131,11 @@ struct QuotientGraph {
   //
   // and
   //
-  //   A_i \cup E_i \cup {i} = A_j \cup E_j \cup {j}
+  //   A_i \cup E_i \cup {i} = A_j \cup E_j \cup {j}.
   //
-  // if and only if
+  // If i < j, then this holds if and only if
   //
-  //   A_i \cup {i} = A_j \cup {j} and E_i = E_j.
+  //   E_i \cup {i} = E_j and A_i = A_j \cup {j}.
   //
   bool VariablesAreQuotientIndistinguishable(Int i, Int j) const;
 
@@ -142,6 +145,9 @@ struct QuotientGraph {
   std::unordered_map<Int, Int> ExternalStructureSizes(
     const std::vector<Int>& supernodal_structure) const;
 };
+
+inline QuotientGraph::QuotientGraph()
+: num_original_vertices(0), num_eliminated_vertices(0) { }
 
 inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
 : num_original_vertices(graph.NumSources()), num_eliminated_vertices(0) {
@@ -239,78 +245,46 @@ inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
 
 inline bool QuotientGraph::VariablesAreQuotientIndistinguishable(
     Int i, Int j) const {
+  if (i == j) {
+    return true;
+  }
+  if (i > j) {
+    std::swap(i, j);
+  }
   const std::size_t adj_size = adjacency_lists[i].size();
   const std::size_t elem_size = element_lists[i].size();
 
   // Early exit if the set cardinalities disagree.
-  if (adj_size != adjacency_lists[j].size() ||
-      elem_size != element_lists[j].size()) {
+  if (adj_size + elem_size !=
+      adjacency_lists[j].size() + element_lists[j].size()) {
     return false;
   }
 
-  // Check if E_i = E_j.
-  for (std::size_t index = 0; index < elem_size; ++index) {
-    if (element_lists[i][index] != element_lists[j][index]) {
-      return false;
-    }
-  }
-
-  // Check if A_i \cup {i} = A_j \cup {j}.
-  const std::vector<Int> i_vec{i}, j_vec{j};
-  std::vector<std::vector<Int>::const_iterator> i_iters{
-    adjacency_lists[i].cbegin(), i_vec.cbegin(),
-  };
-  std::vector<std::vector<Int>::const_iterator> j_iters{
-    adjacency_lists[j].cbegin(), j_vec.cbegin(),
-  };
-  const std::vector<std::vector<Int>::const_iterator> i_ends{
-    adjacency_lists[i].cend(), i_vec.cend(),
-  };
-  const std::vector<std::vector<Int>::const_iterator> j_ends{
-    adjacency_lists[j].cend(), j_vec.cend(),
-  };
-
-  for (std::size_t index = 0; index < adj_size + 1; ++index) {
-    bool found_match = false;
-    for (std::size_t i_set = 0; i_set < i_iters.size(); ++i_set) {
-      auto& i_iter = i_iters[i_set];
-      if (i_iter == i_ends[i_set]) {
-        continue;
-      }
-
-      for (std::size_t j_set = 0; j_set < j_iters.size(); ++j_set) {
-        auto& j_iter = j_iters[j_set];
-        if (j_iter == j_ends[j_set]) {
-          continue;
-        }
-
-        if (*i_iter == *j_iter) {
-          ++i_iter;
-          ++j_iter;
-          found_match = true;
-          break;
-        }
-      }
-      if (found_match) {
-        break;
+  // Check if E_i \cup {i} = E_j.
+  {
+    auto i_iter = element_lists[i].cbegin();
+    for (auto j_iter = element_lists[j].cbegin();
+         j_iter != element_lists[j].cend(); ++j_iter) {
+      if (i_iter != element_lists[i].cend() && *i_iter == *j_iter) {
+        ++i_iter;
+      } else if (*j_iter != i) {
+        return false;
       }
     }
-    if (!found_match) {
-      return false;
+  }
+
+  // Check if A_i = A_j \cup {j}.
+  {
+    auto j_iter = adjacency_lists[j].cbegin();
+    for (auto i_iter = adjacency_lists[i].cbegin();
+         i_iter != adjacency_lists[i].cend(); ++i_iter) {
+      if (j_iter != adjacency_lists[j].cend() && *j_iter == *i_iter) {
+        ++j_iter;
+      } else if (*i_iter != j) {
+        return false;
+      }
     }
   }
-#ifdef QUOTIENT_DEBUG
-  for (Int i_set = 0; i_set < 2; ++i_set) {
-    if (i_iters[i_set] != i_ends[i_set]) {
-      std::cerr << "i_iters[" << i_set << "] != end." << std::endl;
-    }
-  }
-  for (Int j_set = 0; j_set < 2; ++j_set) {
-    if (j_iters[j_set] != j_ends[j_set]) {
-      std::cerr << "j_iters[" << j_set << "] != end." << std::endl;
-    }
-  }
-#endif
 
   return true;
 }

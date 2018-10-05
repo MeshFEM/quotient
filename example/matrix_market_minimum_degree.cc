@@ -55,7 +55,13 @@ int main(int argc, char** argv) {
     store_variable_merges);
   std::cout << "Finished MinimumDegree." << std::endl;
 
-  quotient::PrintVector(analysis.elimination_order, "elimination_order");
-  
+  const quotient::Int largest_supernode = analysis.LargestSupernode();
+  const quotient::Int largest_supernode_size =
+      analysis.supernodes[largest_supernode].size();
+  std::cout << "Largest supernode: " << largest_supernode << ", "
+            << largest_supernode_size << " entries." << std::endl;
+
+  std::cout << "Num nonzeros: " << analysis.NumNonzeros() << std::endl;
+
   return 0;
 }

@@ -220,11 +220,11 @@ Int RandomAccessHeap<T>::ChildMinimalIndex(
 #ifdef QUOTIENT_DEBUG
   if (level < 0 || level >= num_comparison_levels_) {
     std::cerr << "Requested level size of invalid level." << std::endl;
-    return;
+    return -1;
   }
-  if (level_index < 0 || index >= LevelSize(level)) {
+  if (level_index < 0 || level_index >= LevelSize(level)) {
     std::cerr << "Requested invalid index of level." << std::endl;
-    return;
+    return -1;
   }
 #endif
   const Int child_index = right_child ? 2 * level_index + 1 : 2 * level_index;
@@ -423,12 +423,6 @@ void RandomAccessHeap<T>::UpdateValue(Int index, const T& value) {
 
 template<typename T>
 void RandomAccessHeap<T>::DisableIndex(Int index) {
-#ifdef QUOTIENT_DEBUG
-  if (old_tree_index >= num_active_) {
-    std::cerr << "Index was already disabled." << std::endl;
-    return;
-  }
-#endif
   if (!valid_values_[index]) {
     return;
   }

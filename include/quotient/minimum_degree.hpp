@@ -49,10 +49,41 @@ struct MinimumDegreeAnalysis {
   // so we will allocate an upper bound for the amount of required space.
   // The 'supernodes' and 'structures' variables will be copied over from
   // the quotient graph just before the analysis completes.
-  MinimumDegreeAnalysis(Int num_vertices) {
-    elimination_order.reserve(num_vertices);
-  }
+  MinimumDegreeAnalysis(Int num_vertices);
+
+  // Returns the number of structural nonzeros in the lower-triangular factor.
+  Int NumNonzeros() const;
+
+  // Returns the principal member of the largest supernode.
+  Int LargestSupernode() const;
 };
+
+inline MinimumDegreeAnalysis::MinimumDegreeAnalysis(Int num_vertices) {
+  elimination_order.reserve(num_vertices);
+}
+
+inline Int MinimumDegreeAnalysis::NumNonzeros() const {
+  Int num_nonzeros = 0;
+  for (const Int& j : elimination_order) {
+    const Int supernode_j_size = supernodes[j].size();
+    for (const Int& i : supernodal_structures[j]) {
+      num_nonzeros += supernodes[i].size() * supernode_j_size;
+    }
+  }
+  return num_nonzeros;
+}
+
+inline Int MinimumDegreeAnalysis::LargestSupernode() const {
+  Int largest_supernode = -1;
+  std::size_t largest_supernode_size = 0;
+  for (std::size_t i = 0; i < supernodes.size(); ++i) {
+    if (supernodes[i].size() > largest_supernode_size) {
+      largest_supernode = i;
+      largest_supernode_size = supernodes[i].size();
+    }
+  }
+  return largest_supernode;
+}
 
 // Compute the structure of the pivot:
 //   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
@@ -236,7 +267,7 @@ MinimumDegreeAnalysis MinimumDegree(
   bool store_aggressive_absorptions,
   bool store_variable_merges) {
 #ifdef QUOTIENT_DEBUG
-  if (graph.NumSources() != graph.NumVertices()) {
+  if (graph.NumSources() != graph.NumTargets()) {
     std::cerr << "ERROR: MinimumDegree requires a symmetric input graph."
               << std::endl;
     return MinimumDegreeAnalysis(0);
@@ -286,10 +317,10 @@ MinimumDegreeAnalysis MinimumDegree(
 
   // Extract the relevant information from the QuotientGraph.
   analysis.supernodes = quotient_graph.supernodes;
-  analysis.supernodal_structures.resize(num_orig_vertices);
+  analysis.supernodal_structures.resize(analysis.elimination_order.size());
   for (const Int& i : analysis.elimination_order) {
     analysis.supernodal_structures[i] =
-        quotient_graph.FormSupernodalStructure(i);
+        quotient_graph.FormSupernodalStructure(analysis.elimination_order[i]);
   }
   analysis.aggressive_absorptions = quotient_graph.aggressive_absorptions;
   analysis.variable_merges = quotient_graph.variable_merges;

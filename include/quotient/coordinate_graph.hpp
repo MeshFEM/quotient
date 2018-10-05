@@ -625,7 +625,7 @@ inline void CoordinateGraph::ReserveEdgeAdditions(Int max_edge_additions) {
 
 inline void CoordinateGraph::QueueEdgeAddition(Int source, Int target) {
 #ifdef QUOTIENT_DEBUG
-  if (edges_.size() == edges_.capacity()) {  
+  if (edges_to_add_.size() == edges_to_add_.capacity()) {  
     std::cerr << "WARNING: Pushing back without first reserving space."
 	      << std::endl;
   }
