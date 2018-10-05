@@ -9,13 +9,65 @@
 #define QUOTIENT_COORDINATE_GRAPH_H_
 
 #include <algorithm>
+#include <fstream>
+#include <memory>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 #include "quotient/config.hpp"
-#include "quotient/graph_edge.hpp"
 
 namespace quotient {
+
+// A pairing of the source and target vertices of a graph edge.
+typedef std::pair<Int, Int> GraphEdge;
+
+// The character that Matrix Market comment lines begin with.
+static constexpr char kMatrixMarketCommentChar = '%';
+
+// The Matrix Market 'complex' field string.
+static constexpr char kMatrixMarketFieldComplexString[] = "complex";
+
+// The Matrix Market 'double' field string.
+static constexpr char kMatrixMarketFieldDoubleString[] = "real";
+
+// The Matrix Market 'integer' field string.
+static constexpr char kMatrixMarketFieldIntegerString[] = "integer";
+
+// The Matrix Market 'pattern' field string.
+static constexpr char kMatrixMarketFieldPatternString[] = "pattern";
+
+// The Matrix Market 'real' field string.
+static constexpr char kMatrixMarketFieldRealString[] = "real";
+
+// The Matrix Market 'array' format string.
+static constexpr char kMatrixMarketFormatArrayString[]= "array";
+
+// The Matrix Market 'coordinate' format string.
+static constexpr char kMatrixMarketFormatCoordinateString[] = "coordinate";
+
+// The Matrix Market 'matrix' object string.
+static constexpr char kMatrixMarketObjectMatrixString[] = "matrix";
+
+// The Matrix Market 'vector' object string.
+static constexpr char kMatrixMarketObjectVectorString[] = "vector";
+
+// The Matrix Market 'hermitian' symmetry string.
+static constexpr char kMatrixMarketSymmetryHermitianString[] = "hermitian";
+
+// The Matrix Market 'general' symmetry string.
+static constexpr char kMatrixMarketSymmetryGeneralString[] = "general";
+
+// The Matrix Market 'skew-symmetric' symmetry string.
+static constexpr char kMatrixMarketSymmetrySkewSymmetricString[] =
+    "skew-symmetric";
+
+// The Matrix Market 'symmetric' symmetry string.
+static constexpr char kMatrixMarketSymmetrySymmetricString[] = "symmetric";
+
+// The Matrix Market stamp string.
+static constexpr char kMatrixMarketStampString[] = "%%MatrixMarket";
+
 
 // A helper routine for freeing the memory of an std::vector.
 template<typename T>
@@ -28,12 +80,6 @@ void SwapClearVector(std::vector<T>* vec) {
 template<typename T>
 void EraseDuplicatesInSortedVector(std::vector<T>* vec) {
   vec->erase(std::unique(vec->begin(), vec->end()), vec->end());
-}
-
-
-// Sorts a vector of GraphEdge instances in place.
-void SortGraphEdges(std::vector<GraphEdge>* edges) {
-  std::sort(edges->begin(), edges->end(), &GraphEdge::LessThan);
 }
 
 
@@ -88,6 +134,10 @@ class CoordinateGraph {
 
   // The assignment operator.
   const CoordinateGraph& operator=(const CoordinateGraph& graph);
+
+  // Builds and returns a CoordinateGraph from a Matrix Market description.
+  static std::unique_ptr<CoordinateGraph> FromMatrixMarket(
+      const std::string& filename);
 
   // A trivial destructor.
   ~CoordinateGraph();
@@ -169,6 +219,48 @@ class CoordinateGraph {
   Int NumConnections(Int source) const noexcept;
 
  private:
+
+  enum MatrixMarketObject {
+    kMatrixMarketObjectMatrix,
+    kMatrixMarketObjectVector,
+  };
+
+  enum MatrixMarketFormat {
+    kMatrixMarketFormatArray,
+    kMatrixMarketFormatCoordinate,
+  };
+
+  enum MatrixMarketField {
+    kMatrixMarketFieldReal,
+    kMatrixMarketFieldComplex,
+    kMatrixMarketFieldInteger,
+    kMatrixMarketFieldPattern,
+  };
+
+  enum MatrixMarketSymmetry {
+    kMatrixMarketSymmetryGeneral,
+    kMatrixMarketSymmetrySymmetric,
+    kMatrixMarketSymmetrySkewSymmetric,
+    kMatrixMarketSymmetryHermitian,
+  };
+
+  struct MatrixMarketDescription {
+    MatrixMarketObject object;
+
+    MatrixMarketFormat format;
+
+    MatrixMarketField field;
+
+    MatrixMarketSymmetry symmetry;
+
+    // A trivial constructor.
+    MatrixMarketDescription();
+
+    // Builds the MatrixMarketDescription by parsing the header line of the
+    // Matrix Market file. Returns true if the parse was successful.
+    bool ParseFromHeaderLine(const std::string& header_line);
+  };
+
   // The ground set size for the source vertices.
   Int num_sources_;
 
@@ -230,6 +322,251 @@ inline const CoordinateGraph& CoordinateGraph::operator=(
   edges_to_remove_ = graph.edges_to_remove_;
 
   return *this;
+}
+
+CoordinateGraph::MatrixMarketDescription::MatrixMarketDescription() { }
+
+bool CoordinateGraph::MatrixMarketDescription::ParseFromHeaderLine(
+    const std::string& header_line) {
+  std::stringstream line_stream(header_line);
+
+  // Extract the tokens of the header line.
+  std::string stamp;
+  line_stream >> stamp;
+  if (stamp != kMatrixMarketStampString) {
+    std::cerr << "Invalid Matrix Market stamp." << std::endl;
+    return false;
+  }
+  std::string object_string;
+  if (!(line_stream >> object_string)) {
+    std::cerr << "Missing Matrix Market object." << std::endl;
+    return false;
+  }
+  std::string format_string;
+  if (!(line_stream >> format_string)) {
+    std::cerr << "Missing Matrix Market format." << std::endl;
+    return false;
+  }
+  std::string field_string;
+  if (!(line_stream >> field_string)) {
+    std::cerr << "Missing Matrix Market field." << std::endl;
+    return false;
+  }
+  std::string symmetry_string;
+  if (!(line_stream >> symmetry_string)) {
+    std::cerr << "Missing Matrix Market symmetry." << std::endl;
+    return false;
+  }
+
+  // Determine the type of object.
+  if (object_string == kMatrixMarketObjectMatrixString) { 
+    object = kMatrixMarketObjectMatrix;
+  } else if (object_string == kMatrixMarketObjectVectorString) {
+    object = kMatrixMarketObjectVector;
+  } else {
+    std::cerr << "Invalid Matrix Market object string." << std::endl;
+    return false;
+  }
+
+  // Determine the storage format.
+  if (format_string == kMatrixMarketFormatArrayString) {
+    format = kMatrixMarketFormatArray;
+  } else if (format_string == kMatrixMarketFormatCoordinateString) {
+    format = kMatrixMarketFormatCoordinate;
+  } else {
+    std::cerr << "Invalid Matrix Market format string." << std::endl;
+    return false;
+  }
+
+  // Determine the underlying field.
+  if (field_string == kMatrixMarketFieldComplexString) {
+    field = kMatrixMarketFieldComplex;
+  } else if (field_string == kMatrixMarketFieldDoubleString ||
+             field_string == kMatrixMarketFieldRealString) {
+    field = kMatrixMarketFieldReal;
+  } else if (field_string == kMatrixMarketFieldIntegerString) {
+    field = kMatrixMarketFieldInteger;
+  } else if (field_string == kMatrixMarketFieldPatternString) {
+    field = kMatrixMarketFieldPattern;
+  } else {
+    std::cerr << "Invalid Matrix Market field string." << std::endl;
+    return false;
+  }
+
+  // Determine the symmetry.
+  if (symmetry_string == kMatrixMarketSymmetryGeneralString) {
+    symmetry = kMatrixMarketSymmetryGeneral;
+  } else if (symmetry_string == kMatrixMarketSymmetrySymmetricString) {
+    symmetry = kMatrixMarketSymmetrySymmetric;
+  } else if (symmetry_string == kMatrixMarketSymmetrySkewSymmetricString) {
+    symmetry = kMatrixMarketSymmetrySkewSymmetric;
+  } else if (symmetry_string == kMatrixMarketSymmetryHermitianString) {
+    symmetry = kMatrixMarketSymmetryHermitian;
+  } else {
+    std::cerr << "Invalid Matrix Market symmetry string." << std::endl;
+    return false;
+  }
+
+  // Validate the description.
+  if (format == kMatrixMarketFormatArray &&
+      field == kMatrixMarketFieldPattern) {
+    std::cerr << "The 'array' format and 'pattern' field are incompatible."
+              << std::endl;
+    return false;
+  }
+  if (field == kMatrixMarketFieldPattern &&
+      symmetry == kMatrixMarketSymmetrySkewSymmetric) {
+    // Due to the line
+    //
+    //   "symmetry is either general (legal for real, complex, integer or
+    //    pattern fields), symmetric (real, complex, integer or pattern),
+    //    skew-symmetric (real, complex or integer), or hermitian (complex
+    //    only)."
+    //
+    // from http://people.sc.fsu.edu/~jburkardt/data/mm/mm.html, we disallow
+    // patterned skew-symmetry.
+    std::cerr << "The 'pattern' field and 'skew-symmetric' symmetry are "
+                 "incompatible." << std::endl;
+    return false;
+  }
+  if (field != kMatrixMarketFieldComplex &&
+      symmetry == kMatrixMarketSymmetryHermitian) {
+    std::cerr << "The hermitian symmetry technically requires complex data."
+              << std::endl;
+  }
+
+  return true;
+}
+
+std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
+      const std::string& filename) {
+  std::unique_ptr<CoordinateGraph> result;
+  std::ifstream file(filename);
+  if (!file.is_open()) { 
+    std::cerr << "Could not open " << filename << std::endl;
+    return result;
+  }
+  
+  // Fill the description of the Matrix Market data.
+  std::string line;
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not read header line from Matrix Market file."
+              << std::endl;
+    return result;
+  }
+  MatrixMarketDescription description;
+  if (!description.ParseFromHeaderLine(line)) {
+    std::cerr << "Could not parse header line from Matrix Market file."
+              << std::endl;
+    return result;
+  }
+  if (description.object == kMatrixMarketObjectVector) {
+    std::cerr << "The Matrix Market 'vector' object is incompatible with "
+                 "CoordinateGraph." << std::endl;
+    return false;
+  }
+
+  // Skip the comment lines.
+  while (file.peek() == kMatrixMarketCommentChar) {
+    std::getline(file, line);
+  }
+ 
+  result.reset(new CoordinateGraph);
+  if (description.format == kMatrixMarketFormatArray) {
+    // Read the size of the matrix.
+    Int matrix_height, matrix_width;
+    if (!std::getline(file, line)) {
+      std::cerr << "Could not extract the array size line." << std::endl;
+      return false;
+    }
+    std::stringstream line_stream(line);
+    if (!(line_stream >> matrix_height)) {  
+      std::cerr << "Missing matrix height in Matrix Market file." << std::endl;
+      return false;
+    }
+    if (description.object == kMatrixMarketObjectMatrix) {
+      if (!(line_stream >> matrix_width)) {
+        std::cerr << "Missing matrix width in Matrix Market file." << std::endl;
+        return false;
+      }
+    } else {
+      matrix_width = 1;
+    }
+    
+    // Fill a fully-connected graph.
+    result->AsymmetricResize(matrix_height, matrix_width);
+    result->ReserveEdgeAdditions(matrix_height * matrix_width);
+    for (Int source = 0; source < matrix_height; ++source) {
+      for (Int target = 0; target < matrix_width; ++target) {
+        result->QueueEdgeAddition(source, target);
+      }
+    }
+    result->FlushEdgeQueues();
+    return result;
+  }
+
+  // Read in the number of matrix dimensions and the number of explicit
+  // nonzeros specified in the file.
+  Int matrix_height, matrix_width, num_explicit_nonzeros;
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not extract the coordinate size line." << std::endl;
+    return false;
+  }
+  std::stringstream line_stream(line); 
+  if (!(line_stream >> matrix_height)) {
+    std::cerr << "Missing matrix height in Matrix Market file." << std::endl;
+    return false;
+  }
+  if (description.object == kMatrixMarketObjectMatrix) {
+    if (!(line_stream >> matrix_width)) {
+      std::cerr << "Missing matrix width in Matrix Market file." << std::endl;
+      return false;
+    }
+  } else {
+    matrix_width = 1;
+  }
+  if (!(line_stream >> num_explicit_nonzeros)) {
+    std::cerr << "Missing num_nonzeros in Matrix Market file." << std::endl;
+    return false;
+  }
+
+  // Fill in the edges.
+  const Int num_nonzeros_bound =
+      description.symmetry == kMatrixMarketSymmetryGeneral ?
+      num_explicit_nonzeros : 2 * num_explicit_nonzeros;
+  result->AsymmetricResize(matrix_height, matrix_width);
+  result->ReserveEdgeAdditions(num_nonzeros_bound);
+  for (Int edge_index = 0; edge_index < num_explicit_nonzeros; ++edge_index) {
+    Int source, target;
+    if (!std::getline(file, line)) {
+      std::cerr << "Could not extract nonzero description from Matrix Market "
+                   "file." << std::endl;
+      return false;
+    }
+    std::stringstream line_stream(line);
+    if (!(line_stream >> source)) {
+      std::cerr << "Could not extract row index of nonzero." << std::endl;
+      return false;
+    }
+    --source; // Convert from 1-based to 0-based indexing.
+    if (description.object == kMatrixMarketObjectMatrix) {
+      if (!(line_stream >> target)) {
+        std::cerr << "Could not extract column index of nonzero." << std::endl;
+        return false;
+      }
+      --target; // Convert from 1-based to 0-based indexing.
+    } else {
+      target = 0;
+    }
+    result->QueueEdgeAddition(source, target);
+    if (source != target &&
+        description.symmetry != kMatrixMarketSymmetryGeneral) {
+      result->QueueEdgeAddition(target, source);
+    }
+  }
+  result->FlushEdgeQueues();
+
+  return result;
 }
 
 inline CoordinateGraph::~CoordinateGraph() { }
@@ -304,6 +641,32 @@ inline void CoordinateGraph::QueueEdgeAddition(Int source, Int target) {
   edges_to_add_.emplace_back(source, target);
 }
 
+inline void CoordinateGraph::FlushEdgeAdditionQueue(
+    bool update_source_edge_offsets) {
+  if (!edges_to_add_.empty()) {
+    // Sort and erase duplicates from the list of edges to be added.
+    std::sort(edges_to_add_.begin(), edges_to_add_.end());
+    EraseDuplicatesInSortedVector(&edges_to_add_);
+
+    // Perform a merge sort.
+    const std::vector<GraphEdge> edges_copy(edges_);
+    edges_.resize(0);
+    edges_.resize(edges_copy.size() + edges_to_add_.size());
+    std::merge(
+      edges_copy.begin(), edges_copy.end(),
+      edges_to_add_.begin(), edges_to_add_.end(),
+      edges_.begin());
+    SwapClearVector(&edges_to_add_);
+
+    // Erase duplicate edges.
+    EraseDuplicatesInSortedVector(&edges_);
+  }
+
+  if (update_source_edge_offsets) {
+    UpdateSourceEdgeOffsets();
+  }
+}
+
 inline void CoordinateGraph::ReserveEdgeRemovals(Int max_edge_removals) {
   edges_to_remove_.reserve(max_edge_removals);
 }
@@ -326,17 +689,14 @@ inline void CoordinateGraph::FlushEdgeRemovalQueue(
     bool update_source_edge_offsets) {
   if (!edges_to_remove_.empty()) {
     // Sort and erase duplicates from the list of edges to be removed.
-    SortGraphEdges(&edges_to_remove_);
+    std::sort(edges_to_remove_.begin(), edges_to_remove_.end());
     EraseDuplicatesInSortedVector(&edges_to_remove_);
 
     const Int num_edges = edges_.size();
     Int num_removed = 0;
     for (Int index = 0; index < num_edges; ++index) { 
       auto iter = std::lower_bound(
-        edges_to_remove_.begin(),
-	      edges_to_remove_.end(),
-	      edges_[index],
-        &GraphEdge::LessThan);
+        edges_to_remove_.begin(), edges_to_remove_.end(), edges_[index]);
       if (iter == edges_to_remove_.end() || *iter != edges_[index]) {
         // The current edge should be kept, so pack it from the left.
         edges_[index - num_removed] = edges_[index];
@@ -347,33 +707,6 @@ inline void CoordinateGraph::FlushEdgeRemovalQueue(
     }
     edges_.resize(num_edges - num_removed);
     SwapClearVector(&edges_to_remove_);
-  }
-
-  if (update_source_edge_offsets) {
-    UpdateSourceEdgeOffsets();
-  }
-}
-
-inline void CoordinateGraph::FlushEdgeAdditionQueue(
-    bool update_source_edge_offsets) {
-  if (!edges_to_add_.empty()) {
-    // Sort and erase duplicates from the list of edges to be added.
-    SortGraphEdges(&edges_to_add_);
-    EraseDuplicatesInSortedVector(&edges_to_add_);
-
-    // Perform a merge sort.
-    const std::vector<GraphEdge> edges_copy(edges_);
-    edges_.resize(0);
-    edges_.resize(edges_copy.size() + edges_to_add_.size());
-    std::merge(
-      edges_copy.begin(), edges_copy.end(),
-      edges_to_add_.begin(), edges_to_add_.end(),
-      edges_.begin(),
-      &GraphEdge::LessThan);
-    SwapClearVector(&edges_to_add_);
-
-    // Erase duplicate edges.
-    EraseDuplicatesInSortedVector(&edges_);
   }
 
   if (update_source_edge_offsets) {
@@ -437,15 +770,14 @@ inline Int CoordinateGraph::EdgeOffset(Int source, Int target) const noexcept {
   auto iter = std::lower_bound(
       edges_.begin() + source_edge_offset,
       edges_.begin() + next_source_edge_offset,
-      GraphEdge(source, target),
-      &GraphEdge::LessThan);
+      GraphEdge(source, target));
   return iter - edges_.begin();
 }
 
 inline bool CoordinateGraph::EdgeExists(Int source, Int target) const noexcept {
   const Int index = EdgeOffset(source, target);
   const GraphEdge& edge = Edge(index);
-  return edge.source == source && edge.target == target;
+  return edge.first == source && edge.second == target;
 }
 
 inline Int CoordinateGraph::NumConnections(Int source) const noexcept {
@@ -458,7 +790,7 @@ inline void CoordinateGraph::UpdateSourceEdgeOffsets() {
   Int source_edge_offset = 0;  
   Int prev_source = -1;
   for (Int edge_index = 0; edge_index < num_edges; ++edge_index) {
-    const Int source = edges_[edge_index].source;
+    const Int source = edges_[edge_index].first;
 #ifdef QUOTIENT_DEBUG
     if (source < prev_source) {
       std::cerr << "Sources were not properly sorted." << std::endl;

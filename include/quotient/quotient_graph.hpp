@@ -167,8 +167,8 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
     for (Int edge_index = source_edge_offset;
          edge_index < next_source_edge_offset; ++edge_index) {
       const GraphEdge& edge = edges[edge_index];
-      if (edge.target != source) {
-        adjacency_list.push_back(edge.target);
+      if (edge.second != source) {
+        adjacency_list.push_back(edge.second);
       }
     }
   }

@@ -98,3 +98,61 @@ TEST_CASE("Batch example", "[batch]") {
   REQUIRE(edges[3] == quotient::GraphEdge(3, 2));
   REQUIRE(edges[4] == quotient::GraphEdge(3, 3));
 }
+
+TEST_CASE("Matrix Matrix general", "[MM-general]") {
+  // We will assume the typical choice of a build directory living in the
+  // main project directory.
+  constexpr char kCoordinateGeneralSmall[] =
+      "../test/matrix_market/coordinate-general-small.mtx";
+  constexpr char kCoordinateSymmetricSmall[] =
+      "../test/matrix_market/coordinate-symmetric-small.mtx";
+
+  const std::vector<quotient::GraphEdge> kExpectedEdges {
+    {0, 3},
+    {0, 5},
+    {1, 4},
+    {1, 5},
+    {1, 8},
+    {2, 4},
+    {2, 5},
+    {2, 6},
+    {3, 0},
+    {3, 6},
+    {3, 7},
+    {4, 1},
+    {4, 2},
+    {4, 6},
+    {4, 8},
+    {5, 0},
+    {5, 1},
+    {5, 2},
+    {6, 2},
+    {6, 3},
+    {6, 4},
+    {6, 7},
+    {6, 8},
+    {6, 9},
+    {7, 3},
+    {7, 6},
+    {7, 8},
+    {7, 9},
+    {8, 1},
+    {8, 4},
+    {8, 6},
+    {8, 7},
+    {8, 9},
+    {9, 6},
+    {9, 7},
+    {9, 8},
+  };
+
+  std::unique_ptr<quotient::CoordinateGraph> graph =
+      quotient::CoordinateGraph::FromMatrixMarket(kCoordinateGeneralSmall);
+  REQUIRE(graph != nullptr);
+  REQUIRE(graph->Edges() == kExpectedEdges);
+
+  graph = quotient::CoordinateGraph::FromMatrixMarket(
+      kCoordinateSymmetricSmall);
+  REQUIRE(graph != nullptr);
+  REQUIRE(graph->Edges() == kExpectedEdges);
+}

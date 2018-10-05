@@ -55,7 +55,7 @@ struct MinimumDegreeAnalysis {
 };
 
 // Compute the structure of the pivot:
-//   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ p.
+//   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
 //
 // TODO(Jack Poulson): Experiment with several different union-finding
 // algorithms. It isn't clear that repeated calls to std::set_union has
