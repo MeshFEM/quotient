@@ -37,6 +37,14 @@ struct MinimumDegreeAnalysis {
   // factorization.
   std::vector<std::vector<Int>> supernodal_structures;
 
+  // An optional list of aggressive element absorption pairs: each pair (e, f)
+  // consists of the absorbing element, e, and the absorbed element, f.
+  std::vector<std::pair<Int, Int>> aggressive_absorptions;
+
+  // An optional list of supervariable merge pairs: each pair (i, j) consists of
+  // the absorbing supervariable, i, and the absorbed supervariable, j.
+  std::vector<std::pair<Int, Int>> variable_merges;
+
   // We will push to elimination order as the reordering algorithm progresses,
   // so we will allocate an upper bound for the amount of required space.
   // The 'supernodes' and 'structures' variables will be copied over from
@@ -87,6 +95,7 @@ inline void UpdateElementListsAfterSelectingPivot(
     const std::vector<Int>& supernodal_pivot_structure,
     const std::unordered_map<Int, Int>& external_structure_sizes,
     bool aggressive_absorption,
+    bool store_aggressive_absorptions,
     QuotientGraph* graph) {
   std::vector<Int> temp;
   for (const Int& i : supernodal_pivot_structure) {
@@ -100,12 +109,17 @@ inline void UpdateElementListsAfterSelectingPivot(
   if (aggressive_absorption) {
     // Follow the advice at the beginning of Section 5 of [AMD-96] and absorb
     // any element e that satisfies |L_e \ L_p| = 0.
-    auto zero_range = external_structure_sizes.equal_range(0);
-    for (auto it = zero_range.first; it != zero_range.second; ++it) {
-      const Int element = it->first;
+    for (const std::pair<Int, Int>& pairing : external_structure_sizes) {
+      if (pairing.second != 0) {
+        continue;
+      }
 
       // Aggressive element absorption:
       //   E_p := (E_p \ E_e) \cup {e}.
+      const Int element = pairing.first;
+      if (store_aggressive_absorptions) {
+        graph->aggressive_absorptions.emplace_back(pivot, element);
+      }
       temp = graph->element_lists[pivot];
       FilterSet(
           temp, graph->element_lists[element], &graph->element_lists[pivot]);
@@ -148,6 +162,7 @@ inline void UpdateExternalDegreeApproximations(
 // supernodal structure and is thus invariant to supervariable merges.
 inline void DetectAndMergeVariables(
     const std::vector<Int>& supernodal_pivot_structure,
+    bool store_variable_merges,
     QuotientGraph* graph) {
   // Fill a set of buckets for the hashes of the supernodes adjacent to
   // the current pivot.
@@ -183,14 +198,14 @@ inline void DetectAndMergeVariables(
       const Int j = supernodal_pivot_structure[j_index];
       if (graph->VariablesAreQuotientIndistinguishable(i, j)) {
         // Absorb supernode(j) into supernode(i). 
+        if (store_variable_merges) {
+          graph->variable_merges.emplace_back(i, j);
+        }
         temp = graph->supernodes[i];
         MergeSets(temp, graph->supernodes[j], &graph->supernodes[i]);
         graph->external_degree_heap.UpdateValue(
             i, -graph->supernodes[j].size());
         graph->external_degree_heap.DisableIndex(j);
-#ifdef QUOTIENT_DEBUG
-        graph->variables.erase(j);
-#endif
         SwapClearVector(&graph->supernodes[j]);
         SwapClearVector(&graph->adjacency_lists[j]);
         SwapClearVector(&graph->element_lists[j]);
@@ -202,17 +217,6 @@ inline void DetectAndMergeVariables(
 
 // Converts the 'pivot' (super)variable into an element.
 inline void ConvertPivotIntoElement(Int pivot, QuotientGraph* graph) {
-#ifdef QUOTIENT_DEBUG
-  // Update the element list:
-  //   \bar{V} := (\bar{V} \cup {p}) \ E_p
-  graph->elements.insert(pivot);
-  for (const Int& element : graph->element_lists[pivot]) {
-    graph->elements.erase(element);
-  }
-  // Update the variable list:
-  //   V := V \ {p}.
-  graph->variables.erase(pivot);
-#endif
   graph->external_degree_heap.DisableIndex(pivot);
   SwapClearVector(&graph->adjacency_lists[pivot]);
   SwapClearVector(&graph->element_lists[pivot]);
@@ -228,7 +232,9 @@ inline void ConvertPivotIntoElement(Int pivot, QuotientGraph* graph) {
 MinimumDegreeAnalysis MinimumDegree(
   const CoordinateGraph& graph,
   ExternalDegreeType degree_type,
-  bool aggressive_absorption) {
+  bool aggressive_absorption,
+  bool store_aggressive_absorptions,
+  bool store_variable_merges) {
 #ifdef QUOTIENT_DEBUG
   if (graph.NumSources() != graph.NumVertices()) {
     std::cerr << "ERROR: MinimumDegree requires a symmetric input graph."
@@ -264,25 +270,30 @@ MinimumDegreeAnalysis MinimumDegree(
 
     UpdateElementListsAfterSelectingPivot(
         pivot, supernodal_pivot_structure, external_structure_sizes,
-        aggressive_absorption, &quotient_graph);
+        aggressive_absorption, store_aggressive_absorptions, &quotient_graph);
 
     UpdateExternalDegreeApproximations(
         pivot, supernodal_pivot_structure, external_structure_sizes,
         degree_type, &quotient_graph);
 
-    DetectAndMergeVariables(supernodal_pivot_structure, &quotient_graph);
+    DetectAndMergeVariables(
+        supernodal_pivot_structure, store_variable_merges, &quotient_graph);
 
     ConvertPivotIntoElement(pivot, &quotient_graph);
 
     analysis.elimination_order.push_back(pivot);
   }
 
+  // Extract the relevant information from the QuotientGraph.
   analysis.supernodes = quotient_graph.supernodes;
   analysis.supernodal_structures.resize(num_orig_vertices);
   for (const Int& i : analysis.elimination_order) {
     analysis.supernodal_structures[i] =
         quotient_graph.FormSupernodalStructure(i);
   }
+  analysis.aggressive_absorptions = quotient_graph.aggressive_absorptions;
+  analysis.variable_merges = quotient_graph.variable_merges;
+
   return analysis;
 }
 

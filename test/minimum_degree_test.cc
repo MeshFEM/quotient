@@ -75,10 +75,18 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   graph.AddEdge(8, 9);
   graph.AddEdge(9, 8);
 
-  const bool aggressive_absorption = false;
+  const quotient::ExternalDegreeType degree_type =
+      quotient::kExactExternalDegree;
+  const bool aggressive_absorption = true;
+  const bool store_aggressive_absorptions = true;
+  const bool store_variable_merges = true;
   const quotient::MinimumDegreeAnalysis analysis =
       quotient::MinimumDegree(
-          graph, quotient::kExactExternalDegree, aggressive_absorption);
+          graph,
+          degree_type,
+          aggressive_absorption,
+          store_aggressive_absorptions,
+          store_variable_merges);
 
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -114,13 +122,18 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
       {},
   };
 
+  const std::vector<std::pair<Int, Int>> kExpectedAggressiveAbsorptions;
+
+  const std::vector<std::pair<Int, Int>> kExpectedVariableMerges;
+
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
   REQUIRE(analysis.supernodal_structures == kExpectedSupernodalStructures);
+  REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
+  REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 }
 
-// TODO(Jack Poulson): Provide a means of returning information about the
-// aggressive element absorption (and other statistics).
+// Please see the beginning of Section 5 of [ADD-96].
 TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   quotient::CoordinateGraph graph;
   graph.Resize(4);
@@ -135,10 +148,18 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   graph.AddEdge(2, 1);
   graph.AddEdge(3, 1);
 
+  const quotient::ExternalDegreeType degree_type =
+      quotient::kExactExternalDegree;
   const bool aggressive_absorption = true;
+  const bool store_aggressive_absorptions = true;
+  const bool store_variable_merges = true;
   const quotient::MinimumDegreeAnalysis analysis =
       quotient::MinimumDegree(
-          graph, quotient::kExactExternalDegree, aggressive_absorption);
+          graph,
+          degree_type,
+          aggressive_absorption,
+          store_aggressive_absorptions,
+          store_variable_merges);
 
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3,
@@ -162,7 +183,16 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
       {},
   };
 
+  // [ADD-96] discusses the aggressive absorption, 0 into 1.
+  const std::vector<std::pair<Int, Int>> kExpectedAggressiveAbsorptions{
+      {1, 0},
+  };
+
+  const std::vector<std::pair<Int, Int>> kExpectedVariableMerges;
+
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
   REQUIRE(analysis.supernodal_structures == kExpectedSupernodalStructures);
+  REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
+  REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 }

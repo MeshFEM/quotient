@@ -79,19 +79,18 @@ struct QuotientGraph {
   // The element lists only contain the principal member of any supernode.
   std::vector<std::vector<Int>> element_lists;
 
-#ifdef QUOTIENT_DEBUG
-  // The list of all (principal) variables.
-  std::set<Int> variables;
-
-  // The list of all (principal) elements (principal members of eliminated
-  // variables).
-  std::set<Int> elements;
-#endif
-
   // A cached binary tree of external degrees that allows for O(lg(n))
   // random modification, O(1) random access, and O(1) extraction of the
   // left-most minimal index.
   RandomAccessHeap<Int> external_degree_heap;
+
+  // An optional list of aggressive element absorption pairs: each pair (e, f)
+  // consists of the absorbing element, e, and the absorbed element, f.
+  std::vector<std::pair<Int, Int>> aggressive_absorptions;
+
+  // An optional list of supervariable merge pairs: each pair (i, j) consists of
+  // the absorbing supervariable, i, and the absorbed supervariable, j.
+  std::vector<std::pair<Int, Int>> variable_merges;
 
   // Initializes the quotient graph from a symmetric graph.
   QuotientGraph(const CoordinateGraph& graph);
@@ -176,13 +175,6 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
 
   // Trivially initialize the element lists.
   element_lists.resize(num_original_vertices);
-
-#ifdef QUOTIENT_DEBUG
-  // Initialize the (principal) variable and element lists.
-  for (Int source = 0; source < num_original_vertices; ++source) {
-    variables.insert(source);
-  }
-#endif
 
   // Initialize the cached binary tree of external degrees.
   std::vector<Int> external_degrees_vec(num_original_vertices);
@@ -331,7 +323,7 @@ inline std::unordered_map<Int, Int> QuotientGraph::ExternalStructureSizes(
       if (!external_structure_sizes.count(element)) {
         external_structure_sizes[element] = structures[element].size();
       }
-      external_structure_sizes[element] -= structures[i].size();
+      external_structure_sizes[element] -= supernodes[i].size();
     }
   }
   return external_structure_sizes;
