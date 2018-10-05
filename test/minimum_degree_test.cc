@@ -27,7 +27,7 @@ using quotient::Int;
 // Thus, if an exact external degree computation is requested, then the
 // elimination order is (0, 1, ..., 9), and the supernodes are all trivial.
 //
-TEST_CASE("ADD-96", "[ADD-96]") {
+TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   quotient::CoordinateGraph graph;
   graph.Resize(10);
 
@@ -75,8 +75,10 @@ TEST_CASE("ADD-96", "[ADD-96]") {
   graph.AddEdge(8, 9);
   graph.AddEdge(9, 8);
 
+  const bool aggressive_absorption = false;
   const quotient::MinimumDegreeAnalysis analysis =
-    quotient::MinimumDegree(graph, quotient::kExactExternalDegree);
+      quotient::MinimumDegree(
+          graph, quotient::kExactExternalDegree, aggressive_absorption);
 
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -109,6 +111,54 @@ TEST_CASE("ADD-96", "[ADD-96]") {
       {7, 8, 9},
       {8, 9},
       {9},
+      {},
+  };
+
+  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
+  REQUIRE(analysis.supernodes == kExpectedSupernodes);
+  REQUIRE(analysis.supernodal_structures == kExpectedSupernodalStructures);
+}
+
+// TODO(Jack Poulson): Provide a means of returning information about the
+// aggressive element absorption (and other statistics).
+TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
+  quotient::CoordinateGraph graph;
+  graph.Resize(4);
+
+  graph.AddEdge(0, 2);
+  graph.AddEdge(0, 3);
+  graph.AddEdge(2, 0);
+  graph.AddEdge(3, 0);
+
+  graph.AddEdge(1, 2);
+  graph.AddEdge(1, 3);
+  graph.AddEdge(2, 1);
+  graph.AddEdge(3, 1);
+
+  const bool aggressive_absorption = true;
+  const quotient::MinimumDegreeAnalysis analysis =
+      quotient::MinimumDegree(
+          graph, quotient::kExactExternalDegree, aggressive_absorption);
+
+  const std::vector<Int> kExpectedEliminationOrder{
+      0, 1, 2, 3,
+  };
+
+  // See the comment at the top of this test for why we do not expect any
+  // nontrivial supernodes.
+  const std::vector<std::vector<Int>> kExpectedSupernodes{
+      {0},
+      {1},
+      {2},
+      {3},
+  };
+
+  // This structure is defined directly (modulo translation from 1-based to
+  // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
+  const std::vector<std::vector<Int>> kExpectedSupernodalStructures{
+      {2, 3},
+      {2, 3},
+      {3},
       {},
   };
 

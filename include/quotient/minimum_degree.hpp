@@ -85,6 +85,8 @@ inline void UpdateAdjacencyListsAfterSelectingPivot(
 inline void UpdateElementListsAfterSelectingPivot(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
+    const std::unordered_map<Int, Int>& external_structure_sizes,
+    bool aggressive_absorption,
     QuotientGraph* graph) {
   std::vector<Int> temp;
   for (const Int& i : supernodal_pivot_structure) {
@@ -93,6 +95,22 @@ inline void UpdateElementListsAfterSelectingPivot(
     temp = graph->element_lists[i];
     FilterSet(temp, graph->element_lists[pivot], &graph->element_lists[i]);
     InsertEntryIntoSet(pivot, &graph->element_lists[i]);
+  }
+
+  if (aggressive_absorption) {
+    // Follow the advice at the beginning of Section 5 of [AMD-96] and absorb
+    // any element e that satisfies |L_e \ L_p| = 0.
+    auto zero_range = external_structure_sizes.equal_range(0);
+    for (auto it = zero_range.first; it != zero_range.second; ++it) {
+      const Int element = it->first;
+
+      // Aggressive element absorption:
+      //   E_p := (E_p \ E_e) \cup {e}.
+      temp = graph->element_lists[pivot];
+      FilterSet(
+          temp, graph->element_lists[element], &graph->element_lists[pivot]);
+      InsertEntryIntoSet(element, &graph->element_lists[pivot]);
+    }
   }
 }
 
@@ -105,16 +123,9 @@ inline void UpdateElementListsAfterSelectingPivot(
 inline void UpdateExternalDegreeApproximations(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
+    const std::unordered_map<Int, Int>& external_structure_sizes,
     ExternalDegreeType degree_type,
     QuotientGraph* graph) {
-  // Compute the external structure cardinalities of the elements.
-  // (but only if the Amestoy external degree approximation is requested).
-  std::unordered_map<Int, Int> external_structure_sizes;
-  if (degree_type == kAmestoyExternalDegree) {
-    external_structure_sizes = graph->ExternalStructureSizes(
-        supernodal_pivot_structure);
-  }
-
   for (const Int& i : supernodal_pivot_structure) {
     // Compute the external degree (or approximation) of supervariable i:
     //   d_i := |A_i \ supernode(i)| +
@@ -163,9 +174,12 @@ inline void DetectAndMergeVariables(
     const Int i = supernodal_pivot_structure[i_index];
     const Int bucket = bucket_list[i_index];
     for (const Int& j_index : variable_hash_map[bucket]) {
+      // Avoid processing the same pair twice, and skip any already-merged
+      // supernodes.
       if (j_index <= i_index || merged_supernode[j_index]) {
         continue;
       }
+
       const Int j = supernodal_pivot_structure[j_index];
       if (graph->VariablesAreQuotientIndistinguishable(i, j)) {
         // Absorb supernode(j) into supernode(i). 
@@ -212,7 +226,9 @@ inline void ConvertPivotIntoElement(Int pivot, QuotientGraph* graph) {
 // The input graph must be explicitly symmetric.
 //
 MinimumDegreeAnalysis MinimumDegree(
-  const CoordinateGraph& graph, ExternalDegreeType degree_type) {
+  const CoordinateGraph& graph,
+  ExternalDegreeType degree_type,
+  bool aggressive_absorption) {
 #ifdef QUOTIENT_DEBUG
   if (graph.NumSources() != graph.NumVertices()) {
     std::cerr << "ERROR: MinimumDegree requires a symmetric input graph."
@@ -238,11 +254,21 @@ MinimumDegreeAnalysis MinimumDegree(
     UpdateAdjacencyListsAfterSelectingPivot(
         pivot, supernodal_pivot_structure, &quotient_graph);
 
+    // Compute the external structure cardinalities of the elements.
+    // (but only if the Amestoy external degree approximation is requested).
+    std::unordered_map<Int, Int> external_structure_sizes;
+    if (aggressive_absorption || degree_type == kAmestoyExternalDegree) {
+      external_structure_sizes = quotient_graph.ExternalStructureSizes(
+          supernodal_pivot_structure);
+    }
+
     UpdateElementListsAfterSelectingPivot(
-        pivot, supernodal_pivot_structure, &quotient_graph);
+        pivot, supernodal_pivot_structure, external_structure_sizes,
+        aggressive_absorption, &quotient_graph);
 
     UpdateExternalDegreeApproximations(
-        pivot, supernodal_pivot_structure, degree_type, &quotient_graph);
+        pivot, supernodal_pivot_structure, external_structure_sizes,
+        degree_type, &quotient_graph);
 
     DetectAndMergeVariables(supernodal_pivot_structure, &quotient_graph);
 
