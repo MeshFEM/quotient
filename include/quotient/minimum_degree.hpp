@@ -252,6 +252,9 @@ MinimumDegreeAnalysis MinimumDegree(
     const std::pair<Int, Int> pivot_pair =
         quotient_graph.external_degree_heap.MinimalEntry(); 
     const Int pivot = pivot_pair.first;
+    std::cout << "  Selected pivot " << pivot << " with "
+              << quotient_graph.num_eliminated_vertices << " of "
+              << num_orig_vertices << " eliminated vertices." << std::endl;
 
     ComputePivotStructure(pivot, &quotient_graph);
     const std::vector<Int> supernodal_pivot_structure =
