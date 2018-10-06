@@ -20,6 +20,13 @@ libgomp_cpp = cpp_compiler.find_library('gomp')
 # TODO(Jack Poulson): Enable this if 'buildtype' is for debugging.
 #add_global_arguments('-DQUOTIENT_DEBUG', language : 'cpp')
 
+# Unit tests for the set utilities.
+set_utils_test_exe = executable(
+    'set_utils_test',
+    ['test/set_utils_test.cc', 'include/quotient.hpp'],
+    include_directories : include_dir)
+test('Set utils tests', set_utils_test_exe)
+
 # Unit tests for the CoordinateGraph class.
 coordinate_graph_test_exe = executable(
     'coordinate_graph_test',
@@ -40,6 +47,13 @@ random_access_heap_test_exe = executable(
     ['test/random_access_heap_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir)
 test('RandomAccessHeap tests', random_access_heap_test_exe)
+
+# Unit tests for the ExternalDegree function.
+external_degree_test_exe = executable(
+    'external_degree_test',
+    ['test/external_degree_test.cc', 'include/quotient.hpp'],
+    include_directories : include_dir)
+test('ExternalDegree tests', external_degree_test_exe)
 
 # Unit tests for the MinimumDegree function.
 minimum_degree_test_exe = executable(

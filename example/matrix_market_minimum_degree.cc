@@ -5,6 +5,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+#include <cstdlib>
+#include <ctime>
 #include <iostream>
 #include <vector>
 #include "quotient.hpp"
@@ -35,6 +37,14 @@ int main(int argc, char** argv) {
       "store_variable_merges",
       "Store the variable merge list?",
       true);
+  const bool randomly_permute = parser.OptionalInput<bool>(
+      "randomly_permute",
+      "randomly permute initial ordering?",
+      false);
+  const bool force_symmetry = parser.OptionalInput<bool>(
+      "force_symmetry",
+      "Use the nonzero pattern of A + A'?",
+      true);
   if (!parser.OK()) {
     return 0;
   }
@@ -52,6 +62,37 @@ int main(int argc, char** argv) {
   }
   std::cout << "Graph had " << graph->NumSources() << " sources and "
             << graph->NumEdges() << " edges." << std::endl;
+
+  if (randomly_permute) {
+    // Seed the random number generator based upon the current time.
+    std::srand(unsigned(std::time(0)));
+
+    std::vector<quotient::Int> permutation(graph->NumSources());
+    std::iota(permutation.begin(), permutation.end(), 0);
+    std::random_shuffle(permutation.begin(), permutation.end());
+
+    quotient::CoordinateGraph permuted_graph;
+    permuted_graph.Resize(graph->NumSources());
+    permuted_graph.ReserveEdgeAdditions(graph->NumEdges());
+    for (const std::pair<quotient::Int, quotient::Int>& edge : graph->Edges()) {
+      permuted_graph.QueueEdgeAddition(
+          permutation[edge.first], permutation[edge.second]);
+    }
+    permuted_graph.FlushEdgeQueues();
+
+    *graph = permuted_graph;
+  }
+
+  // Force symmetry since many of the examples are not. We form the nonzero
+  // pattern of A + A'.
+  if (force_symmetry) {
+    std::cout << "Enforcing graph symmetry..." << std::endl;
+    graph->ReserveEdgeAdditions(graph->NumEdges());
+    for (const std::pair<quotient::Int, quotient::Int>& edge : graph->Edges()) {
+      graph->QueueEdgeAddition(edge.second, edge.first);
+    }
+    graph->FlushEdgeQueues();
+  }
 
   std::cout << "Running MinimumDegree analysis..." << std::endl;
   quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(

@@ -52,10 +52,10 @@ Int SizeOfUnion(const std::vector<T>& vec0, const std::vector<T>& vec1) {
   return vec0.size() + vec1.size() - SizeOfIntersection(vec0, vec1);
 }
 
-// Returns the number of entries in ({vec0} \cup {vec1}) \ {blacklist}, where
+// Returns the number of entries in ({vec0} \cap {vec1}) \ {blacklist}, where
 // all vectors are assumed sorted and unique.
 template<typename T>
-Int SizeOfBlacklistedUnion(
+Int SizeOfBlacklistedIntersection(
     const std::vector<T>& vec0,
     const std::vector<T>& vec1,
     const std::vector<T>& blacklist) {
@@ -65,8 +65,6 @@ Int SizeOfBlacklistedUnion(
   auto vec1_iter = vec1.cbegin();
   auto blacklist_iter1 = blacklist.cbegin();
 
-  Int num_vec0_blacklisted = 0;
-  Int num_vec1_blacklisted = 0;
   Int num_blacklisted_intersections = 0;
   while (vec0_iter != vec0.cend() && vec1_iter != vec1.cend()) {
     // Skip this entry of vec0 if it is blacklisted.
@@ -75,7 +73,6 @@ Int SizeOfBlacklistedUnion(
     if (blacklist_iter0 != blacklist.cend() && *vec0_iter == *blacklist_iter0) {
       ++vec0_iter; 
       ++blacklist_iter0;
-      ++num_vec0_blacklisted;
       continue;
     }
 
@@ -85,7 +82,6 @@ Int SizeOfBlacklistedUnion(
     if (blacklist_iter1 != blacklist.cend() && *vec1_iter == *blacklist_iter1) {
       ++vec1_iter;
       ++blacklist_iter1;
-      ++num_vec1_blacklisted;
       continue;
     }
 
@@ -99,7 +95,20 @@ Int SizeOfBlacklistedUnion(
       ++vec1_iter;
     }
   }
+  return num_blacklisted_intersections;
+}
 
+// Returns the number of entries in ({vec0} \cup {vec1}) \ {blacklist}, where
+// all vectors are assumed sorted and unique.
+template<typename T>
+Int SizeOfBlacklistedUnion(
+    const std::vector<T>& vec0,
+    const std::vector<T>& vec1,
+    const std::vector<T>& blacklist) {
+  const Int num_vec0_blacklisted = SizeOfIntersection(vec0, blacklist);
+  const Int num_vec1_blacklisted = SizeOfIntersection(vec1, blacklist);
+  const Int num_blacklisted_intersections = SizeOfBlacklistedIntersection(
+      vec0, vec1, blacklist);
   return (vec0.size() - num_vec0_blacklisted) +
       (vec1.size() - num_vec1_blacklisted) - num_blacklisted_intersections;
 }
@@ -157,11 +166,27 @@ void MergeSets(
 }
 
 // Inserts 'value' into the sorted, unique vector, 'vec', so that the result
-// is sorted.
+// is again sorted and unique.
+template<typename T>
+void InsertNewEntryIntoSet(const T& value, std::vector<T>* vec) {
+  auto iter = std::lower_bound(vec->begin(), vec->end(), value);
+#ifdef QUOTIENT_DEBUG
+  if (iter != vec->end() && *iter == value) {
+    std::cerr << value << " was already in set in InsertEntryIntoSet."
+              << std::endl;
+  }
+#endif
+  vec->insert(iter, value);
+}
+
+// Inserts 'value' into the sorted, unique vector, 'vec', so that the result
+// is again sorted and unique.
 template<typename T>
 void InsertEntryIntoSet(const T& value, std::vector<T>* vec) {
   auto iter = std::lower_bound(vec->begin(), vec->end(), value);
-  vec->insert(iter, value);
+  if (iter == vec->end() || *iter != value) {
+    vec->insert(iter, value);
+  }
 }
 
 } // namespace quotient

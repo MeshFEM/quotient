@@ -69,7 +69,7 @@ inline Int MinimumDegreeAnalysis::NumStrictlyLowerNonzeros() const {
     const Int j = elimination_order[index];
     const Int supernode_j_size = supernodes[j].size();
 
-    // Add the triangular portion of the diagonal block.
+    // Add the strictly-lower triangular portion of the diagonal block.
     num_nonzeros += ((supernode_j_size - 1) * supernode_j_size) / 2;
 
     // Add the rectangular portion below the diagonal block.
@@ -101,10 +101,29 @@ inline void ComputePivotStructure(Int pivot, QuotientGraph* graph) {
       graph->adjacency_lists[pivot],
       graph->supernodes[pivot],
       &graph->structures[pivot]);
+#ifdef QUOTIENT_DEBUG
+  for (const Int& i : graph->structures[pivot]) {
+    if (graph->supernodes[i].size() != 0 &&
+       !graph->external_degree_heap.ValidValue(i)) {
+      std::cerr << "Adjacency list of pivot " << pivot << " contained entry "
+                << i << ", which is an element." << std::endl;
+    }
+  }
+#endif
 
   std::vector<Int> temp0, temp1; 
   for (const Int& element : graph->element_lists[pivot]) {
     FilterSet(graph->structures[element], graph->supernodes[pivot], &temp0);
+#ifdef QUOTIENT_DEBUG
+    for (const Int& i : graph->structures[element]) {
+      if (graph->supernodes[i].size() != 0 &&
+          !graph->external_degree_heap.ValidValue(i)) {
+        std::cerr << "Handling pivot " << pivot << ", structures[" << element
+                  << "] contained entry " << i << ", which is an element."
+                  << std::endl;
+      }
+    }
+#endif
 
     temp1 = graph->structures[pivot];
     MergeSets(temp1, temp0, &graph->structures[pivot]);
@@ -139,7 +158,7 @@ inline void UpdateElementListsAfterSelectingPivot(
     //   E_i := (E_i \ E_p) \cup {p}.
     temp = graph->element_lists[i];
     FilterSet(temp, graph->element_lists[pivot], &graph->element_lists[i]);
-    InsertEntryIntoSet(pivot, &graph->element_lists[i]);
+    InsertNewEntryIntoSet(pivot, &graph->element_lists[i]);
   }
 
   if (aggressive_absorption) {
@@ -182,6 +201,11 @@ inline void UpdateExternalDegreeApproximations(
     //       |(\cup_{e in E_i} L_e) \ supernode(i)|.
     const Int external_degree = ExternalDegree(
         *graph, i, pivot, external_structure_sizes, degree_type);
+#ifdef QUOTIENT_DEBUG
+    if (external_degree < 0) {
+      std::cerr << "Computed a negative external degree." << std::endl;
+    }
+#endif
     graph->external_degree_heap.SetValue(i, external_degree);
   }
 }
@@ -217,8 +241,8 @@ inline void DetectAndMergeVariables(
   }
 
   std::vector<Int> temp;
-  for (const std::pair<Int, std::vector<Int>>& iter : variable_hash_map) {
-    const std::vector<Int>& bucket = iter.second;
+  for (const std::pair<Int, std::vector<Int>>& entry : variable_hash_map) {
+    const std::vector<Int>& bucket = entry.second;
     std::vector<bool> merged_supernode(bucket.size(), false);
     for (std::size_t i_bucket  = 0; i_bucket < bucket.size(); ++i_bucket) {
       if (merged_supernode[i_bucket]) {

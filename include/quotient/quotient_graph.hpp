@@ -114,28 +114,30 @@ struct QuotientGraph {
   std::size_t AshcraftVariableHash(Int i) const;
 
   // Returns true if supernodes 'i' and 'j' are considered indistinguishable
-  // with respect to their quotient graph representation.
+  // with respect to their quotient graph representation. It is assumed that
+  // both supernodes share at least one element as a neighbor.
   //
   // The elimination graph definition (e.g., as given by [ADD-96])
   // involves testing if
   //
-  //   Adj_{GElim}(i) \cup {i} = Adj_{GElim}(j) \cup {j},
+  //   Adj_{GElim}(i) \cup {i} = Adj_{GElim}(j) \cup {j}.
   //
-  // but we instead use the stricter, and easier to measure, test that
+  // There is a discussion in [ADD-96] about using
   //
-  //   Adj_{GQuotient}(i) \cup {i} = Adj_{GQuotient}(j) \cup {j}.
+  //   Adj_{GQuotient}(i) \cup {i} = Adj_{GQuotient}(j) \cup {j},
   //
-  // The second test is easier to compute because
+  // but the original George and Liu definition of indistinguishability
+  // involved Reach(i) \cup {i} = Reach(j) \cup {j}, where Reach(j) is the
+  // union of the adjacencies of node i in the quotient graph *and* its
+  // adjacencies that are *through* elements. With this in mind, and the fact
+  // that we only query indistinguishability when i and j are known to share
+  // an element neighbor, they must be reachable from each other.
   //
-  //   Adj_{GQuotient}(i) \cup {i} = A_i \cup E_i \cup {i},
+  // We therefore test for the equality of the element lists and adjacency
+  // lists.
   //
-  // and
-  //
-  //   A_i \cup E_i \cup {i} = A_j \cup E_j \cup {j}.
-  //
-  // If i < j, then this holds if and only if
-  //
-  //   E_i \cup {i} = E_j and A_i = A_j \cup {j}.
+  // TODO(Jack Poulson): Characterize when non-principal members can be in
+  // the adjacency lists.
   //
   bool VariablesAreQuotientIndistinguishable(Int i, Int j) const;
 
@@ -234,11 +236,13 @@ inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
   std::size_t result = 0;
   for (const Int& index : adjacency_lists[i]) {
     if (!supernodes[index].empty()) {
-      result = (result + index) % (num_original_vertices - 1);
+      result += index;
+      result %= num_original_vertices - 1;
     }
   }
   for (const Int& index : element_lists[i]) {
-    result = (result + index) % (num_original_vertices - 1);
+    result += index;
+    result %= num_original_vertices - 1;
   }
   return result + 1;
 };
@@ -251,38 +255,24 @@ inline bool QuotientGraph::VariablesAreQuotientIndistinguishable(
   if (i > j) {
     std::swap(i, j);
   }
-  const std::size_t adj_size = adjacency_lists[i].size();
-  const std::size_t elem_size = element_lists[i].size();
 
-  // Early exit if the set cardinalities disagree.
-  if (adj_size + elem_size !=
-      adjacency_lists[j].size() + element_lists[j].size()) {
+  // Check if E_i = E_j.
+  if (element_lists[i].size() != element_lists[j].size()) {
     return false;
   }
-
-  // Check if E_i \cup {i} = E_j.
-  {
-    auto i_iter = element_lists[i].cbegin();
-    for (auto j_iter = element_lists[j].cbegin();
-         j_iter != element_lists[j].cend(); ++j_iter) {
-      if (i_iter != element_lists[i].cend() && *i_iter == *j_iter) {
-        ++i_iter;
-      } else if (*j_iter != i) {
-        return false;
-      }
+  for (std::size_t index = 0; index < element_lists[i].size(); ++index) {
+    if (element_lists[i][index] != element_lists[j][index]) {
+      return false;
     }
   }
 
-  // Check if A_i = A_j \cup {j}.
-  {
-    auto j_iter = adjacency_lists[j].cbegin();
-    for (auto i_iter = adjacency_lists[i].cbegin();
-         i_iter != adjacency_lists[i].cend(); ++i_iter) {
-      if (j_iter != adjacency_lists[j].cend() && *j_iter == *i_iter) {
-        ++j_iter;
-      } else if (*i_iter != j) {
-        return false;
-      }
+  // Check if A_i = A_j.
+  if (adjacency_lists[i].size() != adjacency_lists[j].size()) {
+    return false;
+  }
+  for (std::size_t index = 0; index < adjacency_lists[i].size(); ++index) {
+    if (adjacency_lists[i][index] != adjacency_lists[j][index]) {
+      return false;
     }
   }
 
@@ -298,6 +288,16 @@ inline std::unordered_map<Int, Int> QuotientGraph::ExternalStructureSizes(
         external_structure_sizes[element] = structures[element].size();
       }
       external_structure_sizes[element] -= supernodes[i].size();
+#ifdef QUOTIENT_DEBUG
+      for (const Int& j : supernodes[i]) {
+        auto iter = std::lower_bound(
+            structures[element].begin(), structures[element].end(), j);
+        if (iter == structures[element].end() || *iter != j) {
+          std::cerr << "structures[" << element << "] did not contain a full "
+                       "copy of supernode " << i << std::endl;
+        }
+      }
+#endif
     }
   }
   return external_structure_sizes;

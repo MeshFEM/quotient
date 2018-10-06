@@ -318,6 +318,7 @@ inline const CoordinateGraph& CoordinateGraph::operator=(
   num_sources_ = graph.num_sources_;
   num_targets_ = graph.num_targets_;
   edges_ = graph.edges_;
+  source_edge_offsets_ = graph.source_edge_offsets_;
   edges_to_add_ = graph.edges_to_add_;
   edges_to_remove_ = graph.edges_to_remove_;
 
