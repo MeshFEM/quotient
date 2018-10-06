@@ -65,7 +65,8 @@ int main(int argc, char** argv) {
   std::cout << "Largest supernode: " << largest_supernode << ", "
             << largest_supernode_size << " entries." << std::endl;
 
-  std::cout << "Num nonzeros: " << analysis.NumNonzeros() << std::endl;
+  std::cout << "Num strictly-lower nonzeros: "
+            << analysis.NumStrictlyLowerNonzeros() << std::endl;
 
   return 0;
 }

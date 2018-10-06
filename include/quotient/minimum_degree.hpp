@@ -51,8 +51,9 @@ struct MinimumDegreeAnalysis {
   // the quotient graph just before the analysis completes.
   MinimumDegreeAnalysis(Int num_vertices);
 
-  // Returns the number of structural nonzeros in the lower-triangular factor.
-  Int NumNonzeros() const;
+  // Returns the number of structural nonzeros in the strictly lower-triangular
+  // factor.
+  Int NumStrictlyLowerNonzeros() const;
 
   // Returns the principal member of the largest supernode.
   Int LargestSupernode() const;
@@ -62,14 +63,14 @@ inline MinimumDegreeAnalysis::MinimumDegreeAnalysis(Int num_vertices) {
   elimination_order.reserve(num_vertices);
 }
 
-inline Int MinimumDegreeAnalysis::NumNonzeros() const {
+inline Int MinimumDegreeAnalysis::NumStrictlyLowerNonzeros() const {
   Int num_nonzeros = 0;
   for (std::size_t index = 0; index < elimination_order.size(); ++index) {
     const Int j = elimination_order[index];
     const Int supernode_j_size = supernodes[j].size();
 
     // Add the triangular portion of the diagonal block.
-    num_nonzeros += (supernode_j_size * (supernode_j_size + 1)) / 2;
+    num_nonzeros += ((supernode_j_size - 1) * supernode_j_size) / 2;
 
     // Add the rectangular portion below the diagonal block.
     num_nonzeros += supernode_j_size * principal_structures[index].size();
@@ -210,24 +211,26 @@ inline void DetectAndMergeVariables(
     // Append this principal variable to its hash bucket.
     // TODO(Jack Poulson): Add configurable support for other hashes.
     // For example, one could mod by (std::numeric_limits<Int>::max() - 1).
-    const std::size_t bucket = graph->AshcraftVariableHash(i);
-    bucket_list[i_index] = bucket;
-    variable_hash_map[bucket].push_back(i_index);
+    const std::size_t bucket_key = graph->AshcraftVariableHash(i);
+    bucket_list[i_index] = bucket_key;
+    variable_hash_map[bucket_key].push_back(i_index);
   }
 
   std::vector<Int> temp;
   for (const std::pair<Int, std::vector<Int>>& iter : variable_hash_map) {
-    const std::vector<Int>& bucketed_indices = iter.second;
-    std::vector<bool> merged_supernode(bucketed_indices.size(), false);
-    for (const Int& i_index : bucketed_indices) {
-      if (merged_supernode[i_index]) {
+    const std::vector<Int>& bucket = iter.second;
+    std::vector<bool> merged_supernode(bucket.size(), false);
+    for (std::size_t i_bucket  = 0; i_bucket < bucket.size(); ++i_bucket) {
+      if (merged_supernode[i_bucket]) {
         continue;
       }
+      const Int i_index = bucket[i_bucket];
       const Int i = supernodal_pivot_structure[i_index];
-      for (const Int& j_index : bucketed_indices) {
+      for (std::size_t j_bucket = 0; j_bucket < bucket.size(); ++j_bucket) {
+        const Int j_index = bucket[j_bucket];
         // Avoid processing the same pair twice, and skip any already-merged
         // supernodes.
-        if (j_index <= i_index || merged_supernode[j_index]) {
+        if (j_index <= i_index || merged_supernode[j_bucket]) {
           continue;
         }
         const Int j = supernodal_pivot_structure[j_index];
@@ -244,7 +247,7 @@ inline void DetectAndMergeVariables(
           SwapClearVector(&graph->supernodes[j]);
           SwapClearVector(&graph->adjacency_lists[j]);
           SwapClearVector(&graph->element_lists[j]);
-          merged_supernode[j_index] = true;
+          merged_supernode[j_bucket] = true;
         }
       }
     }

@@ -16,7 +16,9 @@ include_dir = include_directories('include')
 cpp_compiler = meson.get_compiler('cpp')
 libgomp_cpp = cpp_compiler.find_library('gomp')
 
-add_global_arguments('-DQUOTIENT_DEBUG', language : 'cpp')
+# Uncomment the following to enable debug checks.
+# TODO(Jack Poulson): Enable this if 'buildtype' is for debugging.
+#add_global_arguments('-DQUOTIENT_DEBUG', language : 'cpp')
 
 # Unit tests for the CoordinateGraph class.
 coordinate_graph_test_exe = executable(
