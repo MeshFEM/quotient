@@ -13,19 +13,10 @@
 using quotient::Int;
 
 // A reproduction of Figs. 1 and 2 from [ADD-96].
-// Several details not discussed in the paper are worth noting:
 //
-//   1) The Amestoy external degree bound produces an overestimate for index
-//      5 (6 with 1-based indexing) just before the third pivot is selected.
-//      This helps lead to a deviation between Figs. 1-2 and the AMD results.
-//
-//   2) The supernode of {6, 7, 8} ({7, 8, 9} with 1-based indexing) detected
-//      within G^6 in Fig. 2 of [ADD-96] is an elmination graph supernode,
-//      but *not* a quotient graph supernode. Because AMD only measures the
-//      latter, there is another reason for deviation.
-//
-// Thus, if an exact external degree computation is requested, then the
-// elimination order is (0, 1, ..., 9), and the supernodes are all trivial.
+// The Amestoy external degree bound produces an overestimate for index
+// 5 (6 with 1-based indexing) just before the third pivot is selected.
+// This helps lead to a deviation between Figs. 1-2 and the AMD results.
 //
 TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   quotient::CoordinateGraph graph;
@@ -77,6 +68,7 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
 
   const quotient::ExternalDegreeType degree_type =
       quotient::kExactExternalDegree;
+  const bool allow_supernodes = true;
   const bool aggressive_absorption = true;
   const bool store_aggressive_absorptions = true;
   const bool store_variable_merges = true;
@@ -84,12 +76,13 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
       quotient::MinimumDegree(
           graph,
           degree_type,
+          allow_supernodes,
           aggressive_absorption,
           store_aggressive_absorptions,
           store_variable_merges);
 
   const std::vector<Int> kExpectedEliminationOrder{
-      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+      0, 1, 2, 3, 4, 5, 6, 9,
   };
 
   // See the comment at the top of this test for why we do not expect any
@@ -101,34 +94,35 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
       {3},
       {4},
       {5},
-      {6},
-      {7},
-      {8},
+      {6, 7, 8},
+      {},
+      {},
       {9},
   };
 
   // This structure is defined directly (modulo translation from 1-based to
   // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
-  const std::vector<std::vector<Int>> kExpectedSupernodalStructures{
+  const std::vector<std::vector<Int>> kExpectedPrincipalStructures{
       {3, 5},
       {4, 5, 8},
       {4, 5, 6},
       {5, 6, 7},
       {5, 6, 8},
       {6, 7, 8},
-      {7, 8, 9},
-      {8, 9},
       {9},
       {},
   };
 
   const std::vector<std::pair<Int, Int>> kExpectedAggressiveAbsorptions;
 
-  const std::vector<std::pair<Int, Int>> kExpectedVariableMerges;
+  const std::vector<std::pair<Int, Int>> kExpectedVariableMerges{
+      {6, 7},
+      {6, 8},
+  };
 
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
-  REQUIRE(analysis.supernodal_structures == kExpectedSupernodalStructures);
+  REQUIRE(analysis.principal_structures == kExpectedPrincipalStructures);
   REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
   REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 }
@@ -150,6 +144,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
 
   const quotient::ExternalDegreeType degree_type =
       quotient::kExactExternalDegree;
+  const bool allow_supernodes = false;
   const bool aggressive_absorption = true;
   const bool store_aggressive_absorptions = true;
   const bool store_variable_merges = true;
@@ -157,6 +152,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
       quotient::MinimumDegree(
           graph,
           degree_type,
+          allow_supernodes,
           aggressive_absorption,
           store_aggressive_absorptions,
           store_variable_merges);
@@ -176,7 +172,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
 
   // This structure is defined directly (modulo translation from 1-based to
   // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
-  const std::vector<std::vector<Int>> kExpectedSupernodalStructures{
+  const std::vector<std::vector<Int>> kExpectedPrincipalStructures{
       {2, 3},
       {2, 3},
       {3},
@@ -192,7 +188,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
 
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
-  REQUIRE(analysis.supernodal_structures == kExpectedSupernodalStructures);
+  REQUIRE(analysis.principal_structures == kExpectedPrincipalStructures);
   REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
   REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 }

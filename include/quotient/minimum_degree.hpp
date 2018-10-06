@@ -33,9 +33,9 @@ struct MinimumDegreeAnalysis {
   // the sorted list of members of the supernode.
   std::vector<std::vector<Int>> supernodes;
 
-  // The supernodal nonzero structure of the principal columns of the
-  // factorization.
-  std::vector<std::vector<Int>> supernodal_structures;
+  // The structures of the supernodes. Entry 'index' corresponds to the
+  // structure of supernode 'elimination_order[index]'.
+  std::vector<std::vector<Int>> principal_structures;
 
   // An optional list of aggressive element absorption pairs: each pair (e, f)
   // consists of the absorbing element, e, and the absorbed element, f.
@@ -64,11 +64,15 @@ inline MinimumDegreeAnalysis::MinimumDegreeAnalysis(Int num_vertices) {
 
 inline Int MinimumDegreeAnalysis::NumNonzeros() const {
   Int num_nonzeros = 0;
-  for (const Int& j : elimination_order) {
+  for (std::size_t index = 0; index < elimination_order.size(); ++index) {
+    const Int j = elimination_order[index];
     const Int supernode_j_size = supernodes[j].size();
-    for (const Int& i : supernodal_structures[j]) {
-      num_nonzeros += supernodes[i].size() * supernode_j_size;
-    }
+
+    // Add the triangular portion of the diagonal block.
+    num_nonzeros += (supernode_j_size * (supernode_j_size + 1)) / 2;
+
+    // Add the rectangular portion below the diagonal block.
+    num_nonzeros += supernode_j_size * principal_structures[index].size();
   }
   return num_nonzeros;
 }
@@ -211,36 +215,37 @@ inline void DetectAndMergeVariables(
     variable_hash_map[bucket].push_back(i_index);
   }
 
-  std::vector<bool> merged_supernode(supernodal_pivot_struct_size, false);
   std::vector<Int> temp;
-  for (Int i_index = 0; i_index < supernodal_pivot_struct_size; ++i_index) {
-    if (merged_supernode[i_index]) {
-      continue;
-    }
-    const Int i = supernodal_pivot_structure[i_index];
-    const Int bucket = bucket_list[i_index];
-    for (const Int& j_index : variable_hash_map[bucket]) {
-      // Avoid processing the same pair twice, and skip any already-merged
-      // supernodes.
-      if (j_index <= i_index || merged_supernode[j_index]) {
+  for (const std::pair<Int, std::vector<Int>>& iter : variable_hash_map) {
+    const std::vector<Int>& bucketed_indices = iter.second;
+    std::vector<bool> merged_supernode(bucketed_indices.size(), false);
+    for (const Int& i_index : bucketed_indices) {
+      if (merged_supernode[i_index]) {
         continue;
       }
-
-      const Int j = supernodal_pivot_structure[j_index];
-      if (graph->VariablesAreQuotientIndistinguishable(i, j)) {
-        // Absorb supernode(j) into supernode(i). 
-        if (store_variable_merges) {
-          graph->variable_merges.emplace_back(i, j);
+      const Int i = supernodal_pivot_structure[i_index];
+      for (const Int& j_index : bucketed_indices) {
+        // Avoid processing the same pair twice, and skip any already-merged
+        // supernodes.
+        if (j_index <= i_index || merged_supernode[j_index]) {
+          continue;
         }
-        temp = graph->supernodes[i];
-        MergeSets(temp, graph->supernodes[j], &graph->supernodes[i]);
-        graph->external_degree_heap.UpdateValue(
-            i, -graph->supernodes[j].size());
-        graph->external_degree_heap.DisableIndex(j);
-        SwapClearVector(&graph->supernodes[j]);
-        SwapClearVector(&graph->adjacency_lists[j]);
-        SwapClearVector(&graph->element_lists[j]);
-        merged_supernode[j_index] = true;
+        const Int j = supernodal_pivot_structure[j_index];
+        if (graph->VariablesAreQuotientIndistinguishable(i, j)) {
+          // Absorb supernode(j) into supernode(i). 
+          if (store_variable_merges) {
+            graph->variable_merges.emplace_back(i, j);
+          }
+          temp = graph->supernodes[i];
+          MergeSets(temp, graph->supernodes[j], &graph->supernodes[i]);
+          graph->external_degree_heap.UpdateValue(
+              i, -graph->supernodes[j].size());
+          graph->external_degree_heap.DisableIndex(j);
+          SwapClearVector(&graph->supernodes[j]);
+          SwapClearVector(&graph->adjacency_lists[j]);
+          SwapClearVector(&graph->element_lists[j]);
+          merged_supernode[j_index] = true;
+        }
       }
     }
   }
@@ -263,6 +268,7 @@ inline void ConvertPivotIntoElement(Int pivot, QuotientGraph* graph) {
 MinimumDegreeAnalysis MinimumDegree(
   const CoordinateGraph& graph,
   ExternalDegreeType degree_type,
+  bool allow_supernodes,
   bool aggressive_absorption,
   bool store_aggressive_absorptions,
   bool store_variable_merges) {
@@ -307,8 +313,10 @@ MinimumDegreeAnalysis MinimumDegree(
         pivot, supernodal_pivot_structure, external_structure_sizes,
         degree_type, &quotient_graph);
 
-    DetectAndMergeVariables(
-        supernodal_pivot_structure, store_variable_merges, &quotient_graph);
+    if (allow_supernodes) {
+      DetectAndMergeVariables(
+          supernodal_pivot_structure, store_variable_merges, &quotient_graph);
+    }
 
     ConvertPivotIntoElement(pivot, &quotient_graph);
 
@@ -317,10 +325,11 @@ MinimumDegreeAnalysis MinimumDegree(
 
   // Extract the relevant information from the QuotientGraph.
   analysis.supernodes = quotient_graph.supernodes;
-  analysis.supernodal_structures.resize(analysis.elimination_order.size());
-  for (const Int& i : analysis.elimination_order) {
-    analysis.supernodal_structures[i] =
-        quotient_graph.FormSupernodalStructure(analysis.elimination_order[i]);
+  analysis.principal_structures.resize(analysis.elimination_order.size());
+  for (std::size_t index = 0; index < analysis.elimination_order.size();
+       ++index) {
+    analysis.principal_structures[index] =
+        quotient_graph.structures[analysis.elimination_order[index]];
   }
   analysis.aggressive_absorptions = quotient_graph.aggressive_absorptions;
   analysis.variable_merges = quotient_graph.variable_merges;

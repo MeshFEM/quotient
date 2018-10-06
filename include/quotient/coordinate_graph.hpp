@@ -463,7 +463,7 @@ std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
   if (description.object == kMatrixMarketObjectVector) {
     std::cerr << "The Matrix Market 'vector' object is incompatible with "
                  "CoordinateGraph." << std::endl;
-    return false;
+    return result;
   }
 
   // Skip the comment lines.
@@ -477,17 +477,20 @@ std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
     Int matrix_height, matrix_width;
     if (!std::getline(file, line)) {
       std::cerr << "Could not extract the array size line." << std::endl;
-      return false;
+      result.reset();
+      return result;
     }
     std::stringstream line_stream(line);
     if (!(line_stream >> matrix_height)) {  
       std::cerr << "Missing matrix height in Matrix Market file." << std::endl;
-      return false;
+      result.reset();
+      return result;
     }
     if (description.object == kMatrixMarketObjectMatrix) {
       if (!(line_stream >> matrix_width)) {
         std::cerr << "Missing matrix width in Matrix Market file." << std::endl;
-        return false;
+        result.reset();
+        return result;
       }
     } else {
       matrix_width = 1;
@@ -510,24 +513,28 @@ std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
   Int matrix_height, matrix_width, num_explicit_nonzeros;
   if (!std::getline(file, line)) {
     std::cerr << "Could not extract the coordinate size line." << std::endl;
-    return false;
+    result.reset();
+    return result;
   }
   std::stringstream line_stream(line); 
   if (!(line_stream >> matrix_height)) {
     std::cerr << "Missing matrix height in Matrix Market file." << std::endl;
-    return false;
+    result.reset();
+    return result;
   }
   if (description.object == kMatrixMarketObjectMatrix) {
     if (!(line_stream >> matrix_width)) {
       std::cerr << "Missing matrix width in Matrix Market file." << std::endl;
-      return false;
+      result.reset();
+      return result;
     }
   } else {
     matrix_width = 1;
   }
   if (!(line_stream >> num_explicit_nonzeros)) {
     std::cerr << "Missing num_nonzeros in Matrix Market file." << std::endl;
-    return false;
+    result.reset();
+    return result;
   }
 
   // Fill in the edges.
@@ -541,18 +548,21 @@ std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
     if (!std::getline(file, line)) {
       std::cerr << "Could not extract nonzero description from Matrix Market "
                    "file." << std::endl;
-      return false;
+      result.reset();
+      return result;
     }
     std::stringstream line_stream(line);
     if (!(line_stream >> source)) {
       std::cerr << "Could not extract row index of nonzero." << std::endl;
-      return false;
+      result.reset();
+      return result;
     }
     --source; // Convert from 1-based to 0-based indexing.
     if (description.object == kMatrixMarketObjectMatrix) {
       if (!(line_stream >> target)) {
         std::cerr << "Could not extract column index of nonzero." << std::endl;
-        return false;
+        result.reset();
+        return result;
       }
       --target; // Convert from 1-based to 0-based indexing.
     } else {

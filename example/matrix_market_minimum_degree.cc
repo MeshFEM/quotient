@@ -19,6 +19,10 @@ int main(int argc, char** argv) {
       "The degree approximation type.\n"
       "0:exact, 1:Amestoy, 2:Ashcraft, 3:Gilbert",
       1);
+  const bool allow_supernodes = parser.OptionalInput<bool>(
+      "allow_supernodes",
+      "Allow variables to be merged into supernodes?",
+      true);
   const bool aggressive_absorption = parser.OptionalInput<bool>(
       "aggressive_absorption",
       "Eliminate elements with aggressive absorption?",
@@ -51,8 +55,8 @@ int main(int argc, char** argv) {
 
   std::cout << "Running MinimumDegree analysis..." << std::endl;
   quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(
-    *graph, degree_type, aggressive_absorption, store_aggressive_absorptions,
-    store_variable_merges);
+    *graph, degree_type, allow_supernodes, aggressive_absorption,
+    store_aggressive_absorptions, store_variable_merges);
   std::cout << "Finished MinimumDegree." << std::endl;
 
   const quotient::Int largest_supernode = analysis.LargestSupernode();
