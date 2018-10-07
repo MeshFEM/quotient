@@ -14,7 +14,7 @@ the unit tests use [Catch2](https://github.com/catchorg/Catch2).
 
 ### Example usage
 
-Consider the simple driver:
+Usage through the `quotient::CoordinateGraph` class is fairly straight-forward:
 ```c++
 #include <iostream>
 #include "quotient.hpp"
