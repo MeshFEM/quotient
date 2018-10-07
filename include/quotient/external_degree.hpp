@@ -92,6 +92,8 @@ inline Int AmestoyExternalDegree(
   const Int bound0 = num_vertices_left;
   const Int bound1 = old_external_degree + external_pivot_structure_size;
 
+  // bound_2 = |A_i \ supernode(i)| + |L_p \ supernode(i)| + 
+  //           \sum_{e in E_i \ {p}} |L_e \ L_p|.
   Int bound2 =
     SizeOfDifference(graph.adjacency_lists[i], graph.supernodes[i]) +
     SizeOfDifference(graph.structures[pivot], graph.supernodes[i]);
@@ -99,15 +101,10 @@ inline Int AmestoyExternalDegree(
     if (element == pivot) {
       continue;
     }
-    if (external_structure_sizes.count(element)) {
+    auto iter = external_structure_sizes.find(element);
+    if (iter == external_structure_sizes.end()) {
       bound2 += graph.structures[element].size();
     } else {
-      auto iter = external_structure_sizes.find(element);
-#ifdef QUOTIENT_DEBUG
-      if (iter == external_structure_sizes.end()) {
-        std::cerr << "Did not find element." << std::endl;
-      }
-#endif
       bound2 += iter->second;
     }
   }
