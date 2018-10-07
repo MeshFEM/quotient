@@ -12,6 +12,8 @@
 
 TEST_CASE("ExactExternalDegree", "[exact]") {
   quotient::QuotientGraph graph;
+  graph.num_original_vertices = 8;
+  graph.num_eliminated_vertices = 4;
 
   // Elimination order: 0, 7, 2.
   // Pivot: 1
@@ -63,6 +65,16 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
       {3, 4, 5, 6},
   };
 
+  graph.external_degree_heap.Reset(std::vector<quotient::Int>{
+      -1, 5, -1, -1, 3, -1, -1, -1
+  });
+  graph.external_degree_heap.DisableIndex(0);
+  graph.external_degree_heap.DisableIndex(2);
+  graph.external_degree_heap.DisableIndex(3);
+  graph.external_degree_heap.DisableIndex(5);
+  graph.external_degree_heap.DisableIndex(6);
+  graph.external_degree_heap.DisableIndex(7);
+
   const quotient::Int pivot = 1;
 
   // '4' is the only principal member of L_1 = {4, 5, 6}.
@@ -89,9 +101,6 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
   const quotient::Int exact_external_degree = ExternalDegree(
       graph, variable, pivot, external_structure_sizes,
       quotient::kExactExternalDegree);
-
-  // TODO(Jack Poulson): Add tests for the degree approximations.
-  /*
   const quotient::Int amestoy_external_degree = ExternalDegree(
       graph, variable, pivot, external_structure_sizes,
       quotient::kAmestoyExternalDegree);
@@ -101,10 +110,18 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
   const quotient::Int gilbert_external_degree = ExternalDegree(
       graph, variable, pivot, external_structure_sizes,
       quotient::kGilbertExternalDegree);
-  */
 
   // d_4 = |A_4 \ supernode(4)| + |(\cup_{e in E_4} L_e) \ supernode(4)|
   //     = |{1} \ {4, 5, 6}| + ||({1, 4, 5} \cup {3, 5}) \ {4, 5, 6}|
   //     = 1 + 2 = 3.
   REQUIRE(exact_external_degree == 3);
+
+  // \bar{d}_4 = min(4, 3 + 0, 1 + 0 + 2) = 3.
+  REQUIRE(amestoy_external_degree == 3);
+
+  // \tilde{d}_4 = d_i if |E_i| = 2, \hat{d}_i otherwise.
+  REQUIRE(ashcraft_external_degree == 3);
+
+  // \hat{d}_4 = 1 + 2 = 3.
+  REQUIRE(gilbert_external_degree == 3);
 }
