@@ -15,24 +15,29 @@
 #include "quotient.hpp"
 #include "specify.hpp"
 
+// A simple data structure for storing the median, mean, and standard deviation
+// of a random variable.
 struct SufficientStatistics {
   quotient::Int median;
   quotient::Int mean;
   quotient::Int standard_deviation;
 };
 
+// Pretty prints the SufficientStatistics structure.
 void PrintSufficientStatistics(
     const SufficientStatistics& stats, const std::string& label) {
   std::cout << label << ": median=" << stats.median << ", mean=" << stats.mean
             << ", stddev=" << stats.standard_deviation << std::endl;
 }
 
+// A list of properties to measure from an AMD reordering.
 struct AMDExperiment {
   SufficientStatistics num_lower_nonzeros;
   SufficientStatistics largest_supernode_size;
   SufficientStatistics elapsed_seconds;
 };
 
+// Pretty prints the AMDExperiment structure.
 void PrintAMDExperiment(
     const AMDExperiment& experiment, const std::string& label) {
   std::cout << label << ":\n";
@@ -44,6 +49,7 @@ void PrintAMDExperiment(
       experiment.elapsed_seconds, "  elapsed_seconds");
 }
 
+// Returns the median of a given vector.
 template<typename T>
 double Median(const std::vector<T>& vec) {
   const std::size_t num_entries = vec.size();
@@ -61,6 +67,7 @@ double Median(const std::vector<T>& vec) {
   }
 }
 
+// Returns the mean of a given vector.
 template<typename T>
 double Mean(const std::vector<T>& vec) {
   const std::size_t num_entries = vec.size();
@@ -95,6 +102,7 @@ void UpdateScaledSquare(double update, double* scale, double* scaled_square) {
   }
 }
 
+// Returns the standard deviation of a given vector with a given mean.
 template<typename T>
 double StandardDeviation(const std::vector<T>& vec, double mean) {
   const std::size_t num_entries = vec.size();
@@ -113,6 +121,7 @@ double StandardDeviation(const std::vector<T>& vec, double mean) {
   return scale * std::sqrt(scaled_variance);
 }
 
+// Returns the SufficientStatistics properties for a given vector.
 template<typename T>
 SufficientStatistics GetSufficientStatistics(const std::vector<T>& vec) {
   SufficientStatistics stats;
@@ -122,6 +131,7 @@ SufficientStatistics GetSufficientStatistics(const std::vector<T>& vec) {
   return stats;
 }
 
+// Returns the AMDExperiment statistics for a single Matrix Market input matrix.
 AMDExperiment RunMatrixMarketAMDTest(
     const std::string& filename,
     quotient::ExternalDegreeType degree_type,
@@ -219,6 +229,17 @@ AMDExperiment RunMatrixMarketAMDTest(
   return experiment;
 }
 
+// Returns a map from the identifying string of each test matrix from the
+// Amestoy/Davis/Duff Approximate Minimum Degree reordering 1996 paper meant
+// to loosely reproduce Fig. 2.
+//
+// It is worth noting that the LHR34 results from the paper appear to be
+// incorrect, as the results shown in 
+//
+//   https://www.cise.ufl.edu/research/sparse/matrices/Mallya/lhr34.html
+//
+// agree with the results observed from this code's implementation.
+//
 std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
     const std::string& matrix_market_directory,
     quotient::ExternalDegreeType degree_type,
