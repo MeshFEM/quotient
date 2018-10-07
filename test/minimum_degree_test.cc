@@ -66,20 +66,12 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   graph.AddEdge(8, 9);
   graph.AddEdge(9, 8);
 
-  const quotient::ExternalDegreeType degree_type =
-      quotient::kExactExternalDegree;
-  const bool allow_supernodes = true;
-  const bool aggressive_absorption = true;
-  const bool store_aggressive_absorptions = true;
-  const bool store_variable_merges = true;
+  quotient::MinimumDegreeControl control;
+  control.degree_type = quotient::kExactExternalDegree;
+  control.store_aggressive_absorptions = true;
+  control.store_variable_merges = true;
   const quotient::MinimumDegreeAnalysis analysis =
-      quotient::MinimumDegree(
-          graph,
-          degree_type,
-          allow_supernodes,
-          aggressive_absorption,
-          store_aggressive_absorptions,
-          store_variable_merges);
+      quotient::MinimumDegree(graph, control);
 
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3, 4, 5, 6, 9,
@@ -142,20 +134,14 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   graph.AddEdge(2, 1);
   graph.AddEdge(3, 1);
 
-  const quotient::ExternalDegreeType degree_type =
-      quotient::kExactExternalDegree;
-  const bool allow_supernodes = false;
-  const bool aggressive_absorption = true;
-  const bool store_aggressive_absorptions = true;
-  const bool store_variable_merges = true;
+  quotient::MinimumDegreeControl control;
+  control.degree_type = quotient::kExactExternalDegree;
+  control.allow_supernodes = false;
+  control.aggressive_absorption = true;
+  control.store_aggressive_absorptions = true;
+  control.store_variable_merges = true;
   const quotient::MinimumDegreeAnalysis analysis =
-      quotient::MinimumDegree(
-          graph,
-          degree_type,
-          allow_supernodes,
-          aggressive_absorption,
-          store_aggressive_absorptions,
-          store_variable_merges);
+      quotient::MinimumDegree(graph, control);
 
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3,

@@ -134,13 +134,9 @@ SufficientStatistics GetSufficientStatistics(const std::vector<T>& vec) {
 // Returns the AMDExperiment statistics for a single Matrix Market input matrix.
 AMDExperiment RunMatrixMarketAMDTest(
     const std::string& filename,
-    quotient::ExternalDegreeType degree_type,
-    bool allow_supernodes,
-    bool aggressive_absorption,
+    const quotient::MinimumDegreeControl& control,
     bool force_symmetry,
     int num_random_permutations,
-    bool store_aggressive_absorptions,
-    bool store_variable_merges,
     bool print_progress) {
   if (print_progress) {
     std::cout << "Reading CoordinateGraph from " << filename << "..."
@@ -183,9 +179,8 @@ AMDExperiment RunMatrixMarketAMDTest(
                 << num_random_permutations + 1 << "..." << std::endl;
     }
     const auto start_time = std::chrono::steady_clock::now();
-    quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(
-      *graph, degree_type, allow_supernodes, aggressive_absorption,
-      store_aggressive_absorptions, store_variable_merges);
+    const quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(
+      *graph, control);
     const auto end_time = std::chrono::steady_clock::now();
     const std::chrono::duration<double> duration = end_time - start_time;
     elapsed_seconds.push_back(duration.count());
@@ -242,9 +237,7 @@ AMDExperiment RunMatrixMarketAMDTest(
 //
 std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
     const std::string& matrix_market_directory,
-    quotient::ExternalDegreeType degree_type,
-    bool allow_supernodes,
-    bool aggressive_absorption,
+    const quotient::MinimumDegreeControl& control,
     int num_random_permutations,
     bool print_progress) {
   const std::vector<std::string> kMatrixNames{
@@ -275,8 +268,6 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
       "wang3",
       "wang4",
   };
-  const bool store_aggressive_absorptions = false;
-  const bool store_variable_merges = false;
   const bool force_symmetry = true;
 
   std::unordered_map<std::string, AMDExperiment> experiments;
@@ -285,13 +276,9 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
         "/" + matrix_name + ".mtx";
     experiments[matrix_name] = RunMatrixMarketAMDTest(
         filename,
-        degree_type,
-        allow_supernodes,
-        aggressive_absorption,
+        control,
         force_symmetry,
         num_random_permutations,
-        store_aggressive_absorptions,
-        store_variable_merges,
         print_progress);
   }
 
@@ -350,16 +337,19 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  const quotient::ExternalDegreeType degree_type =
+  quotient::MinimumDegreeControl control;
+  control.degree_type =
       static_cast<quotient::ExternalDegreeType>(degree_type_int);
+  control.allow_supernodes = allow_supernodes;
+  control.aggressive_absorption = aggressive_absorption;
+  control.store_aggressive_absorptions = store_aggressive_absorptions;
+  control.store_variable_merges = store_variable_merges;
 
   if (!matrix_market_directory.empty()) {
     const std::unordered_map<std::string, AMDExperiment> experiments =
         RunADD96Tests(
             matrix_market_directory,
-            degree_type,
-            allow_supernodes,
-            aggressive_absorption,
+            control,
             num_random_permutations,
             print_progress);
     for (const std::pair<std::string, AMDExperiment>& pairing : experiments) {
@@ -367,15 +357,11 @@ int main(int argc, char** argv) {
     }
   } else {
     const AMDExperiment experiment = RunMatrixMarketAMDTest(
-      filename,
-      degree_type,
-      allow_supernodes,
-      aggressive_absorption,
-      force_symmetry,
-      num_random_permutations,
-      store_aggressive_absorptions,
-      store_variable_merges,
-      print_progress);
+        filename,
+        control,
+        force_symmetry,
+        num_random_permutations,
+        print_progress);
     PrintAMDExperiment(experiment, filename);
   }
 

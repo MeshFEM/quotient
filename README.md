@@ -38,15 +38,10 @@ graph.FlushEdgeQueues();
 
 // Run the Approximate Minimum Degree analysis using the usual external degree
 // approximation.
-const quotient::ExternalDegreeType degree_type =
-    quotient::kAmestoyExternalDegree;
-const bool allow_supernodes = true;
-const bool aggressive_absorption = true;
-const bool store_aggressive_absorptions = false;
-const bool store_variable_merges = false;
+quotient::MinimumDegreeControl control;
+control.degree_type = quotient::kAmestoyExternalDegree;
 const quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(
-  graph, degree_type, allow_supernodes, aggressive_absorption,
-  store_aggressive_absorptions, store_variable_merges);
+    graph, control);
 ```
 
 ### Running the unit tests

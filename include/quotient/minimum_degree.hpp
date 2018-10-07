@@ -20,6 +20,28 @@
 
 namespace quotient {
 
+// A data structure for controlling the MinimumDegree reordering routine.
+struct MinimumDegreeControl {
+  // The type of approximation to use for the external degree estimates.
+  ExternalDegreeType degree_type = kAmestoyExternalDegree;
+
+  // Whether nontrivial supernodes are allowed. It is highly recommended that
+  // this remain true.
+  bool allow_supernodes = true;
+
+  // Whether aggressive element absorptions are allowed.
+  bool aggressive_absorption = true;
+
+  // Whether the list of pairs of aggressive element absorptions should be
+  // returned in the MinimumDegreeAnalysis result of MinimumDegree.
+  bool store_aggressive_absorptions = false;
+
+  // Whether the list of pairs of variable merges should be returned in the
+  // MinimumDegreeAnalysis result of MinimumDegree.
+  bool store_variable_merges = false;
+};
+
+
 // The result of running the MinimumDegree reordering algorithm. It contains
 // the ordered list of eliminated principal vertices, the list of supernodes,
 // and the supernodal nonzero structure of each principal column.
@@ -300,12 +322,7 @@ inline void ConvertPivotIntoElement(Int pivot, QuotientGraph* graph) {
 // The input graph must be explicitly symmetric.
 //
 MinimumDegreeAnalysis MinimumDegree(
-  const CoordinateGraph& graph,
-  ExternalDegreeType degree_type,
-  bool allow_supernodes,
-  bool aggressive_absorption,
-  bool store_aggressive_absorptions,
-  bool store_variable_merges) {
+  const CoordinateGraph& graph, const MinimumDegreeControl& control) {
 #ifdef QUOTIENT_DEBUG
   if (graph.NumSources() != graph.NumTargets()) {
     std::cerr << "ERROR: MinimumDegree requires a symmetric input graph."
@@ -334,22 +351,25 @@ MinimumDegreeAnalysis MinimumDegree(
     // Compute the external structure cardinalities of the elements.
     // (but only if the Amestoy external degree approximation is requested).
     std::unordered_map<Int, Int> external_structure_sizes;
-    if (aggressive_absorption || degree_type == kAmestoyExternalDegree) {
+    if (control.aggressive_absorption ||
+        control.degree_type == kAmestoyExternalDegree) {
       external_structure_sizes = quotient_graph.ExternalStructureSizes(
           supernodal_pivot_structure);
     }
 
     UpdateElementListsAfterSelectingPivot(
         pivot, supernodal_pivot_structure, external_structure_sizes,
-        aggressive_absorption, store_aggressive_absorptions, &quotient_graph);
+        control.aggressive_absorption, control.store_aggressive_absorptions,
+        &quotient_graph);
 
     UpdateExternalDegreeApproximations(
         pivot, supernodal_pivot_structure, external_structure_sizes,
-        degree_type, &quotient_graph);
+        control.degree_type, &quotient_graph);
 
-    if (allow_supernodes) {
+    if (control.allow_supernodes) {
       DetectAndMergeVariables(
-          supernodal_pivot_structure, store_variable_merges, &quotient_graph);
+          supernodal_pivot_structure, control.store_variable_merges,
+          &quotient_graph);
     }
 
     ConvertPivotIntoElement(pivot, &quotient_graph);
