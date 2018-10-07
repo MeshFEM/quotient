@@ -10,7 +10,8 @@
 #include "quotient.hpp"
 #include "catch.hpp"
 
-TEST_CASE("VariablesAreQuotientIndistinguishable", "[indistinguishable]") {
+TEST_CASE("StructuralSupervariablesAreQuotientIndistinguishable",
+          "[indistinguishable]") {
   quotient::QuotientGraph graph;
   graph.adjacency_lists = std::vector<std::vector<quotient::Int>>{
       {5, 7, 15, 27},
@@ -22,20 +23,28 @@ TEST_CASE("VariablesAreQuotientIndistinguishable", "[indistinguishable]") {
       {0},
   };
 
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(0, 0) == true);
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(0, 1) == true);
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(1, 0) == true);
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(1, 1) == true);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(0, 0) ==
+      true);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(0, 1) ==
+      true);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(1, 0) ==
+      true);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(1, 1) ==
+      true);
 
   graph.adjacency_lists = std::vector<std::vector<quotient::Int>>{
       {5, 8, 15, 27},
       {5, 7, 15, 27},
   };
 
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(0, 0) == true);
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(0, 1) == false);
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(1, 0) == false);
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(1, 1) == true);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(0, 0) ==
+      true);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(0, 1) ==
+      false);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(1, 0) ==
+      false);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(1, 1) ==
+      true);
 
   graph.adjacency_lists = std::vector<std::vector<quotient::Int>>{
       {},
@@ -47,10 +56,14 @@ TEST_CASE("VariablesAreQuotientIndistinguishable", "[indistinguishable]") {
       {29827, 29965},
   };
 
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(0, 0) == true);
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(0, 1) == false);
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(1, 0) == false);
-  REQUIRE(graph.VariablesAreQuotientIndistinguishable(1, 1) == true);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(0, 0) ==
+      true);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(0, 1) ==
+      false);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(1, 0) ==
+      false);
+  REQUIRE(graph.StructuralSupervariablesAreQuotientIndistinguishable(1, 1) ==
+      true);
 }
 
 TEST_CASE("FormSupernodalStructure", "[form-supernodal-structure]") {

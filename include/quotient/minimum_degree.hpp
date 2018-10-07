@@ -57,6 +57,9 @@ struct MinimumDegreeAnalysis {
 
   // Returns the principal member of the largest supernode.
   Int LargestSupernode() const;
+
+  // Returns the number of members of the largest supernode.
+  Int LargestSupernodeSize() const;
 };
 
 inline MinimumDegreeAnalysis::MinimumDegreeAnalysis(Int num_vertices) {
@@ -88,6 +91,10 @@ inline Int MinimumDegreeAnalysis::LargestSupernode() const {
     }
   }
   return largest_supernode;
+}
+
+inline Int MinimumDegreeAnalysis::LargestSupernodeSize() const {
+  return supernodes[LargestSupernode()].size();
 }
 
 // Compute the structure of the pivot:
@@ -258,7 +265,7 @@ inline void DetectAndMergeVariables(
           continue;
         }
         const Int j = supernodal_pivot_structure[j_index];
-        if (graph->VariablesAreQuotientIndistinguishable(i, j)) {
+        if (graph->StructuralSupervariablesAreQuotientIndistinguishable(i, j)) {
           // Absorb supernode(j) into supernode(i). 
           if (store_variable_merges) {
             graph->variable_merges.emplace_back(i, j);

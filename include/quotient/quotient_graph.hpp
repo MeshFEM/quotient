@@ -137,9 +137,10 @@ struct QuotientGraph {
   // lists.
   //
   // TODO(Jack Poulson): Characterize when non-principal members can be in
-  // the adjacency lists.
+  // the adjacency lists. In the mean time, we will be conservative and require
+  // the non-principal members of the adjacency list to also be equal.
   //
-  bool VariablesAreQuotientIndistinguishable(Int i, Int j) const;
+  bool StructuralSupervariablesAreQuotientIndistinguishable(Int i, Int j) const;
 
   // An implementation of Algorithm 2 from [ADD-96].
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
@@ -247,7 +248,7 @@ inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
   return result + 1;
 };
 
-inline bool QuotientGraph::VariablesAreQuotientIndistinguishable(
+inline bool QuotientGraph::StructuralSupervariablesAreQuotientIndistinguishable(
     Int i, Int j) const {
   if (i == j) {
     return true;
