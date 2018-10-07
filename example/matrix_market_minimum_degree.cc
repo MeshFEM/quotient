@@ -6,12 +6,43 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
+#include <numeric>
 #include <vector>
 #include "quotient.hpp"
 #include "specify.hpp"
+
+struct SufficientStatistics {
+  quotient::Int median;
+  quotient::Int mean;
+  quotient::Int standard_deviation;
+};
+
+void PrintSufficientStatistics(
+    const SufficientStatistics& stats, const std::string& label) {
+  std::cout << label << ": median=" << stats.median << ", mean=" << stats.mean
+            << ", stddev=" << stats.standard_deviation << std::endl;
+}
+
+struct AMDExperiment {
+  SufficientStatistics num_lower_nonzeros;
+  SufficientStatistics largest_supernode_size;
+  SufficientStatistics elapsed_seconds;
+};
+
+void PrintAMDExperiment(
+    const AMDExperiment& experiment, const std::string& label) {
+  std::cout << label << ":\n";
+  PrintSufficientStatistics(
+      experiment.num_lower_nonzeros, "  num_lower_nonzeros");
+  PrintSufficientStatistics(
+      experiment.largest_supernode_size, "  largest_supernode_size");
+  PrintSufficientStatistics(
+      experiment.elapsed_seconds, "  elapsed_seconds");
+}
 
 template<typename T>
 double Median(const std::vector<T>& vec) {
@@ -83,19 +114,173 @@ double StandardDeviation(const std::vector<T>& vec, double mean) {
 }
 
 template<typename T>
-void PrintMedianMeanAndStandardDeviation(
-    const std::vector<T>& vec, const std::string& label) {
-  const double median = Median(vec);
-  const double mean = Mean(vec);
-  const double sigma = StandardDeviation(vec, mean);
-  std::cout << label << ": median=" << median << ", mean=" << mean 
-            << ", std dev=" << sigma << std::endl;
+SufficientStatistics GetSufficientStatistics(const std::vector<T>& vec) {
+  SufficientStatistics stats;
+  stats.median = Median(vec);
+  stats.mean = Mean(vec);
+  stats.standard_deviation = StandardDeviation(vec, stats.mean);
+  return stats;
 }
- 
+
+AMDExperiment RunMatrixMarketAMDTest(
+    const std::string& filename,
+    quotient::ExternalDegreeType degree_type,
+    bool allow_supernodes,
+    bool aggressive_absorption,
+    bool force_symmetry,
+    int num_random_permutations,
+    bool store_aggressive_absorptions,
+    bool store_variable_merges,
+    bool print_progress) {
+  if (print_progress) {
+    std::cout << "Reading CoordinateGraph from " << filename << "..."
+              << std::endl;
+  }
+  std::unique_ptr<quotient::CoordinateGraph> graph =
+      quotient::CoordinateGraph::FromMatrixMarket(filename);
+  if (!graph) {
+    std::cerr << "Could not open " << filename << "." << std::endl;
+    AMDExperiment experiment;
+    return experiment;
+  }
+  if (print_progress) {
+    std::cout << "Graph had " << graph->NumSources() << " sources and "
+              << graph->NumEdges() << " edges." << std::endl;
+  }
+
+  // Force symmetry since many of the examples are not. We form the nonzero
+  // pattern of A + A'.
+  if (force_symmetry) {
+    if (print_progress) {
+      std::cout << "Enforcing graph symmetry..." << std::endl;
+    }
+    graph->ReserveEdgeAdditions(graph->NumEdges());
+    for (const std::pair<quotient::Int, quotient::Int>& edge : graph->Edges()) {
+      graph->QueueEdgeAddition(edge.second, edge.first);
+    }
+    graph->FlushEdgeQueues();
+  }
+
+  std::vector<quotient::Int> largest_supernode_sizes;
+  std::vector<quotient::Int> num_strictly_lower_nonzeros;
+  std::vector<double> elapsed_seconds;
+  largest_supernode_sizes.reserve(num_random_permutations + 1);
+  num_strictly_lower_nonzeros.reserve(num_random_permutations + 1);
+  elapsed_seconds.reserve(num_random_permutations + 1); 
+  for (int instance = 0; instance < num_random_permutations + 1; ++instance) {
+    if (print_progress) {
+      std::cout << "  Running analysis " << instance << " of "
+                << num_random_permutations + 1 << "..." << std::endl;
+    }
+    const auto start_time = std::chrono::steady_clock::now();
+    quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(
+      *graph, degree_type, allow_supernodes, aggressive_absorption,
+      store_aggressive_absorptions, store_variable_merges);
+    const auto end_time = std::chrono::steady_clock::now();
+    const std::chrono::duration<double> duration = end_time - start_time;
+    elapsed_seconds.push_back(duration.count());
+    largest_supernode_sizes.push_back(analysis.LargestSupernodeSize());
+    num_strictly_lower_nonzeros.push_back(analysis.NumStrictlyLowerNonzeros());
+    if (print_progress) {
+      std::cout << "  Finished analysis in " << elapsed_seconds.back()
+                << " seconds. There were " << num_strictly_lower_nonzeros.back()
+                << " subdiagonal nonzeros and the largest supernode had "
+                << largest_supernode_sizes.back() << " members." << std::endl;
+    }
+    if (instance == num_random_permutations) {
+      break;
+    }
+
+    // Generate a random permutation.
+    std::vector<quotient::Int> permutation(graph->NumSources());
+    std::iota(permutation.begin(), permutation.end(), 0);
+    std::random_shuffle(permutation.begin(), permutation.end());
+
+    // Apply the permutation to the graph.
+    quotient::CoordinateGraph permuted_graph;
+    permuted_graph.Resize(graph->NumSources());
+    permuted_graph.ReserveEdgeAdditions(graph->NumEdges());
+    for (const std::pair<quotient::Int, quotient::Int>& edge : graph->Edges()) {
+      permuted_graph.QueueEdgeAddition(
+          permutation[edge.first], permutation[edge.second]);
+    }
+    permuted_graph.FlushEdgeQueues();
+
+    *graph = permuted_graph;
+  }
+
+  AMDExperiment experiment;
+  experiment.num_lower_nonzeros = GetSufficientStatistics(
+      num_strictly_lower_nonzeros);
+  experiment.largest_supernode_size = GetSufficientStatistics(
+      largest_supernode_sizes);
+  experiment.elapsed_seconds = GetSufficientStatistics(elapsed_seconds);
+
+  return experiment;
+}
+
+std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
+    const std::string& matrix_market_directory,
+    quotient::ExternalDegreeType degree_type,
+    bool allow_supernodes,
+    bool aggressive_absorption,
+    int num_random_permutations,
+    bool print_progress) {
+  const std::vector<std::string> kMatrixNames{
+      "appu",
+      "bbmat",
+      "bcsstk30",
+      "bcsstk31",
+      "bcsstk32",
+      "bcsstk33",
+      "crystk02",
+      "crystk03",
+      "ct20stif",
+      "ex11",
+      "ex19",
+      "ex40",
+      "finan512",
+      "lhr34",
+      "lhr71",
+      "nasasrb",
+      "olafu",
+      "orani678",
+      "psmigr_1",
+      "raefsky1",
+      "raefsky3",
+      "raefsky4",
+      "rim",
+      "venkat01",
+      "wang3",
+      "wang4",
+  };
+  const bool store_aggressive_absorptions = false;
+  const bool store_variable_merges = false;
+  const bool force_symmetry = true;
+
+  std::unordered_map<std::string, AMDExperiment> experiments;
+  for (const std::string& matrix_name : kMatrixNames) {
+    const std::string filename = matrix_market_directory + "/" + matrix_name +
+        "/" + matrix_name + ".mtx";
+    experiments[matrix_name] = RunMatrixMarketAMDTest(
+        filename,
+        degree_type,
+        allow_supernodes,
+        aggressive_absorption,
+        force_symmetry,
+        num_random_permutations,
+        store_aggressive_absorptions,
+        store_variable_merges,
+        print_progress);
+  }
+
+  return experiments;
+}
+
 int main(int argc, char** argv) {
   specify::ArgumentParser parser(argc, argv);
-  const std::string filename = parser.RequiredInput<std::string>(
-      "filename", "The location of a Matrix Market file.");
+  const std::string filename = parser.OptionalInput<std::string>(
+      "filename", "The location of a Matrix Market file.", "");
   const int degree_type_int = parser.OptionalInput<int>(
       "degree_type_int",
       "The degree approximation type.\n"
@@ -126,89 +311,52 @@ int main(int argc, char** argv) {
       "force_symmetry",
       "Use the nonzero pattern of A + A'?",
       true);
+  const bool print_progress = parser.OptionalInput<bool>(
+      "print_progress",
+      "Print the progress of the experiments?",
+      false);
+  const std::string matrix_market_directory = parser.OptionalInput<std::string>(
+      "matrix_market_directory",
+      "The directory where the ADD96 matrix market .tar.gz's were unpacked",
+      "");
   if (!parser.OK()) {
+    return 0;
+  }
+  if (filename.empty() && matrix_market_directory.empty()) {
+    std::cerr << "One of 'filename' or 'matrix_market_directory' must be "
+                 "specified.\n" << std::endl;
+    parser.PrintReport();
     return 0;
   }
 
   const quotient::ExternalDegreeType degree_type =
       static_cast<quotient::ExternalDegreeType>(degree_type_int);
 
-  std::cout << "Reading CoordinateGraph from " << filename << "..."
-            << std::endl;
-  std::unique_ptr<quotient::CoordinateGraph> graph =
-      quotient::CoordinateGraph::FromMatrixMarket(filename);
-  if (!graph) {
-    std::cerr << "Could not open " << filename << "." << std::endl;
-    return 0;
-  }
-  std::cout << "Graph had " << graph->NumSources() << " sources and "
-            << graph->NumEdges() << " edges." << std::endl;
-
-  // Force symmetry since many of the examples are not. We form the nonzero
-  // pattern of A + A'.
-  if (force_symmetry) {
-    std::cout << "Enforcing graph symmetry..." << std::endl;
-    graph->ReserveEdgeAdditions(graph->NumEdges());
-    for (const std::pair<quotient::Int, quotient::Int>& edge : graph->Edges()) {
-      graph->QueueEdgeAddition(edge.second, edge.first);
+  if (!matrix_market_directory.empty()) {
+    const std::unordered_map<std::string, AMDExperiment> experiments =
+        RunADD96Tests(
+            matrix_market_directory,
+            degree_type,
+            allow_supernodes,
+            aggressive_absorption,
+            num_random_permutations,
+            print_progress);
+    for (const std::pair<std::string, AMDExperiment>& pairing : experiments) {
+      PrintAMDExperiment(pairing.second, pairing.first);  
     }
-    graph->FlushEdgeQueues();
+  } else {
+    const AMDExperiment experiment = RunMatrixMarketAMDTest(
+      filename,
+      degree_type,
+      allow_supernodes,
+      aggressive_absorption,
+      force_symmetry,
+      num_random_permutations,
+      store_aggressive_absorptions,
+      store_variable_merges,
+      print_progress);
+    PrintAMDExperiment(experiment, filename);
   }
-
-  // Seed the random number generator based upon the current time.
-  const unsigned srand_seed = std::time(0);
-  std::cout << "Seeding std::srand with " << srand_seed << std::endl;
-  std::srand(srand_seed);
-
-  std::vector<quotient::Int> largest_supernode_sizes;
-  std::vector<quotient::Int> num_strictly_lower_nonzeros;
-  std::vector<double> elapsed_seconds;
-  largest_supernode_sizes.reserve(num_random_permutations + 1);
-  num_strictly_lower_nonzeros.reserve(num_random_permutations + 1);
-  elapsed_seconds.reserve(num_random_permutations + 1); 
-  for (int instance = 0; instance < num_random_permutations + 1; ++instance) {
-    std::cout << "  Running analysis " << instance << " of "
-              << num_random_permutations + 1 << "..." << std::endl;
-    const auto start_time = std::chrono::steady_clock::now();
-    quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(
-      *graph, degree_type, allow_supernodes, aggressive_absorption,
-      store_aggressive_absorptions, store_variable_merges);
-    const auto end_time = std::chrono::steady_clock::now();
-    const std::chrono::duration<double> duration = end_time - start_time;
-    elapsed_seconds.push_back(duration.count());
-    largest_supernode_sizes.push_back(analysis.LargestSupernodeSize());
-    num_strictly_lower_nonzeros.push_back(analysis.NumStrictlyLowerNonzeros());
-    std::cout << "  Finished analysis in " << elapsed_seconds.back()
-              << " seconds. There were " << num_strictly_lower_nonzeros.back()
-              << " subdiagonal nonzeros and the largest supernode had "
-              << largest_supernode_sizes.back() << " members." << std::endl;
-    if (instance == num_random_permutations) {
-      break;
-    }
-
-    // Generate a random permutation.
-    std::vector<quotient::Int> permutation(graph->NumSources());
-    std::iota(permutation.begin(), permutation.end(), 0);
-    std::random_shuffle(permutation.begin(), permutation.end());
-
-    // Apply the permutation to the graph.
-    quotient::CoordinateGraph permuted_graph;
-    permuted_graph.Resize(graph->NumSources());
-    permuted_graph.ReserveEdgeAdditions(graph->NumEdges());
-    for (const std::pair<quotient::Int, quotient::Int>& edge : graph->Edges()) {
-      permuted_graph.QueueEdgeAddition(
-          permutation[edge.first], permutation[edge.second]);
-    }
-    permuted_graph.FlushEdgeQueues();
-
-    *graph = permuted_graph;
-  }
-
-  PrintMedianMeanAndStandardDeviation(
-      num_strictly_lower_nonzeros, "Num strictly lower nonzeros");
-  PrintMedianMeanAndStandardDeviation(
-      largest_supernode_sizes, "Largest supernode sizes");
-  PrintMedianMeanAndStandardDeviation(elapsed_seconds, "Elapsed seconds");
 
   return 0;
 }
