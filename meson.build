@@ -13,9 +13,6 @@ project(
   default_options : ['cpp_std=c++14'])
 include_dir = include_directories('include')
 
-cpp_compiler = meson.get_compiler('cpp')
-libgomp_cpp = cpp_compiler.find_library('gomp')
-
 # Uncomment the following to enable debug checks.
 # TODO(Jack Poulson): Enable this if 'buildtype' is for debugging.
 #add_global_arguments('-DQUOTIENT_DEBUG', language : 'cpp')
