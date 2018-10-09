@@ -248,10 +248,7 @@ template<typename T>
 bool RandomAccessHeap<T>::UseLeftIndex(Int left_index, Int right_index) const {
   bool use_left_index;
   if (valid_values_[left_index] && valid_values_[right_index]) {
-    const T& left_value = values_[left_index];
-    const T& right_value = values_[right_index];
-    use_left_index = left_value < right_value ||
-        (left_value == right_value && left_index < right_index);
+    use_left_index = values_[left_index] <= values_[right_index];
   } else if (valid_values_[left_index]) {
     use_left_index = true;
   } else if (valid_values_[right_index]) {
