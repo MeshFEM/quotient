@@ -190,6 +190,13 @@ AMDExperiment RunMatrixMarketAMDTest(
                 << " subdiagonal nonzeros and the largest supernode had "
                 << largest_supernode_sizes.back() << " members." << std::endl;
     }
+    if (control.time_stages) {
+      for (const std::pair<std::string, double>& pairing :
+          analysis.elapsed_seconds) {
+        std::cout << "    " << pairing.first << ": " << pairing.second
+                  << " seconds." << std::endl;
+      }
+    }
     if (instance == num_random_permutations) {
       break;
     }
@@ -325,6 +332,10 @@ int main(int argc, char** argv) {
       "matrix_market_directory",
       "The directory where the ADD96 matrix market .tar.gz's were unpacked",
       "");
+  const bool time_stages = parser.OptionalInput<bool>(
+      "time_stages",
+      "Report the timings of each stage of MinimumDegree?",
+      false);
   if (!parser.OK()) {
     return 0;
   }
@@ -342,6 +353,7 @@ int main(int argc, char** argv) {
   control.aggressive_absorption = aggressive_absorption;
   control.store_aggressive_absorptions = store_aggressive_absorptions;
   control.store_variable_merges = store_variable_merges;
+  control.time_stages = time_stages;
 
   if (!matrix_market_directory.empty()) {
     const std::unordered_map<std::string, AMDExperiment> experiments =

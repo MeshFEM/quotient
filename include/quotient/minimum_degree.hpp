@@ -40,6 +40,10 @@ struct MinimumDegreeControl {
   // Whether the list of pairs of variable merges should be returned in the
   // MinimumDegreeAnalysis result of MinimumDegree.
   bool store_variable_merges = false;
+
+  // Whether a breakdown of the elapsed seconds of each stage of the reordering
+  // should be saved.
+  bool time_stages = false;
 };
 
 
@@ -60,12 +64,16 @@ struct MinimumDegreeAnalysis {
   // structure of supernode 'elimination_order[index]'.
   std::vector<std::vector<Int>> principal_structures;
 
-  // An optional list of aggressive element absorption pairs: each pair (e, f)
-  // consists of the absorbing element, e, and the absorbed element, f.
+  // An optional list (based on the value of
+  // 'MinimumDegreeControl.store_aggressive_absorptions') of aggressive element
+  // absorption pairs: each pair (e, f) consists of the absorbing element, e,
+  // and the absorbed element, f.
   std::vector<std::pair<Int, Int>> aggressive_absorptions;
 
-  // An optional list of supervariable merge pairs: each pair (i, j) consists of
-  // the absorbing supervariable, i, and the absorbed supervariable, j.
+  // An optional list (based on the value of
+  // 'MinimumDegreeControl.store_variable_merges') of supervariable merge
+  // pairs: each pair (i, j) consists of the absorbing supervariable, i, and
+  // the absorbed supervariable, j.
   std::vector<std::pair<Int, Int>> variable_merges;
 
   // We will push to elimination order as the reordering algorithm progresses,
@@ -83,6 +91,10 @@ struct MinimumDegreeAnalysis {
 
   // Returns the number of members of the largest supernode.
   Int LargestSupernodeSize() const;
+
+  // An optional (based upon the value of 'MinimumDegreeControl.time_stages')
+  // map from the stage names to the corresponding elapsed seconds.
+  std::unordered_map<std::string, double> elapsed_seconds;
 };
 
 inline MinimumDegreeAnalysis::MinimumDegreeAnalysis(Int num_vertices) {
@@ -336,41 +348,68 @@ MinimumDegreeAnalysis MinimumDegree(
 
   // Eliminate the variables.
   MinimumDegreeAnalysis analysis(num_orig_vertices);
+  std::unordered_map<std::string, Timer> timers;
+  constexpr char kComputePivotStructure[] = "ComputePivotStructure";
+  constexpr char kUpdateAdjacencyLists[] = "UpdateAdjacencyLists";
+  constexpr char kExternalStructureSizes[] = "ExternalStructureSizes";
+  constexpr char kUpdateElementLists[] = "UpdateElementLists";
+  constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
+  constexpr char kDetectAndMergeVariables[] = "UpdateExternalVariables";
+  if (control.time_stages) {
+    timers[kComputePivotStructure].Reset();
+    timers[kUpdateAdjacencyLists].Reset();
+    timers[kExternalStructureSizes].Reset();
+    timers[kUpdateElementLists].Reset();
+    timers[kUpdateExternalDegrees].Reset();
+    timers[kDetectAndMergeVariables].Reset();
+  }
   while (quotient_graph.num_eliminated_vertices < num_orig_vertices) {
     // Retrieve a variable with minimal (approximate) external degree.
     const std::pair<Int, Int> pivot_pair =
         quotient_graph.external_degree_heap.MinimalEntry(); 
     const Int pivot = pivot_pair.first;
 
+    if (control.time_stages) timers[kComputePivotStructure].Start();
     ComputePivotStructure(pivot, &quotient_graph);
+    if (control.time_stages) timers[kComputePivotStructure].Stop();
     const std::vector<Int> supernodal_pivot_structure =
         quotient_graph.FormSupernodalStructure(pivot);
 
+    if (control.time_stages) timers[kUpdateAdjacencyLists].Start();
     UpdateAdjacencyListsAfterSelectingPivot(
         pivot, supernodal_pivot_structure, &quotient_graph);
+    if (control.time_stages) timers[kUpdateAdjacencyLists].Stop();
 
     // Compute the external structure cardinalities of the elements.
     // (but only if the Amestoy external degree approximation is requested).
     std::unordered_map<Int, Int> external_structure_sizes;
     if (control.aggressive_absorption ||
         control.degree_type == kAmestoyExternalDegree) {
+      if (control.time_stages) timers[kExternalStructureSizes].Start();
       external_structure_sizes = quotient_graph.ExternalStructureSizes(
           supernodal_pivot_structure);
+      if (control.time_stages) timers[kExternalStructureSizes].Stop();
     }
 
+    if (control.time_stages) timers[kUpdateElementLists].Start();
     UpdateElementListsAfterSelectingPivot(
         pivot, supernodal_pivot_structure, external_structure_sizes,
         control.aggressive_absorption, control.store_aggressive_absorptions,
         &quotient_graph);
+    if (control.time_stages) timers[kUpdateElementLists].Stop();
 
+    if (control.time_stages) timers[kUpdateExternalDegrees].Start();
     UpdateExternalDegreeApproximations(
         pivot, supernodal_pivot_structure, external_structure_sizes,
         control.degree_type, &quotient_graph);
+    if (control.time_stages) timers[kUpdateExternalDegrees].Stop();
 
     if (control.allow_supernodes) {
+      if (control.time_stages) timers[kDetectAndMergeVariables].Start();
       DetectAndMergeVariables(
           supernodal_pivot_structure, control.store_variable_merges,
           &quotient_graph);
+      if (control.time_stages) timers[kDetectAndMergeVariables].Stop();
     }
 
     ConvertPivotIntoElement(pivot, &quotient_graph);
@@ -388,6 +427,9 @@ MinimumDegreeAnalysis MinimumDegree(
   }
   analysis.aggressive_absorptions = quotient_graph.aggressive_absorptions;
   analysis.variable_merges = quotient_graph.variable_merges;
+  for (const std::pair<std::string, Timer>& pairing : timers) {
+    analysis.elapsed_seconds[pairing.first] = pairing.second.TotalSeconds();
+  }
 
   return analysis;
 }
