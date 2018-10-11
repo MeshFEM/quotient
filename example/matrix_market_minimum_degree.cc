@@ -5,7 +5,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
@@ -18,9 +17,9 @@
 // A simple data structure for storing the median, mean, and standard deviation
 // of a random variable.
 struct SufficientStatistics {
-  quotient::Int median;
-  quotient::Int mean;
-  quotient::Int standard_deviation;
+  double median;
+  double mean;
+  double standard_deviation;
 };
 
 // Pretty prints the SufficientStatistics structure.
@@ -178,12 +177,11 @@ AMDExperiment RunMatrixMarketAMDTest(
       std::cout << "  Running analysis " << instance << " of "
                 << num_random_permutations + 1 << "..." << std::endl;
     }
-    const auto start_time = std::chrono::steady_clock::now();
+    quotient::Timer timer;
+    timer.Start();
     const quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(
       *graph, control);
-    const auto end_time = std::chrono::steady_clock::now();
-    const std::chrono::duration<double> duration = end_time - start_time;
-    elapsed_seconds.push_back(duration.count());
+    elapsed_seconds.push_back(timer.Stop());
     largest_supernode_sizes.push_back(analysis.LargestSupernodeSize());
     num_strictly_lower_nonzeros.push_back(analysis.NumStrictlyLowerNonzeros());
     if (print_progress) {

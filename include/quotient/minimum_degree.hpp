@@ -17,6 +17,7 @@
 #include "quotient/external_degree.hpp"
 #include "quotient/quotient_graph.hpp"
 #include "quotient/random_access_heap.hpp"
+#include "quotient/timer.hpp"
 
 namespace quotient {
 

@@ -12,5 +12,6 @@
 #include "quotient/coordinate_graph.hpp"
 #include "quotient/minimum_degree.hpp"
 #include "quotient/random_access_heap.hpp"
+#include "quotient/timer.hpp"
 
 #endif // ifndef QUOTIENT_H_

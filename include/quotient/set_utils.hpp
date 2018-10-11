@@ -17,6 +17,8 @@ namespace quotient {
 
 // Returns the number of entries in {vec0} \cap {vec1}, where both vectors
 // are assumed sorted and unique.
+//
+// TODO(Jack Poulson): Benchmark several different variants of this routine.
 template<typename T>
 Int SizeOfIntersection(
     const std::vector<T>& vec0, const std::vector<T>& vec1) {
