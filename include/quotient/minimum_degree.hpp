@@ -153,6 +153,8 @@ inline void ComputePivotStructure(Int pivot, QuotientGraph* graph) {
   }
 #endif
 
+  // TODO(Jack Poulson): Decrease the asymptotic cost by appending all sets
+  // into a single vector, sorting the vector, then deleting duplicates.
   std::vector<Int> temp0, temp1; 
   for (const Int& element : graph->element_lists[pivot]) {
     FilterSet(graph->structures[element], graph->supernodes[pivot], &temp0);
@@ -177,12 +179,13 @@ inline void UpdateAdjacencyListsAfterSelectingPivot(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
     QuotientGraph* graph) {
-  std::vector<Int> temp;
   for (const Int& i : supernodal_pivot_structure) {
     // Remove redundant adjacency entries:
     //   A_i := (A_i \ L_p) \ supernode(p).
-    FilterSet(graph->adjacency_lists[i], graph->structures[pivot], &temp);
-    FilterSet(temp, graph->supernodes[pivot], &graph->adjacency_lists[i]);
+    DoubleFilterSetInPlace(
+      graph->structures[pivot],
+      graph->supernodes[pivot],
+      &graph->adjacency_lists[i]);
   }
 }
 
@@ -194,12 +197,10 @@ inline void UpdateElementListsAfterSelectingPivot(
     bool aggressive_absorption,
     bool store_aggressive_absorptions,
     QuotientGraph* graph) {
-  std::vector<Int> temp;
   for (const Int& i : supernodal_pivot_structure) {
     // Element absorption:
     //   E_i := (E_i \ E_p) \cup {p}.
-    temp = graph->element_lists[i];
-    FilterSet(temp, graph->element_lists[pivot], &graph->element_lists[i]);
+    FilterSetInPlace(graph->element_lists[pivot], &graph->element_lists[i]);
     InsertNewEntryIntoSet(pivot, &graph->element_lists[i]);
   }
 
@@ -217,9 +218,8 @@ inline void UpdateElementListsAfterSelectingPivot(
       if (store_aggressive_absorptions) {
         graph->aggressive_absorptions.emplace_back(pivot, element);
       }
-      temp = graph->element_lists[pivot];
-      FilterSet(
-          temp, graph->element_lists[element], &graph->element_lists[pivot]);
+      FilterSetInPlace(
+          graph->element_lists[element], &graph->element_lists[pivot]);
       InsertEntryIntoSet(element, &graph->element_lists[pivot]);
     }
   }

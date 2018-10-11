@@ -141,6 +141,54 @@ void FilterSet(
 #endif
 }
 
+// Overwrites 'vec' with {vec} \ {blacklist}.
+template<typename T>
+void FilterSetInPlace(
+    const std::vector<T>& blacklist,
+    std::vector<T>* vec) {
+  Int num_kept = 0;
+  auto blacklist_iter = blacklist.cbegin();
+  for (std::size_t index = 0; index < vec->size(); ++index) {
+    const Int& value = (*vec)[index];
+
+    // Advance the blacklist.
+    blacklist_iter = std::lower_bound(blacklist_iter, blacklist.cend(), value);
+
+    // Pack the value if it is not blacklisted.
+    if (blacklist_iter == blacklist.cend() || value != *blacklist_iter) {
+      (*vec)[num_kept++] = value;
+    }
+  }
+  vec->resize(num_kept);
+}
+
+// Overwrites 'vec' with {vec} \ {blacklist0 \cup blacklist1}.
+template<typename T>
+void DoubleFilterSetInPlace(
+    const std::vector<T>& blacklist0,
+    const std::vector<T>& blacklist1,
+    std::vector<T>* vec) {
+  Int num_kept = 0;
+  auto blacklist0_iter = blacklist0.cbegin();
+  auto blacklist1_iter = blacklist1.cbegin();
+  for (std::size_t index = 0; index < vec->size(); ++index) {
+    const T& value = (*vec)[index];
+
+    // Advance the blacklists.
+    blacklist0_iter = std::lower_bound(
+        blacklist0_iter, blacklist0.cend(), value);
+    blacklist1_iter = std::lower_bound(
+        blacklist1_iter, blacklist1.cend(), value);
+
+    // Pack the value if it is not blacklisted.
+    if ((blacklist0_iter == blacklist0.cend() || value != *blacklist0_iter) &&
+        (blacklist1_iter == blacklist1.cend() || value != *blacklist1_iter)) {
+      (*vec)[num_kept++] = value;
+    }
+  }
+  vec->resize(num_kept);
+}
+
 // Fills 'sorted_union' with the sorted serialization of {vec0} \cup {vec1},
 // where 'vec0' and 'vec1' are sorted, unique vectors.
 template<typename T>
