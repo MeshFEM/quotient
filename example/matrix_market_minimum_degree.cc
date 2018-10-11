@@ -355,6 +355,11 @@ int main(int argc, char** argv) {
   control.store_variable_merges = store_variable_merges;
   control.time_stages = time_stages;
 
+  // Seed the random number generator based upon the current time.
+  const unsigned srand_seed = std::time(0);
+  std::cout << "Seeding std::srand with " << srand_seed << std::endl;
+  std::srand(srand_seed);
+
   if (!matrix_market_directory.empty()) {
     const std::unordered_map<std::string, AMDExperiment> experiments =
         RunADD96Tests(
