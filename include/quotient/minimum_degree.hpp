@@ -132,46 +132,80 @@ inline Int MinimumDegreeAnalysis::LargestSupernodeSize() const {
   return supernodes[LargestSupernode()].size();
 }
 
-// Compute the structure of the pivot:
+// Computes the structure of the pivot:
+//
 //   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
 //
-// TODO(Jack Poulson): Experiment with several different union-finding
-// algorithms. It isn't clear that repeated calls to std::set_union has
-// optimal time complexity.
-inline void ComputePivotStructure(Int pivot, QuotientGraph* graph) {
+// in the case where there are modest numbers of members of E_p.
+inline void ComputePivotStructureFewElements(Int pivot, QuotientGraph* graph) {
   FilterSet(
       graph->adjacency_lists[pivot],
       graph->supernodes[pivot],
       &graph->structures[pivot]);
-#ifdef QUOTIENT_DEBUG
-  for (const Int& i : graph->structures[pivot]) {
-    if (graph->supernodes[i].size() != 0 &&
-       !graph->external_degree_heap.ValidValue(i)) {
-      std::cerr << "Adjacency list of pivot " << pivot << " contained entry "
-                << i << ", which is an element." << std::endl;
-    }
-  }
-#endif
 
-  // TODO(Jack Poulson): Decrease the asymptotic cost by appending all sets
-  // into a single vector, sorting the vector, then deleting duplicates.
   std::vector<Int> temp0, temp1; 
   for (const Int& element : graph->element_lists[pivot]) {
     FilterSet(graph->structures[element], graph->supernodes[pivot], &temp0);
-#ifdef QUOTIENT_DEBUG
-    for (const Int& i : graph->structures[element]) {
-      if (graph->supernodes[i].size() != 0 &&
-          !graph->external_degree_heap.ValidValue(i)) {
-        std::cerr << "Handling pivot " << pivot << ", structures[" << element
-                  << "] contained entry " << i << ", which is an element."
-                  << std::endl;
-      }
-    }
-#endif
-
     temp1 = graph->structures[pivot];
     MergeSets(temp1, temp0, &graph->structures[pivot]);
   }
+}
+
+// Computes the structure of the pivot:
+//
+//   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
+//
+// in the case where there are many numbers of members of E_p.
+inline void ComputePivotStructureManyElements(Int pivot, QuotientGraph* graph) {
+  // Set up the list of index sets we will be merging (after filtering
+  // supernode(pivot)).
+  std::vector<std::vector<Int>*> index_sets;
+  index_sets.reserve(graph->element_lists[pivot].size() + 1);
+  index_sets.push_back(&graph->adjacency_lists[pivot]);
+  for (const Int& element : graph->element_lists[pivot]) {
+    index_sets.push_back(&graph->structures[element]);
+  }
+
+  // Count the number of (non-unique) filtered entries and compute the scan
+  // of the offsets.
+  Int num_non_unique = 0;
+  std::vector<Int> offsets;
+  offsets.reserve(index_sets.size());
+  for (const std::vector<Int>* index_set : index_sets) {
+    offsets.push_back(num_non_unique);
+    num_non_unique += SizeOfDifference(*index_set, graph->supernodes[pivot]);
+  }
+
+  // Fill the unsorted, non-unique list of elements.
+  //
+  // TODO(Jack Poulson): Use OpenMP to parallelize this loop.
+  graph->structures[pivot].clear();
+  graph->structures[pivot].resize(num_non_unique);
+  for (std::size_t index = 0; index < index_sets.size(); ++index) {
+    std::set_difference(
+        index_sets[index]->begin(), index_sets[index]->end(),
+        graph->supernodes[pivot].begin(), graph->supernodes[pivot].end(),
+        graph->structures[pivot].data() + offsets[index]);
+  }
+
+  // Sort the non-unique list of elements and then erase duplicates.
+  //
+  // TODO(Jack Poulson): Use a multithreaded sort.
+  std::sort(graph->structures[pivot].begin(), graph->structures[pivot].end());
+  EraseDuplicatesInSortedVector(&graph->structures[pivot]);
+}
+
+// Computes the structure of the pivot:
+//
+//   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
+//
+inline void ComputePivotStructure(Int pivot, QuotientGraph* graph) {
+  const Int kElementThreshold = 4;
+  if (graph->element_lists[pivot].size() < kElementThreshold) {
+    ComputePivotStructureFewElements(pivot, graph);
+    return;
+  }
+  ComputePivotStructureManyElements(pivot, graph);
 }
 
 // Update the adjacency lists after computing the supernodal pivot structure.
@@ -243,11 +277,6 @@ inline void UpdateExternalDegreeApproximations(
     //       |(\cup_{e in E_i} L_e) \ supernode(i)|.
     const Int external_degree = ExternalDegree(
         *graph, i, pivot, external_structure_sizes, degree_type);
-#ifdef QUOTIENT_DEBUG
-    if (external_degree < 0) {
-      std::cerr << "Computed a negative external degree." << std::endl;
-    }
-#endif
     graph->external_degree_heap.SetValue(i, external_degree);
   }
 }

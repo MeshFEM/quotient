@@ -58,6 +58,9 @@ inline Int ExactExternalDegree(const QuotientGraph& graph, Int i) {
       graph.structures[element1],
       graph.supernodes[i]);
   } else {
+    // TODO(Jack Poulson): Avoid the quadratic complexity repeated merging in
+    // favor of creating a vector of non-unique, unsorted entries and then
+    // sorting and removing duplicates.
     std::vector<Int> filtered_struct;
     std::vector<Int> element_struct_union;
     std::vector<Int> temp_int_vec;
