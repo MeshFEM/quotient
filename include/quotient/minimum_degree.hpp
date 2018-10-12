@@ -373,7 +373,7 @@ MinimumDegreeAnalysis MinimumDegree(
   constexpr char kExternalStructureSizes[] = "ExternalStructureSizes";
   constexpr char kUpdateElementLists[] = "UpdateElementLists";
   constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
-  constexpr char kDetectAndMergeVariables[] = "UpdateExternalVariables";
+  constexpr char kDetectAndMergeVariables[] = "DetectAndMergeVariables";
   if (control.time_stages) {
     timers[kComputePivotStructure].Reset();
     timers[kUpdateAdjacencyLists].Reset();
