@@ -55,51 +55,8 @@ class Timer {
   double total_seconds_; 
 };
 
-inline Timer::Timer(const std::string& name)
-: name_(name), running_(false), last_interval_seconds_(0), total_seconds_(0) { }
-
-inline const std::string& Timer::Name() const { return name_; }
-
-inline void Timer::Start() {
-  last_time_ = std::chrono::steady_clock::now();
-  running_ = true;
-}
-
-inline double Timer::Stop() {
-#ifdef QUOTIENT_DEBUG
-  if (!running_) {
-    std::cerr << "The Timer was stopped when it was not running." << std::endl;
-  }
-#endif
-  last_interval_seconds_ = SecondsSinceLastStart();
-  total_seconds_ += last_interval_seconds_;
-  running_ = false;
-  return last_interval_seconds_;
-}
-
-inline double Timer::SecondsSinceLastStart() const {
-  if (running_) {
-    auto now = std::chrono::steady_clock::now();
-    const std::chrono::duration<double> duration = now - last_time_;
-    return duration.count();
-  }
-  return last_interval_seconds_;
-}
-
-inline double Timer::TotalSeconds() const {
-  if (running_) {
-    return total_seconds_ + SecondsSinceLastStart();
-  }
-  return total_seconds_;
-}
-
-inline void Timer::Reset(const std::string& name) {
-  name_ = name;
-  total_seconds_ = 0;
-  last_interval_seconds_ = 0;
-  running_ = false;
-}
-
 } // namespace quotient
+
+#include "quotient/timer-impl.hpp"
 
 #endif // ifndef QUOTIENT_TIMER_H_
