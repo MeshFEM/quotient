@@ -82,7 +82,7 @@ inline Int AmestoyExternalDegree(
     const QuotientGraph& graph,
     Int i,
     Int pivot,
-    const std::unordered_map<Int, Int>& external_structure_sizes) {
+    const std::vector<Int>& external_structure_sizes) {
   const Int num_vertices_left =
       graph.num_original_vertices - graph.num_eliminated_vertices;
   const Int old_external_degree = graph.external_degree_heap.Value(i); 
@@ -104,11 +104,10 @@ inline Int AmestoyExternalDegree(
     if (element == pivot) {
       continue;
     }
-    auto iter = external_structure_sizes.find(element);
-    if (iter == external_structure_sizes.end()) {
-      bound2 += graph.structures[element].size();
+    if (external_structure_sizes[element] >= 0) {
+      bound2 += external_structure_sizes[element];
     } else {
-      bound2 += iter->second;
+      bound2 += graph.structures[element].size();
     }
   }
 
@@ -141,7 +140,7 @@ inline Int ExternalDegree(
     const QuotientGraph& graph,
     Int i,
     Int pivot,
-    const std::unordered_map<Int, Int>& external_structure_sizes,
+    const std::vector<Int>& external_structure_sizes,
     ExternalDegreeType degree_type) {
   Int external_degree = -1;
   switch(degree_type) {

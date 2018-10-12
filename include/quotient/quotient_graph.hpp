@@ -142,11 +142,35 @@ struct QuotientGraph {
   //
   bool StructuralSupervariablesAreQuotientIndistinguishable(Int i, Int j) const;
 
+  // Initializes 'external_structure_sizes' to a 'num_original_vertices' length
+  // vector with all entries equal to -1.
+  void InitializeExternalStructureSizes(
+    std::vector<Int>* external_structure_sizes) const;
+
   // An implementation of Algorithm 2 from [ADD-96].
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
   // of a supernode in the structure, L_p.
-  std::unordered_map<Int, Int> ExternalStructureSizes(
-    const std::vector<Int>& supernodal_structure) const;
+  //
+  // On entry all entries of external_structure_sizes should be less than zero.
+  // On exit, all entries of 'external_structure_sizes' corresponding to element
+  // indices in the element list of a supernode in the structure L_p should be
+  // non-negative and equal to |L_e \ L_p|.
+  //
+  // If the 'aggressive_absorption' boolean is true, then
+  // 'aggressive_absorption_elements' is filled with the elements which should
+  // be absorbed.
+  void ExternalStructureSizes(
+    const std::vector<Int>& supernodal_structure,
+    bool aggressive_absorption,
+    std::vector<Int>* external_structure_sizes,
+    std::vector<Int>* aggressive_absorption_elements) const;
+
+  // Sets all entries of 'external_structure_sizes' that correspond to an
+  // element index in the element list of a supernode in the structure L_p to
+  // -1.
+  void ResetExternalStructureSizes(
+    const std::vector<Int>& supernodal_structure,
+    std::vector<Int>* external_structure_sizes) const;
 };
 
 inline QuotientGraph::QuotientGraph()
@@ -280,15 +304,31 @@ inline bool QuotientGraph::StructuralSupervariablesAreQuotientIndistinguishable(
   return true;
 }
 
-inline std::unordered_map<Int, Int> QuotientGraph::ExternalStructureSizes(
-    const std::vector<Int>& supernodal_structure) const {
-  std::unordered_map<Int, Int> external_structure_sizes;
+inline void QuotientGraph::InitializeExternalStructureSizes(
+    std::vector<Int>* external_structure_sizes) const {
+  external_structure_sizes->clear();
+  external_structure_sizes->resize(num_original_vertices, -1);
+}
+
+inline void QuotientGraph::ExternalStructureSizes(
+    const std::vector<Int>& supernodal_structure,
+    bool aggressive_absorption,
+    std::vector<Int>* external_structure_sizes,
+    std::vector<Int>* aggressive_absorption_elements) const {
+  // Follow the advice at the beginning of Section 5 of [AMD-96] and absorb
+  // any element e that satisfies |L_e \ L_p| = 0.
+  aggressive_absorption_elements->clear();
+
   for (const Int& i : supernodal_structure) {
     for (const Int& element : element_lists[i]) {
-      if (!external_structure_sizes.count(element)) {
-        external_structure_sizes[element] = structures[element].size();
+      if ((*external_structure_sizes)[element] < 0) {
+        (*external_structure_sizes)[element] = structures[element].size();
       }
-      external_structure_sizes[element] -= supernodes[i].size();
+      Int& external_structure_size = (*external_structure_sizes)[element];
+      external_structure_size -= supernodes[i].size();
+      if (aggressive_absorption && external_structure_size == 0) {
+        aggressive_absorption_elements->push_back(element);
+      }
 #ifdef QUOTIENT_DEBUG
       for (const Int& j : supernodes[i]) {
         auto iter = std::lower_bound(
@@ -301,7 +341,16 @@ inline std::unordered_map<Int, Int> QuotientGraph::ExternalStructureSizes(
 #endif
     }
   }
-  return external_structure_sizes;
+}
+
+inline void QuotientGraph::ResetExternalStructureSizes(
+    const std::vector<Int>& supernodal_structure,
+    std::vector<Int>* external_structure_sizes) const {
+  for (const Int& i : supernodal_structure) {
+    for (const Int& element : element_lists[i]) {
+      (*external_structure_sizes)[element] = -1;
+    }
+  }
 }
 
 } // namespace quotient

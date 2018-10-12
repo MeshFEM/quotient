@@ -85,17 +85,29 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
 
   REQUIRE(supernodal_pivot_structure == kExpectedSupernodalPivotStructure);
 
-  const std::unordered_map<quotient::Int, quotient::Int>
-      kExpectedExternalStructureSizes = {
-      {0, 1}, // L_0 \ L_1 = {1}
-      {7, 1}, // L_7 \ L_1 = {3}
+  const std::vector<quotient::Int> kExpectedExternalStructureSizes{
+      1,  // L_0 \ L_1 = {1}
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      1,  // L_7 \ L_1 = {3}
   };
 
-  const std::unordered_map<quotient::Int, quotient::Int>
-      external_structure_sizes = graph.ExternalStructureSizes(
-          supernodal_pivot_structure);
+  const std::vector<quotient::Int> kExpectedAggressiveAbsorptions;
+
+  const bool aggressive_absorption = false;
+  std::vector<quotient::Int> external_structure_sizes;
+  std::vector<quotient::Int> aggressive_absorption_elements;
+  graph.InitializeExternalStructureSizes(&external_structure_sizes);
+  graph.ExternalStructureSizes(
+      supernodal_pivot_structure, aggressive_absorption,
+      &external_structure_sizes, &aggressive_absorption_elements);
 
   REQUIRE(external_structure_sizes == kExpectedExternalStructureSizes);
+  REQUIRE(aggressive_absorption_elements == kExpectedAggressiveAbsorptions);
 
   const quotient::Int variable = 4;
   const quotient::Int exact_external_degree = ExternalDegree(

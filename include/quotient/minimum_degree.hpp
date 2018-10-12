@@ -227,8 +227,7 @@ inline void UpdateAdjacencyListsAfterSelectingPivot(
 inline void UpdateElementListsAfterSelectingPivot(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
-    const std::unordered_map<Int, Int>& external_structure_sizes,
-    bool aggressive_absorption,
+    const std::vector<Int>& aggressive_absorption_elements,
     bool store_aggressive_absorptions,
     QuotientGraph* graph) {
   for (const Int& i : supernodal_pivot_structure) {
@@ -238,24 +237,15 @@ inline void UpdateElementListsAfterSelectingPivot(
     InsertNewEntryIntoSet(pivot, &graph->element_lists[i]);
   }
 
-  if (aggressive_absorption) {
-    // Follow the advice at the beginning of Section 5 of [AMD-96] and absorb
-    // any element e that satisfies |L_e \ L_p| = 0.
-    for (const std::pair<Int, Int>& pairing : external_structure_sizes) {
-      if (pairing.second != 0) {
-        continue;
-      }
-
-      // Aggressive element absorption:
-      //   E_p := (E_p \ E_e) \cup {e}.
-      const Int element = pairing.first;
-      if (store_aggressive_absorptions) {
-        graph->aggressive_absorptions.emplace_back(pivot, element);
-      }
-      FilterSetInPlace(
-          graph->element_lists[element], &graph->element_lists[pivot]);
-      InsertEntryIntoSet(element, &graph->element_lists[pivot]);
+  for (const Int& element : aggressive_absorption_elements) {
+    // Aggressive element absorption:
+    //   E_p := (E_p \ E_e) \cup {e}.
+    if (store_aggressive_absorptions) {
+      graph->aggressive_absorptions.emplace_back(pivot, element);
     }
+    FilterSetInPlace(
+        graph->element_lists[element], &graph->element_lists[pivot]);
+    InsertEntryIntoSet(element, &graph->element_lists[pivot]);
   }
 }
 
@@ -268,7 +258,7 @@ inline void UpdateElementListsAfterSelectingPivot(
 inline void UpdateExternalDegreeApproximations(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
-    const std::unordered_map<Int, Int>& external_structure_sizes,
+    const std::vector<Int>& external_structure_sizes,
     ExternalDegreeType degree_type,
     QuotientGraph* graph) {
   for (const Int& i : supernodal_pivot_structure) {
@@ -392,6 +382,16 @@ MinimumDegreeAnalysis MinimumDegree(
     timers[kUpdateExternalDegrees].Reset();
     timers[kDetectAndMergeVariables].Reset();
   }
+  const bool compute_external_structure_sizes =
+      control.aggressive_absorption ||
+      control.degree_type == kAmestoyExternalDegree;
+  std::vector<Int> external_structure_sizes;
+  if (compute_external_structure_sizes) {
+    if (control.time_stages) timers[kExternalStructureSizes].Start();
+    quotient_graph.InitializeExternalStructureSizes(&external_structure_sizes);
+    if (control.time_stages) timers[kExternalStructureSizes].Stop();
+  }
+  std::vector<Int> aggressive_absorption_elements;
   while (quotient_graph.num_eliminated_vertices < num_orig_vertices) {
     // Retrieve a variable with minimal (approximate) external degree.
     const std::pair<Int, Int> pivot_pair =
@@ -411,20 +411,18 @@ MinimumDegreeAnalysis MinimumDegree(
 
     // Compute the external structure cardinalities of the elements.
     // (but only if the Amestoy external degree approximation is requested).
-    std::unordered_map<Int, Int> external_structure_sizes;
-    if (control.aggressive_absorption ||
-        control.degree_type == kAmestoyExternalDegree) {
+    if (compute_external_structure_sizes) {
       if (control.time_stages) timers[kExternalStructureSizes].Start();
-      external_structure_sizes = quotient_graph.ExternalStructureSizes(
-          supernodal_pivot_structure);
+      quotient_graph.ExternalStructureSizes(
+          supernodal_pivot_structure, control.aggressive_absorption,
+          &external_structure_sizes, &aggressive_absorption_elements);
       if (control.time_stages) timers[kExternalStructureSizes].Stop();
     }
 
     if (control.time_stages) timers[kUpdateElementLists].Start();
     UpdateElementListsAfterSelectingPivot(
-        pivot, supernodal_pivot_structure, external_structure_sizes,
-        control.aggressive_absorption, control.store_aggressive_absorptions,
-        &quotient_graph);
+        pivot, supernodal_pivot_structure, aggressive_absorption_elements,
+        control.store_aggressive_absorptions, &quotient_graph);
     if (control.time_stages) timers[kUpdateElementLists].Stop();
 
     if (control.time_stages) timers[kUpdateExternalDegrees].Start();
@@ -444,6 +442,13 @@ MinimumDegreeAnalysis MinimumDegree(
     ConvertPivotIntoElement(pivot, &quotient_graph);
 
     analysis.elimination_order.push_back(pivot);
+
+    if (compute_external_structure_sizes) {
+      if (control.time_stages) timers[kExternalStructureSizes].Start();
+      quotient_graph.ResetExternalStructureSizes(
+          supernodal_pivot_structure, &external_structure_sizes);
+      if (control.time_stages) timers[kExternalStructureSizes].Stop();
+    }
   }
 
   // Extract the relevant information from the QuotientGraph.
