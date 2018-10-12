@@ -181,23 +181,34 @@ inline void UpdateElementListsAfterSelectingPivot(
 
 // Compute the external degree approximations of the supernodes
 // adjacent to the current pivot.
-//
-// TODO(Jack Poulson): Add support for a batch interface to
-// 'external_degree_heap.SetValue' so that comparison propagations can be
-// potentially shared.
 inline void UpdateExternalDegreeApproximations(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
     const std::vector<Int>& external_structure_sizes,
     ExternalDegreeType degree_type,
     QuotientGraph* graph) {
-  for (const Int& i : supernodal_pivot_structure) {
+  // Compute and store the external degrees.
+  // TODO(Jack Poulson): Parallelize this loop with OpenMP.
+  const std::size_t struct_size = supernodal_pivot_structure.size();
+  std::vector<Int> external_degrees(struct_size);
+  for (std::size_t index = 0; index < struct_size; ++index) {
+    const Int i = supernodal_pivot_structure[index];
+
     // Compute the external degree (or approximation) of supervariable i:
     //   d_i := |A_i \ supernode(i)| +
     //       |(\cup_{e in E_i} L_e) \ supernode(i)|.
-    const Int external_degree = ExternalDegree(
+    external_degrees[index] = ExternalDegree(
         *graph, i, pivot, external_structure_sizes, degree_type);
-    graph->external_degree_heap.SetValue(i, external_degree);
+  }
+
+  // Insert the external degrees into the heap.
+  //
+  // TODO(Jack Poulson): Add support for a batch interface to
+  // 'external_degree_heap.SetValue' so that comparison propagations can be
+  // potentially shared.
+  for (std::size_t index = 0; index < struct_size; ++index) {
+    const Int i = supernodal_pivot_structure[index];
+    graph->external_degree_heap.SetValue(i, external_degrees[index]);
   }
 }
 
@@ -217,10 +228,10 @@ inline void DetectAndMergeVariables(
     QuotientGraph* graph) {
   // Fill a set of buckets for the hashes of the supernodes adjacent to
   // the current pivot.
-  const Int supernodal_pivot_struct_size = supernodal_pivot_structure.size();
-  std::vector<Int> bucket_list(supernodal_pivot_struct_size);
+  const std::size_t struct_size = supernodal_pivot_structure.size();
+  std::vector<Int> bucket_list(struct_size);
   std::unordered_map<Int, std::vector<Int>> variable_hash_map;
-  for (Int i_index = 0; i_index < supernodal_pivot_struct_size; ++i_index) {
+  for (std::size_t i_index = 0; i_index < struct_size; ++i_index) {
     const Int i = supernodal_pivot_structure[i_index];
 
     // Append this principal variable to its hash bucket.
@@ -231,6 +242,7 @@ inline void DetectAndMergeVariables(
     variable_hash_map[bucket_key].push_back(i_index);
   }
 
+  // TODO(Jack Poulson): Refactor and parallelize this loop with OpenMP.
   std::vector<Int> temp;
   for (const std::pair<Int, std::vector<Int>>& entry : variable_hash_map) {
     const std::vector<Int>& bucket = entry.second;
