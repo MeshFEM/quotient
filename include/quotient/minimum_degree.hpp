@@ -37,6 +37,15 @@ struct MinimumDegreeControl {
   // MinimumDegreeAnalysis result of MinimumDegree.
   bool store_variable_merges = false;
 
+  // Whether a list should be stored of the lengths of the element lists of
+  // the pivots.
+  bool store_pivot_element_list_sizes = false;
+
+  // Whether or not to store the count of the number of external degree updates
+  // which involved more than two (and, separately, how many less than or equal
+  // to two) elements in the variable's element list.
+  bool store_num_degree_updates_with_multiple_elements = false;
+
   // Whether a breakdown of the elapsed seconds of each stage of the reordering
   // should be saved.
   bool time_stages = false;
@@ -72,6 +81,23 @@ struct MinimumDegreeAnalysis {
   // the absorbed supervariable, j.
   std::vector<std::pair<Int, Int>> variable_merges;
 
+  // An optional list (based on the value of
+  // 'MinimumDegreeControl.store_pivot_element_list_sizes') of the lengths of
+  // the element lists of each pivot.
+  std::vector<Int> pivot_element_list_sizes;
+
+  // An optional count (based on the value of
+  // 'MinimumDegreeControl.store_num_degree_updates_with_multiple_elements')
+  // of the number of external degree updates that involved a variable with
+  // more than two members in its element list.
+  Int num_degree_updates_with_multiple_elements = -1;
+
+  // An optional count (based on the value of
+  // 'MinimumDegreeControl.store_num_degree_updates_with_multiple_elements')
+  // of the number of external degree updates that involved a variable with
+  // more than two members in its element list.
+  Int num_degree_updates_without_multiple_elements = -1;
+
   // We will push to elimination order as the reordering algorithm progresses,
   // so we will allocate an upper bound for the amount of required space.
   // The 'supernodes' and 'structures' variables will be copied over from
@@ -87,6 +113,14 @@ struct MinimumDegreeAnalysis {
 
   // Returns the number of members of the largest supernode.
   Int LargestSupernodeSize() const;
+
+  // Returns the fraction of pivots whose element list had more than two
+  // members.
+  double FractionOfPivotsWithMultipleElements() const;
+
+  // Returns the fraction of degree updates whose corresponding variable had an
+  // element list had more than two members.
+  double FractionOfDegreeUpdatesWithMultipleElements() const;
 
   // An optional (based upon the value of 'MinimumDegreeControl.time_stages')
   // map from the stage names to the corresponding elapsed seconds.

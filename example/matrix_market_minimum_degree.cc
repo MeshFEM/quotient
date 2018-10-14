@@ -17,8 +17,13 @@
 // A simple data structure for storing the median, mean, and standard deviation
 // of a random variable.
 struct SufficientStatistics {
+  // The median of the set of samples.
   double median;
+
+  // The mean of the set of samples.
   double mean;
+
+  // The standard deviation of the set of samples.
   double standard_deviation;
 };
 
@@ -31,8 +36,14 @@ void PrintSufficientStatistics(
 
 // A list of properties to measure from an AMD reordering.
 struct AMDExperiment {
+  // The number of (structural) nonzeros in the strictly lower triangle of the
+  // associated Cholesky factor.
   SufficientStatistics num_lower_nonzeros;
+
+  // The number of members of the largest supernode.
   SufficientStatistics largest_supernode_size;
+
+  // The number of seconds that elapsed during the AMD analysis.
   SufficientStatistics elapsed_seconds;
 };
 
@@ -190,6 +201,15 @@ AMDExperiment RunMatrixMarketAMDTest(
                 << " subdiagonal nonzeros and the largest supernode had "
                 << largest_supernode_sizes.back() << " members." << std::endl;
     }
+    if (control.store_pivot_element_list_sizes) {
+      std::cout << "  Fraction of pivots with multiple elements: "
+                << analysis.FractionOfPivotsWithMultipleElements() << std::endl;
+    }
+    if (control.store_num_degree_updates_with_multiple_elements) {
+      std::cout << "  Fraction of degree updates with multiple elements: "
+                << analysis.FractionOfDegreeUpdatesWithMultipleElements()
+                << std::endl;
+    }
     if (control.time_stages) {
       for (const std::pair<std::string, double>& pairing :
           analysis.elapsed_seconds) {
@@ -310,11 +330,22 @@ int main(int argc, char** argv) {
   const bool store_aggressive_absorptions = parser.OptionalInput<bool>(
       "store_aggressive_absorptions",
       "Store the aggressive absorption list?",
-      true);
+      false);
   const bool store_variable_merges = parser.OptionalInput<bool>(
       "store_variable_merges",
       "Store the variable merge list?",
-      true);
+      false);
+  const bool store_pivot_element_list_sizes =
+      parser.OptionalInput<bool>(
+          "store_pivot_element_list_sizes",
+          "Store the length of each pivot's element list?",
+          false);
+  const bool store_num_degree_updates_with_multiple_elements =
+      parser.OptionalInput<bool>(
+          "store_num_degree_updates_with_multiple_elements",
+          "Store the number of degree updates whose corresponding variable had "
+          "more than two members in its element list?",
+          false);
   const int num_random_permutations = parser.OptionalInput<int>(
       "num_random_permutations",
       "The number of random permutations to test "
@@ -353,6 +384,9 @@ int main(int argc, char** argv) {
   control.aggressive_absorption = aggressive_absorption;
   control.store_aggressive_absorptions = store_aggressive_absorptions;
   control.store_variable_merges = store_variable_merges;
+  control.store_pivot_element_list_sizes = store_pivot_element_list_sizes;
+  control.store_num_degree_updates_with_multiple_elements =
+      store_num_degree_updates_with_multiple_elements;
   control.time_stages = time_stages;
 
   // Seed the random number generator based upon the current time.

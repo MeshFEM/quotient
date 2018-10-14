@@ -56,6 +56,27 @@ inline Int MinimumDegreeAnalysis::LargestSupernodeSize() const {
   return supernodes[LargestSupernode()].size();
 }
 
+inline double
+MinimumDegreeAnalysis::FractionOfPivotsWithMultipleElements() const {
+  Int num_pivots_with_multiple_elements = 0;
+  for (const Int& pivot_element_list_size : pivot_element_list_sizes) {
+    if (pivot_element_list_size > 2) {
+      ++num_pivots_with_multiple_elements;
+    }
+  }
+  return num_pivots_with_multiple_elements /
+      (1. * pivot_element_list_sizes.size());
+}
+
+inline double
+MinimumDegreeAnalysis::FractionOfDegreeUpdatesWithMultipleElements() const {
+  const Int num_total_degree_updates =
+      num_degree_updates_with_multiple_elements +
+      num_degree_updates_without_multiple_elements;
+  return num_degree_updates_with_multiple_elements /
+      (1. * num_total_degree_updates);
+}
+
 namespace minimum_degree {
 
 namespace compute_pivot_structure {
@@ -331,11 +352,22 @@ inline MinimumDegreeAnalysis MinimumDegree(
     if (control.time_stages) timers[kExternalStructureSizes].Stop();
   }
   std::vector<Int> aggressive_absorption_elements;
+  if (control.store_pivot_element_list_sizes) {
+    analysis.pivot_element_list_sizes.reserve(num_orig_vertices);
+  }
+  if (control.store_num_degree_updates_with_multiple_elements) {
+    analysis.num_degree_updates_with_multiple_elements = 0;
+    analysis.num_degree_updates_without_multiple_elements = 0;
+  }
   while (quotient_graph.num_eliminated_vertices < num_orig_vertices) {
     // Retrieve a variable with minimal (approximate) external degree.
     const std::pair<Int, Int> pivot_pair =
         quotient_graph.external_degree_heap.MinimalEntry(); 
     const Int pivot = pivot_pair.first;
+    if (control.store_pivot_element_list_sizes) {
+      analysis.pivot_element_list_sizes.push_back(
+          quotient_graph.element_lists[pivot].size());
+    }
 
     if (control.time_stages) timers[kComputePivotStructure].Start();
     ComputePivotStructure(pivot, &quotient_graph);
@@ -369,6 +401,15 @@ inline MinimumDegreeAnalysis MinimumDegree(
         pivot, supernodal_pivot_structure, external_structure_sizes,
         control.degree_type, &quotient_graph);
     if (control.time_stages) timers[kUpdateExternalDegrees].Stop();
+    if (control.store_num_degree_updates_with_multiple_elements) {
+      for (const Int& i : supernodal_pivot_structure) {
+        if (quotient_graph.element_lists[i].size() > 2) {
+          ++analysis.num_degree_updates_with_multiple_elements;
+        } else {
+          ++analysis.num_degree_updates_without_multiple_elements;
+        }
+      }
+    }
 
     if (control.allow_supernodes) {
       if (control.time_stages) timers[kDetectAndMergeVariables].Start();
