@@ -18,13 +18,13 @@
 // of a random variable.
 struct SufficientStatistics {
   // The median of the set of samples.
-  double median;
+  double median = -1;
 
   // The mean of the set of samples.
-  double mean;
+  double mean = -1;
 
   // The standard deviation of the set of samples.
-  double standard_deviation;
+  double standard_deviation = -1;
 };
 
 // Pretty prints the SufficientStatistics structure.
@@ -45,6 +45,12 @@ struct AMDExperiment {
 
   // The number of seconds that elapsed during the AMD analysis.
   SufficientStatistics elapsed_seconds;
+
+  // The fraction of pivots with multiple elements.
+  SufficientStatistics fraction_of_pivots_with_multiple_elements;
+
+  // The fraction of degree updates with multiple elements.
+  SufficientStatistics fraction_of_degree_updates_with_multiple_elements;
 };
 
 // Pretty prints the AMDExperiment structure.
@@ -57,6 +63,12 @@ void PrintAMDExperiment(
       experiment.largest_supernode_size, "  largest_supernode_size");
   PrintSufficientStatistics(
       experiment.elapsed_seconds, "  elapsed_seconds");
+  PrintSufficientStatistics(
+      experiment.fraction_of_pivots_with_multiple_elements,
+      "  fraction of pivots w/ multi elements");
+  PrintSufficientStatistics(
+      experiment.fraction_of_degree_updates_with_multiple_elements,
+      "  fraction of degree updates w/ multi elements");
 }
 
 // Returns the median of a given vector.
@@ -180,9 +192,15 @@ AMDExperiment RunMatrixMarketAMDTest(
   std::vector<quotient::Int> largest_supernode_sizes;
   std::vector<quotient::Int> num_strictly_lower_nonzeros;
   std::vector<double> elapsed_seconds;
+  std::vector<double> fraction_of_pivots_with_multiple_elements;
+  std::vector<double> fraction_of_degree_updates_with_multiple_elements;
   largest_supernode_sizes.reserve(num_random_permutations + 1);
   num_strictly_lower_nonzeros.reserve(num_random_permutations + 1);
   elapsed_seconds.reserve(num_random_permutations + 1); 
+  fraction_of_pivots_with_multiple_elements.reserve(
+      num_random_permutations + 1);
+  fraction_of_degree_updates_with_multiple_elements.reserve(
+      num_random_permutations + 1);
   for (int instance = 0; instance < num_random_permutations + 1; ++instance) {
     if (print_progress) {
       std::cout << "  Running analysis " << instance << " of "
@@ -202,12 +220,17 @@ AMDExperiment RunMatrixMarketAMDTest(
                 << largest_supernode_sizes.back() << " members." << std::endl;
     }
     if (control.store_pivot_element_list_sizes) {
+      fraction_of_pivots_with_multiple_elements.push_back(
+          analysis.FractionOfPivotsWithMultipleElements());
       std::cout << "  Fraction of pivots with multiple elements: "
-                << analysis.FractionOfPivotsWithMultipleElements() << std::endl;
+                << fraction_of_pivots_with_multiple_elements.back()
+                << std::endl;
     }
     if (control.store_num_degree_updates_with_multiple_elements) {
+      fraction_of_degree_updates_with_multiple_elements.push_back(
+          analysis.FractionOfDegreeUpdatesWithMultipleElements());
       std::cout << "  Fraction of degree updates with multiple elements: "
-                << analysis.FractionOfDegreeUpdatesWithMultipleElements()
+                << fraction_of_degree_updates_with_multiple_elements.back()
                 << std::endl;
     }
     if (control.time_stages) {
@@ -245,6 +268,11 @@ AMDExperiment RunMatrixMarketAMDTest(
   experiment.largest_supernode_size = GetSufficientStatistics(
       largest_supernode_sizes);
   experiment.elapsed_seconds = GetSufficientStatistics(elapsed_seconds);
+  experiment.fraction_of_pivots_with_multiple_elements =
+      GetSufficientStatistics(fraction_of_pivots_with_multiple_elements);
+  experiment.fraction_of_degree_updates_with_multiple_elements =
+      GetSufficientStatistics(
+          fraction_of_degree_updates_with_multiple_elements);
 
   return experiment;
 }
@@ -339,13 +367,13 @@ int main(int argc, char** argv) {
       parser.OptionalInput<bool>(
           "store_pivot_element_list_sizes",
           "Store the length of each pivot's element list?",
-          false);
+          true);
   const bool store_num_degree_updates_with_multiple_elements =
       parser.OptionalInput<bool>(
           "store_num_degree_updates_with_multiple_elements",
           "Store the number of degree updates whose corresponding variable had "
           "more than two members in its element list?",
-          false);
+          true);
   const int num_random_permutations = parser.OptionalInput<int>(
       "num_random_permutations",
       "The number of random permutations to test "
