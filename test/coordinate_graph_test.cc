@@ -146,13 +146,15 @@ TEST_CASE("Matrix Matrix general", "[MM-general]") {
     {9, 8},
   };
 
+  const bool skip_explicit_zeros = false;
   std::unique_ptr<quotient::CoordinateGraph> graph =
-      quotient::CoordinateGraph::FromMatrixMarket(kCoordinateGeneralSmall);
+      quotient::CoordinateGraph::FromMatrixMarket(
+          kCoordinateGeneralSmall, skip_explicit_zeros);
   REQUIRE(graph != nullptr);
   REQUIRE(graph->Edges() == kExpectedEdges);
 
   graph = quotient::CoordinateGraph::FromMatrixMarket(
-      kCoordinateSymmetricSmall);
+      kCoordinateSymmetricSmall, skip_explicit_zeros);
   REQUIRE(graph != nullptr);
   REQUIRE(graph->Edges() == kExpectedEdges);
 }

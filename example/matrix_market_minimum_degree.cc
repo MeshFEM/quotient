@@ -156,6 +156,7 @@ SufficientStatistics GetSufficientStatistics(const std::vector<T>& vec) {
 // Returns the AMDExperiment statistics for a single Matrix Market input matrix.
 AMDExperiment RunMatrixMarketAMDTest(
     const std::string& filename,
+    bool skip_explicit_zeros,
     const quotient::MinimumDegreeControl& control,
     bool force_symmetry,
     int num_random_permutations,
@@ -165,7 +166,8 @@ AMDExperiment RunMatrixMarketAMDTest(
               << std::endl;
   }
   std::unique_ptr<quotient::CoordinateGraph> graph =
-      quotient::CoordinateGraph::FromMatrixMarket(filename);
+      quotient::CoordinateGraph::FromMatrixMarket(
+          filename, skip_explicit_zeros);
   if (!graph) {
     std::cerr << "Could not open " << filename << "." << std::endl;
     AMDExperiment experiment;
@@ -290,6 +292,7 @@ AMDExperiment RunMatrixMarketAMDTest(
 //
 std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
     const std::string& matrix_market_directory,
+    bool skip_explicit_zeros,
     const quotient::MinimumDegreeControl& control,
     int num_random_permutations,
     bool print_progress) {
@@ -329,6 +332,7 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
         "/" + matrix_name + ".mtx";
     experiments[matrix_name] = RunMatrixMarketAMDTest(
         filename,
+        skip_explicit_zeros,
         control,
         force_symmetry,
         num_random_permutations,
@@ -342,6 +346,8 @@ int main(int argc, char** argv) {
   specify::ArgumentParser parser(argc, argv);
   const std::string filename = parser.OptionalInput<std::string>(
       "filename", "The location of a Matrix Market file.", "");
+  const bool skip_explicit_zeros = parser.OptionalInput<bool>(
+      "skip_explicit_zeros", "Skip explicitly zero entries?", true);
   const int degree_type_int = parser.OptionalInput<int>(
       "degree_type_int",
       "The degree approximation type.\n"
@@ -426,6 +432,7 @@ int main(int argc, char** argv) {
     const std::unordered_map<std::string, AMDExperiment> experiments =
         RunADD96Tests(
             matrix_market_directory,
+            skip_explicit_zeros,
             control,
             num_random_permutations,
             print_progress);
@@ -435,6 +442,7 @@ int main(int argc, char** argv) {
   } else {
     const AMDExperiment experiment = RunMatrixMarketAMDTest(
         filename,
+        skip_explicit_zeros,
         control,
         force_symmetry,
         num_random_permutations,

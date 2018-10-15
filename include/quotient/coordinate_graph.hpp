@@ -129,7 +129,7 @@ class CoordinateGraph {
 
   // Builds and returns a CoordinateGraph from a Matrix Market description.
   static std::unique_ptr<CoordinateGraph> FromMatrixMarket(
-      const std::string& filename);
+      const std::string& filename, bool skip_explicit_zeros);
 
   // A trivial destructor.
   ~CoordinateGraph();

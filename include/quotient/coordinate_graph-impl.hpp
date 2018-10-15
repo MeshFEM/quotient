@@ -171,7 +171,7 @@ inline bool CoordinateGraph::MatrixMarketDescription::ParseFromHeaderLine(
 }
 
 inline std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
-      const std::string& filename) {
+      const std::string& filename, bool skip_explicit_zeros) {
   std::unique_ptr<CoordinateGraph> result;
   std::ifstream file(filename);
   if (!file.is_open()) { 
@@ -270,6 +270,7 @@ inline std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
   }
 
   // Fill in the edges.
+  Int num_skipped_edges = 0;
   const Int num_nonzeros_bound =
       description.symmetry == kMatrixMarketSymmetryGeneral ?
       num_explicit_nonzeros : 2 * num_explicit_nonzeros;
@@ -300,6 +301,33 @@ inline std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
     } else {
       target = 0;
     }
+
+    if (skip_explicit_zeros) {
+      // Skip this entry if it is numerically zero.
+      if (description.field == kMatrixMarketFieldReal) {
+        double value;
+        if (!(line_stream >> value)) {
+          std::cerr << "Could not extract real value of nonzero." << std::endl;
+        }
+        if (value == 0.) {
+          ++num_skipped_edges;
+          continue;
+        }
+      } else if (description.field == kMatrixMarketFieldComplex) {
+        double real_value, imag_value;
+        if (!(line_stream >> real_value)) {
+          std::cerr << "Could not extract real value of nonzero." << std::endl;
+        }
+        if (!(line_stream >> imag_value)) {
+          std::cerr << "Could not extract imag value of nonzero." << std::endl;
+        }
+        if (real_value == 0. && imag_value == 0.) {
+          ++num_skipped_edges;
+          continue;
+        }
+      }
+    }
+
     result->QueueEdgeAddition(source, target);
     if (source != target &&
         description.symmetry != kMatrixMarketSymmetryGeneral) {
@@ -307,6 +335,11 @@ inline std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
     }
   }
   result->FlushEdgeQueues();
+
+  if (skip_explicit_zeros && num_skipped_edges > 0) {
+    std::cout << "Skipped " << num_skipped_edges << " explicitly zero edges."
+              << std::endl;
+  }
 
   return result;
 }
