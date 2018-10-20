@@ -223,14 +223,12 @@ inline void UpdateExternalDegreeApproximations(
   }
 
   // Insert the external degrees into the heap.
-  //
-  // TODO(Jack Poulson): Add support for a batch interface to
-  // 'external_degree_heap.SetValue' so that comparison propagations can be
-  // potentially shared.
+  graph->external_degree_heap.ReserveValueChanges(struct_size);
   for (std::size_t index = 0; index < struct_size; ++index) {
-    const Int i = supernodal_pivot_structure[index];
-    graph->external_degree_heap.SetValue(i, external_degrees[index]);
+    graph->external_degree_heap.QueueValueAssignment(
+        supernodal_pivot_structure[index], external_degrees[index]);
   }
+  graph->external_degree_heap.FlushValueChangeQueue();
 }
 
 // Detects and merges pairs of supervariables in the pivot structure who are
@@ -263,41 +261,78 @@ inline void DetectAndMergeVariables(
     variable_hash_map[bucket_key].push_back(i_index);
   }
 
+  // A data structure for representing the relevant information of a merge of
+  // one supervariable (the 'absorbed_index') into another
+  // (the 'primary_index').
+  struct VariableMergeInfo {
+    // The principal index of the supervariable that is increasing in size.
+    Int primary_index;
+
+    // The principal index of the supervariable being absorbed.
+    Int absorbed_index;
+
+    // The number of members of the absorbed supervarible.
+    Int absorbed_size;
+
+    VariableMergeInfo(
+        Int primary_index_value,
+        Int absorbed_index_value,
+        Int absorbed_size_value) :
+    primary_index(primary_index_value),
+    absorbed_index(absorbed_index_value),
+    absorbed_size(absorbed_size_value) {}
+  };
+
   // TODO(Jack Poulson): Refactor and parallelize this loop with OpenMP.
   std::vector<Int> temp;
+  std::vector<VariableMergeInfo> variable_merges;
   for (const std::pair<Int, std::vector<Int>>& entry : variable_hash_map) {
     const std::vector<Int>& bucket = entry.second;
-    std::vector<bool> merged_supernode(bucket.size(), false);
-    for (std::size_t i_bucket  = 0; i_bucket < bucket.size(); ++i_bucket) {
+    const Int bucket_size = bucket.size();
+    std::vector<bool> merged_supernode(bucket_size, false);
+    for (Int i_bucket  = 0; i_bucket < bucket_size; ++i_bucket) {
       if (merged_supernode[i_bucket]) {
         continue;
       }
       const Int i_index = bucket[i_bucket];
       const Int i = supernodal_pivot_structure[i_index];
-      for (std::size_t j_bucket = 0; j_bucket < bucket.size(); ++j_bucket) {
-        const Int j_index = bucket[j_bucket];
-        // Avoid processing the same pair twice, and skip any already-merged
-        // supernodes.
-        if (j_index <= i_index || merged_supernode[j_bucket]) {
+      for (Int j_bucket = i_bucket + 1; j_bucket < bucket_size; ++j_bucket) {
+        if (merged_supernode[j_bucket]) {
           continue;
         }
+        const Int j_index = bucket[j_bucket];
         const Int j = supernodal_pivot_structure[j_index];
         if (graph->StructuralSupervariablesAreQuotientIndistinguishable(i, j)) {
-          // Absorb supernode(j) into supernode(i). 
-          if (store_variable_merges) {
-            graph->variable_merges.emplace_back(i, j);
-          }
+          // NOTE(Jack Poulson): If we are to parallelize over the outer for
+          // loop, we would need to place the following call into a
+          // critical section.
+          variable_merges.emplace_back(i, j, graph->supernodes[j].size());
+
           temp = graph->supernodes[i];
           MergeSets(temp, graph->supernodes[j], &graph->supernodes[i]);
-          graph->external_degree_heap.UpdateValue(
-              i, -graph->supernodes[j].size());
-          graph->external_degree_heap.DisableIndex(j);
           SwapClearVector(&graph->supernodes[j]);
           SwapClearVector(&graph->adjacency_lists[j]);
           SwapClearVector(&graph->element_lists[j]);
           merged_supernode[j_bucket] = true;
         }
       }
+    }
+  }
+
+  // Update the external degree heap in a batched manner.
+  graph->external_degree_heap.ReserveValueChanges(2 * variable_merges.size());
+  for (const VariableMergeInfo& merge : variable_merges) {
+    graph->external_degree_heap.QueueValueUpdate(
+        merge.primary_index, -merge.absorbed_size);
+    graph->external_degree_heap.QueueIndexDisablement(merge.absorbed_index);
+  }
+  graph->external_degree_heap.FlushValueChangeQueue();
+
+  // If requested, keep track of the variable merges.
+  if (store_variable_merges) {
+    for (const VariableMergeInfo& merge : variable_merges) {
+      graph->variable_merges.emplace_back(
+          merge.primary_index, merge.absorbed_index);
     }
   }
 }

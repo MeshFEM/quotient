@@ -147,3 +147,52 @@ TEST_CASE("Disable last tree index", "[disable-last]") {
   REQUIRE(minimal_entry.first == 32);
   REQUIRE(minimal_entry.second == 0.);
 }
+
+TEST_CASE("Batch example", "[batch]") {
+  using quotient::Int;
+
+  const std::vector<double> orig_values{
+      3., 1., 4., 1., 5., 9., 2., 6., 5., 3., 5., 8., 9., 7., 9., 3., 2., 3.,
+      8., 4., 6., 2., 6., 4., 3., 3., 8., 3., 2., 7., 9., 5., 0., 2., 8., 8.,
+  };
+
+  quotient::RandomAccessHeap<double> heap; 
+  heap.Reset(orig_values);
+
+  // The heap now contains:
+  //  3., 1., 4., 1., 5., 9., 2., 6., 5., 3., 5., 8., 9., 7., 9., 3., 2., 3.,
+  //  8., 4., 6., 2., 6., 4., 3., 3., 8., 3., 2., 7., 9., 5., 0., 2., 8., 8.,
+  // with the unique minimum being 0 in position 32.
+
+  std::pair<Int, double> minimal_entry = heap.MinimalEntry();
+
+  REQUIRE(minimal_entry.first == 32);
+  REQUIRE(minimal_entry.second == 0.);
+
+  heap.ReserveValueChanges(20);
+
+  heap.QueueValueAssignment(7, 3.);
+  heap.QueueValueAssignment(6, -1.);
+  heap.QueueIndexDisablement(6);
+  for (Int i = 10; i < 20; ++i) {
+    heap.QueueIndexDisablement(i);
+  }
+  heap.QueueIndexDisablement(33);
+  heap.QueueIndexDisablement(32);
+  heap.QueueIndexDisablement(30);
+  heap.QueueIndexDisablement(28);
+  heap.QueueValueUpdate(2, -6);
+  heap.QueueIndexDisablement(4);
+  heap.QueueValueUpdate(3, -2);
+
+  heap.FlushValueChangeQueue();
+  minimal_entry = heap.MinimalEntry();
+
+  // The heap now contains:
+  //  3., 1., -2., -1.,   , 9.,   , 3., 5., 3.,   ,   ,   ,   ,   ,   ,   ,   ,
+  //    ,   ,  6.,  2., 6., 4., 3., 3., 8., 3.,   , 7.,   , 5.,   ,   , 8., 8.,
+  // with minimum of -2 in position 2.
+
+  REQUIRE(minimal_entry.first == 2);
+  REQUIRE(minimal_entry.second == -2.);
+}

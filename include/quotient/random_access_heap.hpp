@@ -86,7 +86,28 @@ class RandomAccessHeap {
   //
   // If there are 'num_active' active indices, then this should require
   // O(lg(num_active)) time to update the minimal value cache.
-  void UpdateValue(Int index, const T& value);
+  void UpdateValue(Int index, const T& value_update);
+
+  // Allocates space so that up to 'max_value_changes' calls to
+  // 'QueueValueUpdate'/'QueueValueAssignment'/'QueueIndexDisablement' can be
+  // performed without another memory allocation.
+  void ReserveValueChanges(Int max_value_updates);
+
+  // Modifies the given index to have the specified value but delays updating
+  // the comparison tree until the next 'FlushValueChangeQueue' call.
+  void QueueValueAssignment(Int index, const T& value);
+
+  // Applies a specified update to the given index to the current update list
+  // but delays updating the comparison tree until the next
+  // 'FlushValueChangeQueue' call.
+  void QueueValueUpdate(Int index, const T& value_update);
+
+  // Marks the given index for disablement but delays the updates to the
+  // comparison tree until the next 'FlushValueChangeQueue' call.
+  void QueueIndexDisablement(Int index);
+
+  // Updates the comparison tree to reflect the queued value changes.
+  void FlushValueChangeQueue();
 
   // Implicitly deletes an index.
   //
@@ -101,43 +122,6 @@ class RandomAccessHeap {
   static UInt CeilLog2(UInt n);
 
  private:
-   // Returns the offset into 'comparison_tree_' of the given level.
-   Int LevelOffset(Int level) const;
-
-   // Returns the number of entries in 'comparison_tree_' for the given level.
-   Int LevelSize(Int level) const;
-
-   // Returns the flattened tree index of a minimal entry in the child's
-   // subtree.
-   Int ChildMinimalIndex(Int level, Int level_index, bool right_child) const;
-
-   // Updates all relevant ancestral metadata for the leaf node with given
-   // index.
-   void PropagateComparisons(Int index);
-
-   // In order to guarantee that the left-most (in the original ordering)
-   // minimal entry is chosen in the case of a tie, we need to incorporate the
-   // permutation into the tie-breaking decision.
-   //
-   // But we also avoid allowing an invalid index from being chosen (unless
-   // both indices are invalid).
-   bool UseLeftIndex(Int left_index, Int right_index) const;
-
-   // Updates the entry of 'comparison_tree_' corresponding to the given level
-   // and index within said level using its two children.
-   void UpdateComparisonUsingChildren(Int level, Int level_index);
-
-   // Returns true if the comparison metadata at the given tree position is
-   // valid.
-   bool ComparisonIsValid(Int level, Int level_index) const;
-
-   // Returns true if the entire tree is valid.
-   bool TreeIsValid() const;
-
-   // Returns a pair of the tree level and index of the parent node of the
-   // given leaf node.
-   std::pair<Int, Int> ParentLevelAndIndex(Int index) const;
-
    // An ordered list of values of type 'T'.
    std::vector<T> values_;
 
@@ -185,6 +169,47 @@ class RandomAccessHeap {
 
    // The number of levels of comparison metadata.
    Int num_comparison_levels_;
+
+   // The list of indices whose values were updated but whose ancestors in the
+   // comparison tree have not yet been updated.
+   std::vector<Int> indices_to_update_;
+
+   // Returns the offset into 'comparison_tree_' of the given level.
+   Int LevelOffset(Int level) const;
+
+   // Returns the number of entries in 'comparison_tree_' for the given level.
+   Int LevelSize(Int level) const;
+
+   // Returns the flattened tree index of a minimal entry in the child's
+   // subtree.
+   Int ChildMinimalIndex(Int level, Int level_index, bool right_child) const;
+
+   // Updates all relevant ancestral metadata for the leaf node with given
+   // index.
+   void PropagateComparisons(Int index);
+
+   // In order to guarantee that the left-most (in the original ordering)
+   // minimal entry is chosen in the case of a tie, we need to incorporate the
+   // permutation into the tie-breaking decision.
+   //
+   // But we also avoid allowing an invalid index from being chosen (unless
+   // both indices are invalid).
+   bool UseLeftIndex(Int left_index, Int right_index) const;
+
+   // Updates the entry of 'comparison_tree_' corresponding to the given level
+   // and index within said level using its two children.
+   void UpdateComparisonUsingChildren(Int level, Int level_index);
+
+   // Returns true if the comparison metadata at the given tree position is
+   // valid.
+   bool ComparisonIsValid(Int level, Int level_index) const;
+
+   // Returns true if the entire tree is valid.
+   bool TreeIsValid() const;
+
+   // Returns a pair of the tree level and index of the parent node of the
+   // given leaf node.
+   std::pair<Int, Int> ParentLevelAndIndex(Int index) const;
 };
 
 } // namespace quotient

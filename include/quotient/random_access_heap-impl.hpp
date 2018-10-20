@@ -236,11 +236,11 @@ void RandomAccessHeap<T>::SetValue(Int index, const T& value) {
 }
 
 template<typename T>
-void RandomAccessHeap<T>::UpdateValue(Int index, const T& value) {
-  if (value == T(0)) {
+void RandomAccessHeap<T>::UpdateValue(Int index, const T& value_update) {
+  if (value_update == T(0)) {
     return;
   }
-  values_[index] += value;
+  values_[index] += value_update;
   if (valid_values_[index]) {
     PropagateComparisons(index);
   }
@@ -268,6 +268,49 @@ UInt RandomAccessHeap<T>::CeilLog2(UInt n) {
     n >>= UInt(1);
   }
   return ceil_log2;
+}
+
+template<typename T>
+void RandomAccessHeap<T>::ReserveValueChanges(Int max_value_changes) {
+  indices_to_update_.reserve(max_value_changes);
+}
+
+template<typename T>
+void RandomAccessHeap<T>::QueueValueAssignment(Int index, const T& value) {
+  if (values_[index] == value) {
+    return;
+  }
+  values_[index] = value;
+  indices_to_update_.push_back(index);
+}
+
+template<typename T>
+void RandomAccessHeap<T>::QueueValueUpdate(Int index, const T& value_update) {
+  if (value_update == T(0)) {
+    return;
+  }
+  values_[index] += value_update;
+  indices_to_update_.push_back(index);
+}
+
+template<typename T>
+void RandomAccessHeap<T>::QueueIndexDisablement(Int index) {
+  if (!valid_values_[index]) {
+    return;
+  }
+  valid_values_[index] = false;
+  indices_to_update_.push_back(index);
+}
+
+template<typename T>
+void RandomAccessHeap<T>::FlushValueChangeQueue() {
+  // TODO(Jack Poulson): Find a more efficient means of propagating these
+  // comparisons. Much of the work will be redundant, so we need only work
+  // one level at a time.
+  for (const Int& index : indices_to_update_) {
+    PropagateComparisons(index);
+  }
+  indices_to_update_.clear();
 }
 
 } // namespace quotient
