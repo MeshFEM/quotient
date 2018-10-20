@@ -171,7 +171,9 @@ inline bool CoordinateGraph::MatrixMarketDescription::ParseFromHeaderLine(
 }
 
 inline std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
-      const std::string& filename, bool skip_explicit_zeros) {
+    const std::string& filename,
+    bool skip_explicit_zeros,
+    EntryMask mask) {
   std::unique_ptr<CoordinateGraph> result;
   std::ifstream file(filename);
   if (!file.is_open()) { 
@@ -300,6 +302,10 @@ inline std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
       --target; // Convert from 1-based to 0-based indexing.
     } else {
       target = 0;
+    }
+    if ((mask == kEntryMaskLowerTriangle && source < target) ||
+        (mask == kEntryMaskUpperTriangle && source > target)) {
+      continue;
     }
 
     if (skip_explicit_zeros) {

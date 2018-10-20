@@ -18,6 +18,18 @@ namespace quotient {
 // A pairing of the source and target vertices of a graph edge.
 typedef std::pair<Int, Int> GraphEdge;
 
+// An enum for representing a portion of a square matrix.
+enum EntryMask {
+  // Allow all entries.
+  kEntryMaskFull,
+
+  // Allow only the entries in the lower triangle.
+  kEntryMaskLowerTriangle,
+
+  // Allow only the entries in the upper triangle.
+  kEntryMaskUpperTriangle,
+};
+
 // The character that Matrix Market comment lines begin with.
 static constexpr char kMatrixMarketCommentChar = '%';
 
@@ -129,7 +141,9 @@ class CoordinateGraph {
 
   // Builds and returns a CoordinateGraph from a Matrix Market description.
   static std::unique_ptr<CoordinateGraph> FromMatrixMarket(
-      const std::string& filename, bool skip_explicit_zeros);
+      const std::string& filename,
+      bool skip_explicit_zeros,
+      EntryMask mask=kEntryMaskFull);
 
   // A trivial destructor.
   ~CoordinateGraph();
@@ -212,37 +226,70 @@ class CoordinateGraph {
 
  private:
 
+  // A representation of the 'Object' options of a Matrix Market file.
   enum MatrixMarketObject {
+    // The object represents a matrix and so both row and column indices should
+    // be provided.
     kMatrixMarketObjectMatrix,
+
+    // The object represents a vector and so only row indices should be
+    // provided.
     kMatrixMarketObjectVector,
   };
 
+  // A representation of the 'Format' options of a Matrix Market file.
   enum MatrixMarketFormat {
+    // The matrix is treated as dense and individual indices will not be
+    // provided.
     kMatrixMarketFormatArray,
+
+    // The matrix is treated as sparse and individual indices will be
+    // provided.
     kMatrixMarketFormatCoordinate,
   };
 
+  // A representation of the 'Field' options of a Matrix Market file.
   enum MatrixMarketField {
+    // The matrix contains real, double-precision entries.
     kMatrixMarketFieldReal,
+
+    // The matrix contains complex, double-precision entries.
     kMatrixMarketFieldComplex,
+
+    // The matrix contains integer entries.
     kMatrixMarketFieldInteger,
+
+    // The matrix does not have explicitly specified numerical values.
     kMatrixMarketFieldPattern,
   };
 
+  // A representation of the 'Symmetry' options of a Matrix Market file.
   enum MatrixMarketSymmetry {
+    // No symmetry is assumed.
     kMatrixMarketSymmetryGeneral,
+
+    // The matrix is assumed symmetric.
     kMatrixMarketSymmetrySymmetric,
+
+    // The matrix is assumed skew-symmetric.
     kMatrixMarketSymmetrySkewSymmetric,
+
+    // The matrix is assumed Hermitian.
     kMatrixMarketSymmetryHermitian,
   };
 
+  // A representation of a Matrix Market file's metadata.
   struct MatrixMarketDescription {
+    // Whether the file contains a matrix or a vector.
     MatrixMarketObject object;
 
+    // Whether the corresponding matrix is assumed dense or sparse.
     MatrixMarketFormat format;
 
+    // The type of numerical values associated with the matrix.
     MatrixMarketField field;
 
+    // The assumed symmetry (if any) of the matrix.
     MatrixMarketSymmetry symmetry;
 
     // A trivial constructor.

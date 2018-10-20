@@ -157,6 +157,7 @@ SufficientStatistics GetSufficientStatistics(const std::vector<T>& vec) {
 AMDExperiment RunMatrixMarketAMDTest(
     const std::string& filename,
     bool skip_explicit_zeros,
+    quotient::EntryMask mask,
     const quotient::MinimumDegreeControl& control,
     bool force_symmetry,
     int num_random_permutations,
@@ -167,7 +168,7 @@ AMDExperiment RunMatrixMarketAMDTest(
   }
   std::unique_ptr<quotient::CoordinateGraph> graph =
       quotient::CoordinateGraph::FromMatrixMarket(
-          filename, skip_explicit_zeros);
+          filename, skip_explicit_zeros, mask);
   if (!graph) {
     std::cerr << "Could not open " << filename << "." << std::endl;
     AMDExperiment experiment;
@@ -293,6 +294,7 @@ AMDExperiment RunMatrixMarketAMDTest(
 std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
     const std::string& matrix_market_directory,
     bool skip_explicit_zeros,
+    quotient::EntryMask mask,
     const quotient::MinimumDegreeControl& control,
     int num_random_permutations,
     bool print_progress) {
@@ -333,6 +335,7 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
     experiments[matrix_name] = RunMatrixMarketAMDTest(
         filename,
         skip_explicit_zeros,
+        mask,
         control,
         force_symmetry,
         num_random_permutations,
@@ -348,6 +351,11 @@ int main(int argc, char** argv) {
       "filename", "The location of a Matrix Market file.", "");
   const bool skip_explicit_zeros = parser.OptionalInput<bool>(
       "skip_explicit_zeros", "Skip explicitly zero entries?", true);
+  const int entry_mask_int = parser.OptionalInput<int>(
+      "entry_mask_int",
+      "The quotient::EntryMask integer.\n"
+      "0:full, 1:lower-triangle, 2:upper-triangle",
+      0);
   const int degree_type_int = parser.OptionalInput<int>(
       "degree_type_int",
       "The degree approximation type.\n"
@@ -411,6 +419,9 @@ int main(int argc, char** argv) {
     return 0;
   }
 
+  const quotient::EntryMask mask = static_cast<quotient::EntryMask>(
+      entry_mask_int);
+
   quotient::MinimumDegreeControl control;
   control.degree_type =
       static_cast<quotient::ExternalDegreeType>(degree_type_int);
@@ -433,6 +444,7 @@ int main(int argc, char** argv) {
         RunADD96Tests(
             matrix_market_directory,
             skip_explicit_zeros,
+            mask,
             control,
             num_random_permutations,
             print_progress);
@@ -443,6 +455,7 @@ int main(int argc, char** argv) {
     const AMDExperiment experiment = RunMatrixMarketAMDTest(
         filename,
         skip_explicit_zeros,
+        mask,
         control,
         force_symmetry,
         num_random_permutations,
