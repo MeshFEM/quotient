@@ -22,6 +22,9 @@ struct MinimumDegreeControl {
   // The type of approximation to use for the external degree estimates.
   ExternalDegreeType degree_type = kAmestoyExternalDegree;
 
+  // The type of hash function to use for converting a variable to std::size_t.
+  VariableHashType hash_type = kBasicVariableHash;
+
   // Whether nontrivial supernodes are allowed. It is highly recommended that
   // this remain true.
   bool allow_supernodes = true;

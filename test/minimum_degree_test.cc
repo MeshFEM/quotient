@@ -112,11 +112,24 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
       {6, 8},
   };
 
+#ifdef _OPENMP
+  for (Int index = 0; index < 8; ++index) {
+    if (index == 6) {
+      // The variable merging could have picked 6, 7, or 8 as the head.
+      continue;
+    }
+    REQUIRE(
+        analysis.elimination_order[index] == kExpectedEliminationOrder[index]);
+    REQUIRE(analysis.supernodes[index] == kExpectedSupernodes[index]);
+  }
+  REQUIRE(analysis.variable_merges.size() == kExpectedVariableMerges.size());
+#else
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
+  REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
+#endif
   REQUIRE(analysis.principal_structures == kExpectedPrincipalStructures);
   REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
-  REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 }
 
 // Please see the beginning of Section 5 of [ADD-96].

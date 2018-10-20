@@ -8,6 +8,10 @@
 #ifndef QUOTIENT_MINIMUM_DEGREE_IMPL_H_
 #define QUOTIENT_MINIMUM_DEGREE_IMPL_H_
 
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+
 #include <iostream>
 #include <unordered_map>
 #include <vector>
@@ -126,10 +130,9 @@ inline void ManyElements(Int pivot, QuotientGraph* graph) {
   }
 
   // Fill the unsorted, non-unique list of elements.
-  //
-  // TODO(Jack Poulson): Use OpenMP to parallelize this loop.
   graph->structures[pivot].clear();
   graph->structures[pivot].resize(num_non_unique);
+  #pragma omp parallel for schedule(dynamic)
   for (std::size_t index = 0; index < index_sets.size(); ++index) {
     std::set_difference(
         index_sets[index]->begin(), index_sets[index]->end(),
@@ -209,9 +212,9 @@ inline void UpdateExternalDegreeApproximations(
     ExternalDegreeType degree_type,
     QuotientGraph* graph) {
   // Compute and store the external degrees.
-  // TODO(Jack Poulson): Parallelize this loop with OpenMP.
   const std::size_t struct_size = supernodal_pivot_structure.size();
   std::vector<Int> external_degrees(struct_size);
+  #pragma omp parallel for schedule(dynamic)
   for (std::size_t index = 0; index < struct_size; ++index) {
     const Int i = supernodal_pivot_structure[index];
 
@@ -244,21 +247,31 @@ inline void UpdateExternalDegreeApproximations(
 inline void DetectAndMergeVariables(
     const std::vector<Int>& supernodal_pivot_structure,
     bool store_variable_merges,
+    VariableHashType hash_type,
     QuotientGraph* graph) {
-  // Fill a set of buckets for the hashes of the supernodes adjacent to
-  // the current pivot.
+  // Compute the hashes for each variable.
   const std::size_t struct_size = supernodal_pivot_structure.size();
-  std::vector<Int> bucket_list(struct_size);
-  std::unordered_map<Int, std::vector<Int>> variable_hash_map;
+  std::vector<std::size_t> bucket_keys(struct_size);
+  #pragma omp parallel for schedule(dynamic)
   for (std::size_t i_index = 0; i_index < struct_size; ++i_index) {
     const Int i = supernodal_pivot_structure[i_index];
+    bucket_keys[i_index] = graph->VariableHash(i, hash_type);
+  }
 
-    // Append this principal variable to its hash bucket.
-    // TODO(Jack Poulson): Add configurable support for other hashes.
-    // For example, one could mod by (std::numeric_limits<Int>::max() - 1).
-    const std::size_t bucket_key = graph->AshcraftVariableHash(i);
-    bucket_list[i_index] = bucket_key;
-    variable_hash_map[bucket_key].push_back(i_index);
+  // Fill a set of buckets for the hashes of the supernodes adjacent to
+  // the current pivot.
+  std::vector<std::vector<Int>> buckets;
+  buckets.reserve(struct_size);
+  std::unordered_map<std::size_t, std::size_t> key_to_bucket_index;
+  for (std::size_t i_index = 0; i_index < struct_size; ++i_index) {
+    const std::size_t bucket_key = bucket_keys[i_index];
+    auto iter = key_to_bucket_index.find(bucket_key);
+    if (iter == key_to_bucket_index.end()) {
+      key_to_bucket_index[bucket_key] = buckets.size();
+      buckets.emplace_back(1, i_index);
+    } else {
+      buckets[iter->second].push_back(i_index);
+    }
   }
 
   // A data structure for representing the relevant information of a merge of
@@ -283,11 +296,11 @@ inline void DetectAndMergeVariables(
     absorbed_size(absorbed_size_value) {}
   };
 
-  // TODO(Jack Poulson): Refactor and parallelize this loop with OpenMP.
   std::vector<Int> temp;
   std::vector<VariableMergeInfo> variable_merges;
-  for (const std::pair<Int, std::vector<Int>>& entry : variable_hash_map) {
-    const std::vector<Int>& bucket = entry.second;
+  #pragma omp parallel for schedule(dynamic) private(temp)
+  for (std::size_t index = 0; index < buckets.size(); ++index) {
+    const std::vector<Int>& bucket = buckets[index];
     const Int bucket_size = bucket.size();
     std::vector<bool> merged_supernode(bucket_size, false);
     for (Int i_bucket  = 0; i_bucket < bucket_size; ++i_bucket) {
@@ -303,9 +316,7 @@ inline void DetectAndMergeVariables(
         const Int j_index = bucket[j_bucket];
         const Int j = supernodal_pivot_structure[j_index];
         if (graph->StructuralSupervariablesAreQuotientIndistinguishable(i, j)) {
-          // NOTE(Jack Poulson): If we are to parallelize over the outer for
-          // loop, we would need to place the following call into a
-          // critical section.
+          #pragma omp critical
           variable_merges.emplace_back(i, j, graph->supernodes[j].size());
 
           temp = graph->supernodes[i];
@@ -450,7 +461,7 @@ inline MinimumDegreeAnalysis MinimumDegree(
       if (control.time_stages) timers[kDetectAndMergeVariables].Start();
       DetectAndMergeVariables(
           supernodal_pivot_structure, control.store_variable_merges,
-          &quotient_graph);
+          control.hash_type, &quotient_graph);
       if (control.time_stages) timers[kDetectAndMergeVariables].Stop();
     }
 

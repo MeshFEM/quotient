@@ -16,10 +16,17 @@
 
 namespace quotient {
 
-// Pretty-prints an std::vector<T>.
-// TODO(Jack Poulson): Find a better location for this utility function.
-template<typename T>
-void PrintVector(const std::vector<T>& vec, const std::string& msg);
+// A choice of hash function for mapping a variable to an std::size_t.
+enum VariableHashType {
+  // Due to Ashcraft and described in [ADD-96].
+  kAshcraftVariableHash,
+
+  // A custom hash function meant to avoid collisions by removing the
+  // modular arithmetic (allowing the full range of std::size_t) and
+  // multiplying each index update by its position in the adjaency or
+  // element list.
+  kBasicVariableHash,
+};
 
 // A data structure representing the "quotient graph" interpretation of the
 // original graph after eliminating a sequence of vertices. This is the
@@ -101,9 +108,8 @@ struct QuotientGraph {
   // which are principal members of a supernode.
   std::vector<Int> FormSupernodalAdjacencyList(Int i) const;
 
-  // A definition of Ashcraft's hash function (as described in [ADD-96]).
-  // Note that only principal members of A_i are incorporated in the hash.
-  std::size_t AshcraftVariableHash(Int i) const;
+  // Returns a hash of a particular variable.
+  std::size_t VariableHash(Int i, VariableHashType hash_type) const;
 
   // Returns true if supernodes 'i' and 'j' are considered indistinguishable
   // with respect to their quotient graph representation. It is assumed that
@@ -163,7 +169,22 @@ struct QuotientGraph {
   void ResetExternalStructureSizes(
     const std::vector<Int>& supernodal_structure,
     std::vector<Int>* external_structure_sizes) const;
+
+ private:
+  // A definition of Ashcraft's hash function (as described in [ADD-96]).
+  // Note that only principal members of A_i are incorporated in the hash.
+  std::size_t AshcraftVariableHash(Int i) const;
+
+  // An alternative hash that does not explicitly use modular arithmetic and
+  // multiplies each index contribution by its position in the adjacency or
+  // element list (with the hope of decreasing collisions).
+  std::size_t BasicVariableHash(Int i) const;
 };
+
+// Pretty-prints an std::vector<T>.
+// TODO(Jack Poulson): Find a better location for this utility function.
+template<typename T>
+void PrintVector(const std::vector<T>& vec, const std::string& msg);
 
 } // namespace quotient
 

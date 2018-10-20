@@ -5,6 +5,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
@@ -361,6 +365,11 @@ int main(int argc, char** argv) {
       "The degree approximation type.\n"
       "0:exact, 1:Amestoy, 2:Ashcraft, 3:Gilbert",
       1);
+  const int hash_type_int = parser.OptionalInput<int>(
+      "hash_type_int",
+      "The variable hash type.\n"
+      "0:Ashcraft, 1:basic",
+      1);
   const bool allow_supernodes = parser.OptionalInput<bool>(
       "allow_supernodes",
       "Allow variables to be merged into supernodes?",
@@ -409,6 +418,12 @@ int main(int argc, char** argv) {
       "time_stages",
       "Report the timings of each stage of MinimumDegree?",
       false);
+#ifdef _OPENMP
+  const int num_omp_threads = parser.OptionalInput<int>(
+      "num_omp_threads",
+      "The desired number of OpenMP threads. Uses default if <= 0.",
+      1);
+#endif
   if (!parser.OK()) {
     return 0;
   }
@@ -422,9 +437,22 @@ int main(int argc, char** argv) {
   const quotient::EntryMask mask = static_cast<quotient::EntryMask>(
       entry_mask_int);
 
+#ifdef _OPENMP
+  if (num_omp_threads > 0) {
+    const int max_omp_threads = omp_get_max_threads();
+    omp_set_num_threads(num_omp_threads);
+    std::cout << "Will use " << num_omp_threads << " of " << max_omp_threads
+              << " OpenMP threads." << std::endl;
+  } else {
+    std::cout << "Will use all " << omp_get_max_threads() << " OpenMP threads."
+              << std::endl;
+  }
+#endif
+
   quotient::MinimumDegreeControl control;
   control.degree_type =
       static_cast<quotient::ExternalDegreeType>(degree_type_int);
+  control.hash_type = static_cast<quotient::VariableHashType>(hash_type_int);
   control.allow_supernodes = allow_supernodes;
   control.aggressive_absorption = aggressive_absorption;
   control.store_aggressive_absorptions = store_aggressive_absorptions;
