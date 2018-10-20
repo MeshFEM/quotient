@@ -110,20 +110,42 @@ inline std::vector<Int> QuotientGraph::FormSupernodalAdjacencyList(Int i)
   return supernodal_adjacency_list;
 }
 
+inline std::size_t QuotientGraph::VariableHash(
+    Int i, VariableHashType hash_type) const {
+  if (hash_type == kAshcraftVariableHash) {
+    return AshcraftVariableHash(i);
+  } else {
+    return BasicVariableHash(i);
+  }
+}
+
 inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
   std::size_t result = 0;
-  for (const Int& index : adjacency_lists[i]) {
-    if (!supernodes[index].empty()) {
-      result += index;
+  for (const Int& j : adjacency_lists[i]) {
+    if (!supernodes[j].empty()) {
+      result += j;
       result %= num_original_vertices - 1;
     }
   }
-  for (const Int& index : element_lists[i]) {
-    result += index;
+  for (const Int& j : element_lists[i]) {
+    result += j;
     result %= num_original_vertices - 1;
   }
   return result + 1;
-};
+}
+
+inline std::size_t QuotientGraph::BasicVariableHash(Int i) const {
+  std::size_t result = 0;
+  for (std::size_t index = 0; index < adjacency_lists[i].size(); ++index) {
+    const Int j = adjacency_lists[i][index];
+    result += (index + 1) * (j + 1);
+  }
+  for (std::size_t index = 0; index < element_lists[i].size(); ++index) {
+    const Int j = element_lists[i][index];
+    result += (index + 1) * (j + 1);
+  }
+  return result;
+}
 
 inline bool QuotientGraph::StructuralSupervariablesAreQuotientIndistinguishable(
     Int i, Int j) const {
