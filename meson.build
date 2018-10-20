@@ -9,58 +9,72 @@ project(
   'quotient',
   'cpp',
   version : '0.1',
-  license: 'MPLv2.0',
+  license : 'MPLv2.0',
+  meson_version : '>=0.46.0',
   default_options : ['cpp_std=c++14'])
 include_dir = include_directories('include')
 
-# Uncomment the following to enable debug checks.
-# TODO(Jack Poulson): Enable this if 'buildtype' is for debugging.
-#add_global_arguments('-DQUOTIENT_DEBUG', language : 'cpp')
+if get_option('enable-debug')
+  add_global_arguments('-DQUOTIENT_DEBUG', language : 'cpp')
+endif
+
+if get_option('enable-openmp')
+  openmp_dep = dependency('openmp', version : '>=3.0')
+else
+  openmp_dep = dependency('openmp', version : '>=3.0', required : false)
+endif
 
 # Unit tests for the set utilities.
 set_utils_test_exe = executable(
     'set_utils_test',
     ['test/set_utils_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir)
+    include_directories : include_dir,
+    dependencies : openmp_dep)
 test('Set utils tests', set_utils_test_exe)
 
 # Unit tests for the CoordinateGraph class.
 coordinate_graph_test_exe = executable(
     'coordinate_graph_test',
     ['test/coordinate_graph_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir)
+    include_directories : include_dir,
+    dependencies : openmp_dep)
 test('CoordinateGraph tests', coordinate_graph_test_exe)
 
 # Unit tests for the QuotientGraph class.
 quotient_graph_test_exe = executable(
     'quotient_graph_test',
     ['test/quotient_graph_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir)
+    include_directories : include_dir,
+    dependencies : openmp_dep)
 test('QuotientGraph tests', quotient_graph_test_exe)
 
 # Unit tests for the RandomAccessHeap class.
 random_access_heap_test_exe = executable(
     'random_access_heap_test',
     ['test/random_access_heap_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir)
+    include_directories : include_dir,
+    dependencies : openmp_dep)
 test('RandomAccessHeap tests', random_access_heap_test_exe)
 
 # Unit tests for the ExternalDegree function.
 external_degree_test_exe = executable(
     'external_degree_test',
     ['test/external_degree_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir)
+    include_directories : include_dir,
+    dependencies : openmp_dep)
 test('ExternalDegree tests', external_degree_test_exe)
 
 # Unit tests for the MinimumDegree function.
 minimum_degree_test_exe = executable(
     'minimum_degree_test',
     ['test/minimum_degree_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir)
+    include_directories : include_dir,
+    dependencies : openmp_dep)
 test('MinimumDegree tests', minimum_degree_test_exe)
 
 # A utility for running the MinimumDegree analysis on a Matrix Market graph.
 matrix_market_minimum_degree_exe = executable(
     'matrix_market_minimum_degree',
     ['example/matrix_market_minimum_degree.cc', 'include/quotient.hpp'],
-    include_directories : include_dir)
+    include_directories : include_dir,
+    dependencies : openmp_dep)

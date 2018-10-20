@@ -1,0 +1,17 @@
+#
+# Copyright (c) 2018 Jack Poulson <jack@hodgestar.com>
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+option('enable-debug',
+    type : 'boolean',
+    value : false,
+    description : 'enable extra debugging assertions')
+
+option('enable-openmp',
+    type : 'boolean',
+    value : false,
+    description : 'enable OpenMP support')
