@@ -414,7 +414,7 @@ int main(int argc, char** argv) {
   const int num_omp_threads = parser.OptionalInput<int>(
       "num_omp_threads",
       "The desired number of OpenMP threads. Uses default if <= 0.",
-      -1);
+      1);
 #endif
   if (!parser.OK()) {
     return 0;
