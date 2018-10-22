@@ -9,6 +9,7 @@
 #define QUOTIENT_QUOTIENT_GRAPH_IMPL_H_
 
 #include <iostream>
+#include <numeric>
 #include <vector>
 
 #include "quotient/config.hpp"
