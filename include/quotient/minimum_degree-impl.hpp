@@ -93,34 +93,35 @@ inline void ComputePivotStructure(
     Int pivot,
     QuotientGraph* graph,
     std::vector<Int>* supernodal_pivot_structure,
-    std::vector<int>* pivot_structure_mask) {
+    std::vector<int>* pivot_mask) {
   graph->structures[pivot].clear();
   supernodal_pivot_structure->clear();
-  for (Int index : graph->adjacency_lists[pivot]) {
-    if (graph->supernode_sizes[index] > 0) {
-      (*pivot_structure_mask)[index] = 1;
-      supernodal_pivot_structure->push_back(index);
+  for (const Int& index : graph->adjacency_lists[pivot]) {
+    if (graph->supernode_sizes[index] == 0) {
+      continue;
+    }
+    (*pivot_mask)[index] = 1;
+    supernodal_pivot_structure->push_back(index);
 
-      // Fill in the supernode.
-      Int k = index;
-      const Int k_last = graph->tail_index[index];
-      while (true) {
-        graph->structures[pivot].push_back(k);
-        if (k == k_last) {
-          break;
-        }
-        k = graph->next_index[k];
+    // Fill in the supernode.
+    Int k = index;
+    const Int k_last = graph->tail_index[index];
+    while (true) {
+      graph->structures[pivot].push_back(k);
+      if (k == k_last) {
+        break;
       }
+      k = graph->next_index[k];
     }
   }
-  for (Int element : graph->element_lists[pivot]) {
-    for (Int index : graph->structures[element]) {
+  for (const Int& element : graph->element_lists[pivot]) {
+    for (const Int& index : graph->structures[element]) {
       if (index == pivot ||
-          graph->supernode_sizes[index] <= 0 ||
-          (*pivot_structure_mask)[index]) {
+          graph->supernode_sizes[index] == 0 ||
+          (*pivot_mask)[index]) {
         continue;
       }
-      (*pivot_structure_mask)[index] = 1;
+      (*pivot_mask)[index] = 1;
       supernodal_pivot_structure->push_back(index);
 
       // Fill in the supernode.
@@ -157,7 +158,7 @@ inline bool MaskIsClear(const std::vector<int>& mask) {
 inline void UpdateAdjacencyListsAfterSelectingPivot(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
-    const std::vector<int>& pivot_structure_mask,
+    const std::vector<int>& pivot_mask,
     QuotientGraph* graph) {
   for (const Int& i : supernodal_pivot_structure) {
     // Remove redundant adjacency entries:
@@ -165,8 +166,8 @@ inline void UpdateAdjacencyListsAfterSelectingPivot(
     Int packed_size = 0;
     for (Int index : graph->adjacency_lists[i]) {
       if (index == pivot ||
-          pivot_structure_mask[index] ||
-          graph->supernode_sizes[index] <= 0) {
+          pivot_mask[index] ||
+          graph->supernode_sizes[index] == 0) {
         continue;
       }
       graph->adjacency_lists[i][packed_size++] = index;
@@ -181,25 +182,63 @@ inline void UpdateElementListsAfterSelectingPivot(
     const std::vector<Int>& supernodal_pivot_structure,
     const std::vector<Int>& aggressive_absorption_elements,
     bool store_aggressive_absorptions,
-    QuotientGraph* graph) {
+    QuotientGraph* graph,
+    std::vector<int>* pivot_mask) {
+  // Mark the pivot elements in the mask.
+  for (const Int& element : graph->element_lists[pivot]) {
+    (*pivot_mask)[element] = -1;
+  }
+
   for (const Int& i : supernodal_pivot_structure) {
     // Element absorption:
     //   E_i := (E_i \ E_p) \cup {p}.
-    // TODO(Jack Poulson): Use a mask for E_p membership to quickly filter out
-    // E_p and insert {p}.
-    FilterSetInPlace(graph->element_lists[pivot], &graph->element_lists[i]);
-    InsertNewEntryIntoSet(pivot, &graph->element_lists[i]);
+    std::vector<Int>& element_list = graph->element_lists[i];
+    Int num_packed = 0;
+    for (const Int& element : element_list) {
+      if ((*pivot_mask)[element]) { 
+        continue;
+      }
+      element_list[num_packed++] = element;
+    }
+    element_list.resize(num_packed);
+    element_list.push_back(pivot);
   }
 
-  for (const Int& element : aggressive_absorption_elements) {
-    // Aggressive element absorption:
-    //   E_p := (E_p \ E_e) \cup {e}.
-    if (store_aggressive_absorptions) {
-      graph->aggressive_absorptions.emplace_back(pivot, element);
+  if (!aggressive_absorption_elements.empty()) {
+    for (const Int& element : aggressive_absorption_elements) {
+      // Aggressive element absorption:
+      //   E_p := (E_p \ E_e) \cup {e}.
+      // Instead of explicitly forming this update, we will disable the
+      // elements from E_e in the pivot_mask and implicitly keep track of
+      // the fact that {e} should be inserted.
+      if (store_aggressive_absorptions) {
+        graph->aggressive_absorptions.emplace_back(pivot, element);
+      }
+      for (const Int& e : graph->element_lists[element]) {
+        (*pivot_mask)[e] = 0;
+      }
     }
-    FilterSetInPlace(
-        graph->element_lists[element], &graph->element_lists[pivot]);
-    InsertEntryIntoSet(element, &graph->element_lists[pivot]);
+
+    // Form E_p.
+    Int num_packed = 0;
+    std::vector<Int>& element_list = graph->element_lists[pivot];
+    for (const Int& element : element_list) {
+      if ((*pivot_mask)[element]) {
+        element_list[num_packed++] = element;
+      }
+    }
+    element_list.resize(num_packed);
+    for (const Int& element : aggressive_absorption_elements) {
+      if ((*pivot_mask)[element]) {
+        continue;
+      }
+      element_list.push_back(element);
+    }
+  }
+
+  // Unset the pivot elements in the mask.
+  for (const Int& element : graph->element_lists[pivot]) {
+    (*pivot_mask)[element] = 0;
   }
 }
 
@@ -208,7 +247,7 @@ inline void UpdateElementListsAfterSelectingPivot(
 inline void UpdateExternalDegreeApproximations(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
-    const std::vector<int>& pivot_structure_mask,
+    const std::vector<int>& pivot_mask,
     const std::vector<Int>& external_structure_sizes,
     ExternalDegreeType degree_type,
     std::vector<int>* exact_degree_mask,
@@ -225,8 +264,8 @@ inline void UpdateExternalDegreeApproximations(
     //   d_i := |A_i \ supernode(i)| +
     //       |(\cup_{e in E_i} L_e) \ supernode(i)|.
     external_degrees[index] = ExternalDegree(
-        *graph, i, pivot, pivot_structure_mask, external_structure_sizes,
-        degree_type, exact_degree_mask);
+        *graph, i, pivot, pivot_mask, external_structure_sizes, degree_type,
+        exact_degree_mask);
   }
 
   // Insert the external degrees into the heap.
@@ -425,8 +464,9 @@ inline MinimumDegreeAnalysis MinimumDegree(
   std::vector<Int> supernodal_pivot_structure;
 
   // A mask of length 'num_orig_vertices' that is 1 in index 'i' if and only
-  // if 'i' is a member of the current pivot's structure.
-  std::vector<int> pivot_structure_mask(num_orig_vertices, 0);
+  // if 'i' is a member of the current pivot's structure. All other entries
+  // will be zero.
+  std::vector<int> pivot_mask(num_orig_vertices, 0);
 
   // A mask of length 'num_orig_vertices' that used within exact external
   // degree computations to perform set unions. It is only created if exact
@@ -477,14 +517,12 @@ inline MinimumDegreeAnalysis MinimumDegree(
 
     if (control.time_stages) timers[kComputePivotStructure].Start();
     ComputePivotStructure(
-        pivot, &quotient_graph, &supernodal_pivot_structure,
-        &pivot_structure_mask);
+        pivot, &quotient_graph, &supernodal_pivot_structure, &pivot_mask);
     if (control.time_stages) timers[kComputePivotStructure].Stop();
 
     if (control.time_stages) timers[kUpdateAdjacencyLists].Start();
     UpdateAdjacencyListsAfterSelectingPivot(
-        pivot, supernodal_pivot_structure, pivot_structure_mask,
-        &quotient_graph);
+        pivot, supernodal_pivot_structure, pivot_mask, &quotient_graph);
     if (control.time_stages) timers[kUpdateAdjacencyLists].Stop();
 
     // Compute the external structure cardinalities of the elements.
@@ -500,12 +538,12 @@ inline MinimumDegreeAnalysis MinimumDegree(
     if (control.time_stages) timers[kUpdateElementLists].Start();
     UpdateElementListsAfterSelectingPivot(
         pivot, supernodal_pivot_structure, aggressive_absorption_elements,
-        control.store_aggressive_absorptions, &quotient_graph);
+        control.store_aggressive_absorptions, &quotient_graph, &pivot_mask);
     if (control.time_stages) timers[kUpdateElementLists].Stop();
 
     if (control.time_stages) timers[kUpdateExternalDegrees].Start();
     UpdateExternalDegreeApproximations(
-        pivot, supernodal_pivot_structure, pivot_structure_mask,
+        pivot, supernodal_pivot_structure, pivot_mask,
         external_structure_sizes, control.degree_type, &exact_degree_mask,
         &quotient_graph);
     if (control.time_stages) timers[kUpdateExternalDegrees].Stop();
@@ -518,7 +556,7 @@ inline MinimumDegreeAnalysis MinimumDegree(
         }
       }
     }
-    ClearMask(supernodal_pivot_structure, &pivot_structure_mask);
+    ClearMask(supernodal_pivot_structure, &pivot_mask);
 
     if (control.allow_supernodes) {
       if (control.time_stages) timers[kComputeVariableHashes].Start();
