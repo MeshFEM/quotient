@@ -244,17 +244,18 @@ inline void UpdateElementListsAfterSelectingPivot(
 
 // Compute the external degree approximations of the supernodes
 // adjacent to the current pivot.
-inline void UpdateExternalDegreeApproximations(
+inline void ComputeExternalDegrees(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
     const std::vector<int>& pivot_mask,
     const std::vector<Int>& external_structure_sizes,
     ExternalDegreeType degree_type,
     std::vector<int>* exact_degree_mask,
-    QuotientGraph* graph) {
+    QuotientGraph* graph,
+    std::vector<Int>* external_degrees) {
   // Compute and store the external degrees.
   const std::size_t supernodal_struct_size = supernodal_pivot_structure.size();
-  std::vector<Int> external_degrees(supernodal_struct_size);
+  external_degrees->resize(supernodal_struct_size);
   // TODO(Jack Poulson): Consider how to parallelize using different masks
   // for each thread.
   for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
@@ -263,14 +264,21 @@ inline void UpdateExternalDegreeApproximations(
     // Compute the external degree (or approximation) of supervariable i:
     //   d_i := |A_i \ supernode(i)| +
     //       |(\cup_{e in E_i} L_e) \ supernode(i)|.
-    external_degrees[index] = ExternalDegree(
+    (*external_degrees)[index] = ExternalDegree(
         *graph, i, pivot, pivot_mask, external_structure_sizes, degree_type,
         exact_degree_mask);
   }
+}
 
+// Insert the external degrees into the heap.
+inline void UpdateExternalDegrees(
+    const std::vector<Int>& supernodal_pivot_structure,
+    const std::vector<Int>& external_degrees,
+    QuotientGraph* graph) {
   // Insert the external degrees into the heap.
+  const Int supernodal_struct_size = supernodal_pivot_structure.size();
   graph->external_degree_heap.ReserveValueChanges(supernodal_struct_size);
-  for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
+  for (Int index = 0; index < supernodal_struct_size; ++index) {
     graph->external_degree_heap.QueueValueAssignment(
         supernodal_pivot_structure[index], external_degrees[index]);
   }
@@ -468,6 +476,9 @@ inline MinimumDegreeAnalysis MinimumDegree(
   // will be zero.
   std::vector<int> pivot_mask(num_orig_vertices, 0);
 
+  // A vector for storing the list of new external degree updates.
+  std::vector<Int> external_degrees;
+
   // A mask of length 'num_orig_vertices' that used within exact external
   // degree computations to perform set unions. It is only created if exact
   // degree computations were requested, and it must be set to all zeros before
@@ -483,18 +494,10 @@ inline MinimumDegreeAnalysis MinimumDegree(
   constexpr char kUpdateAdjacencyLists[] = "UpdateAdjacencyLists";
   constexpr char kExternalStructureSizes[] = "ExternalStructureSizes";
   constexpr char kUpdateElementLists[] = "UpdateElementLists";
+  constexpr char kComputeExternalDegrees[] = "ComputeExternalDegrees";
   constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
   constexpr char kComputeVariableHashes[] = "ComputeVariableHashes";
   constexpr char kDetectAndMergeVariables[] = "DetectAndMergeVariables";
-  if (control.time_stages) {
-    timers[kComputePivotStructure].Reset();
-    timers[kUpdateAdjacencyLists].Reset();
-    timers[kExternalStructureSizes].Reset();
-    timers[kUpdateElementLists].Reset();
-    timers[kUpdateExternalDegrees].Reset();
-    timers[kComputeVariableHashes].Reset();
-    timers[kDetectAndMergeVariables].Reset();
-  }
 
   // A set of buckets for each hash value (modulo num_original_vertices) of the
   // supervariables.
@@ -541,12 +544,18 @@ inline MinimumDegreeAnalysis MinimumDegree(
         control.store_aggressive_absorptions, &quotient_graph, &pivot_mask);
     if (control.time_stages) timers[kUpdateElementLists].Stop();
 
-    if (control.time_stages) timers[kUpdateExternalDegrees].Start();
-    UpdateExternalDegreeApproximations(
+    if (control.time_stages) timers[kComputeExternalDegrees].Start();
+    ComputeExternalDegrees(
         pivot, supernodal_pivot_structure, pivot_mask,
         external_structure_sizes, control.degree_type, &exact_degree_mask,
-        &quotient_graph);
+        &quotient_graph, &external_degrees);
+    if (control.time_stages) timers[kComputeExternalDegrees].Stop();
+  
+    if (control.time_stages) timers[kUpdateExternalDegrees].Start();
+    UpdateExternalDegrees(
+        supernodal_pivot_structure, external_degrees, &quotient_graph);
     if (control.time_stages) timers[kUpdateExternalDegrees].Stop();
+
     if (control.store_num_degree_updates_with_multiple_elements) {
       for (const Int& i : supernodal_pivot_structure) {
         if (quotient_graph.element_lists[i].size() > 2) {
