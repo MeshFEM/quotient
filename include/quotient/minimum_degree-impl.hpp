@@ -286,19 +286,19 @@ inline void UpdateExternalDegrees(
 }
 
 // Computes hashes of the supervariables in the pivot structure.
-inline std::vector<std::size_t> ComputeVariableHashes(
+inline void ComputeVariableHashes(
     const QuotientGraph& graph,
     const std::vector<Int>& supernodal_pivot_structure,
-    VariableHashType hash_type) {
+    VariableHashType hash_type,
+    std::vector<std::size_t>* bucket_keys) {
   // Compute the hashes for each variable.
   const std::size_t supernodal_struct_size = supernodal_pivot_structure.size();
-  std::vector<std::size_t> bucket_keys(supernodal_struct_size);
+  bucket_keys->resize(supernodal_struct_size);
   #pragma omp parallel for schedule(dynamic)
   for (std::size_t i_index = 0; i_index < supernodal_struct_size; ++i_index) {
     const Int i = supernodal_pivot_structure[i_index];
-    bucket_keys[i_index] = graph.VariableHash(i, hash_type);
+    (*bucket_keys)[i_index] = graph.VariableHash(i, hash_type);
   }
-  return bucket_keys;
 }
 
 // Detects and merges pairs of supervariables in the pivot structure who are
@@ -503,6 +503,10 @@ inline MinimumDegreeAnalysis MinimumDegree(
   // supervariables.
   std::vector<std::vector<Int>> buckets(num_orig_vertices);
 
+  // A vector for storing the hashes of the supervariables in the current
+  // pivot's structure.
+  std::vector<std::size_t> bucket_keys;
+
   // Eliminate the variables.
   QuotientGraph quotient_graph(graph);
   if (compute_external_structure_sizes) {
@@ -569,8 +573,9 @@ inline MinimumDegreeAnalysis MinimumDegree(
 
     if (control.allow_supernodes) {
       if (control.time_stages) timers[kComputeVariableHashes].Start();
-      const std::vector<std::size_t> bucket_keys = ComputeVariableHashes(
-          quotient_graph, supernodal_pivot_structure, control.hash_type);
+      ComputeVariableHashes(
+          quotient_graph, supernodal_pivot_structure, control.hash_type,
+          &bucket_keys);
       if (control.time_stages) timers[kComputeVariableHashes].Stop();
       if (control.time_stages) timers[kDetectAndMergeVariables].Start();
       DetectAndMergeVariables(

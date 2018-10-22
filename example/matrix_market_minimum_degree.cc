@@ -181,6 +181,17 @@ AMDExperiment RunMatrixMarketAMDTest(
   if (print_progress) {
     std::cout << "Graph had " << graph->NumSources() << " sources and "
               << graph->NumEdges() << " edges." << std::endl;
+
+    quotient::Int densest_row_size = 0;
+    quotient::Int densest_row_index = -1;
+    for (quotient::Int i = 0; i < graph->NumSources(); ++i ) {
+      if (graph->NumConnections(i) > densest_row_size) {
+        densest_row_size = graph->NumConnections(i);
+        densest_row_index = i;
+      }
+    }
+    std::cout << "Densest row is index " << densest_row_index << " with "
+              << densest_row_size << " connections." << std::endl;
   }
 
   // Force symmetry since many of the examples are not. We form the nonzero
@@ -418,6 +429,10 @@ int main(int argc, char** argv) {
       "time_stages",
       "Report the timings of each stage of MinimumDegree?",
       false);
+  const bool randomly_seed = parser.OptionalInput<bool>(
+      "randomly_seed",
+      "Randomly seed the pseudo-random number generator?",
+      false);
 #ifdef _OPENMP
   const int num_omp_threads = parser.OptionalInput<int>(
       "num_omp_threads",
@@ -462,10 +477,12 @@ int main(int argc, char** argv) {
       store_num_degree_updates_with_multiple_elements;
   control.time_stages = time_stages;
 
-  // Seed the random number generator based upon the current time.
-  const unsigned srand_seed = std::time(0);
-  std::cout << "Seeding std::srand with " << srand_seed << std::endl;
-  std::srand(srand_seed);
+  if (randomly_seed) {
+    // Seed the random number generator based upon the current time.
+    const unsigned srand_seed = std::time(0);
+    std::cout << "Seeding std::srand with " << srand_seed << std::endl;
+    std::srand(srand_seed);
+  }
 
   if (!matrix_market_directory.empty()) {
     const std::unordered_map<std::string, AMDExperiment> experiments =
