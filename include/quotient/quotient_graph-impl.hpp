@@ -32,10 +32,12 @@ inline QuotientGraph::QuotientGraph()
 inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
 : num_original_vertices(graph.NumSources()), num_eliminated_vertices(0) {
   // Initialize the supernodes as simple.
-  supernodes.resize(num_original_vertices);
-  for (Int source = 0; source < num_original_vertices; ++source) {
-    supernodes[source].push_back(source);
-  }
+  supernode_sizes.resize(num_original_vertices, 1);
+  next_index.resize(num_original_vertices, -1);
+  head_index.resize(num_original_vertices);
+  std::iota(head_index.begin(), head_index.end(), 0);
+  tail_index.resize(num_original_vertices);
+  std::iota(tail_index.begin(), tail_index.end(), 0);
 
   // Trivially initialize the lower-triangular nonzero structures.
   structures.resize(num_original_vertices);
@@ -72,11 +74,12 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
 
 inline void QuotientGraph::Print() const {
   for (Int i = 0; i < num_original_vertices; ++i) {
-    if (supernodes[i].empty()) {
+    if (supernode_sizes[i] <= 0) {
       continue;
     }
     std::cout << "Supernode " << i << "\n";
-    PrintVector(supernodes[i], "  members");
+    const std::vector<Int> supernode = FormSupernode(i);
+    PrintVector(supernode, "  members");
     std::cout << "  external_degree: " << external_degree_heap.Value(i) << "\n";
     if (external_degree_heap.ValidValue(i)) {
       PrintVector(adjacency_lists[i], "  adjacency_list");
@@ -88,26 +91,29 @@ inline void QuotientGraph::Print() const {
   }
 }
 
-inline std::vector<Int> QuotientGraph::FormSupernodalStructure(Int element)
-    const {
-  std::vector<Int> supernodal_structure;
-  for (const Int& i : structures[element]) {
-    if (!supernodes[i].empty()) {
-      supernodal_structure.push_back(i);
+inline std::vector<Int> QuotientGraph::FormSupernode(Int i) const {
+  Int num_members = 0;
+  Int index = i;
+  while (true) {
+    ++num_members;
+    if (index == tail_index[i]) {
+      break;
     }
+    index = next_index[index];
   }
-  return supernodal_structure;
-}
 
-inline std::vector<Int> QuotientGraph::FormSupernodalAdjacencyList(Int i)
-    const {
-  std::vector<Int> supernodal_adjacency_list;
-  for (const Int& j : adjacency_lists[i]) {
-    if (!supernodes[j].empty()) {
-      supernodal_adjacency_list.push_back(j);
+  std::vector<Int> supernode;
+  supernode.reserve(num_members);
+  index = i;
+  while (true) {
+    supernode.push_back(index);
+    if (index == tail_index[i]) {
+      break;
     }
+    index = next_index[index];
   }
-  return supernodal_adjacency_list;
+
+  return supernode;
 }
 
 inline std::size_t QuotientGraph::VariableHash(
@@ -122,7 +128,7 @@ inline std::size_t QuotientGraph::VariableHash(
 inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
   std::size_t result = 0;
   for (const Int& j : adjacency_lists[i]) {
-    if (!supernodes[j].empty()) {
+    if (supernode_sizes[j] > 0) {
       result += j;
       result %= num_original_vertices - 1;
     }
@@ -186,7 +192,7 @@ inline void QuotientGraph::InitializeExternalStructureSizes(
 }
 
 inline void QuotientGraph::ExternalStructureSizes(
-    const std::vector<Int>& supernodal_structure,
+    const std::vector<Int>& supernodal_pivot_structure,
     bool aggressive_absorption,
     std::vector<Int>* external_structure_sizes,
     std::vector<Int>* aggressive_absorption_elements) const {
@@ -194,26 +200,16 @@ inline void QuotientGraph::ExternalStructureSizes(
   // any element e that satisfies |L_e \ L_p| = 0.
   aggressive_absorption_elements->clear();
 
-  for (const Int& i : supernodal_structure) {
+  for (const Int& i : supernodal_pivot_structure) {
     for (const Int& element : element_lists[i]) {
       if ((*external_structure_sizes)[element] < 0) {
         (*external_structure_sizes)[element] = structures[element].size();
       }
       Int& external_structure_size = (*external_structure_sizes)[element];
-      external_structure_size -= supernodes[i].size();
+      external_structure_size -= supernode_sizes[i];
       if (aggressive_absorption && external_structure_size == 0) {
         aggressive_absorption_elements->push_back(element);
       }
-#ifdef QUOTIENT_DEBUG
-      for (const Int& j : supernodes[i]) {
-        auto iter = std::lower_bound(
-            structures[element].begin(), structures[element].end(), j);
-        if (iter == structures[element].end() || *iter != j) {
-          std::cerr << "structures[" << element << "] did not contain a full "
-                       "copy of supernode " << i << std::endl;
-        }
-      }
-#endif
     }
   }
 }

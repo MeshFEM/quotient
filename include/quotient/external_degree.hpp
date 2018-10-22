@@ -27,7 +27,7 @@ enum ExternalDegreeType {
   //     n - k,
   //     \bar{d_i}^{k - 1} + |L_p \ supernode(i)|, 
   //     |A_i \ supernode(i)| + |L_p \ supernode(i)| +
-  //         \sum_{e in E_i \ {p}} |L_e | L_p|).
+  //         \sum_{e in E_i \ {p}} |L_e \ L_p|).
   kAmestoyExternalDegree,
 
   // In the notation of [ADD-96],
@@ -45,6 +45,7 @@ Int ExternalDegree(
     const QuotientGraph& graph,
     Int i,
     Int pivot,
+    const std::vector<int>& pivot_structure_mask,
     const std::vector<Int>& external_structure_sizes,
     ExternalDegreeType degree_type);
 

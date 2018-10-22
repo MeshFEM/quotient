@@ -113,6 +113,10 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   };
 
 #ifdef _OPENMP
+  REQUIRE(
+      analysis.elimination_order.size() == kExpectedEliminationOrder.size());
+  REQUIRE(
+      analysis.supernodes.size() == kExpectedSupernodes.size());
   for (Int index = 0; index < 8; ++index) {
     if (index == 6) {
       // The variable merging could have picked 6, 7, or 8 as the head.
@@ -128,8 +132,8 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
   REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 #endif
-  REQUIRE(analysis.principal_structures == kExpectedPrincipalStructures);
   REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
+  REQUIRE(analysis.principal_structures == kExpectedPrincipalStructures);
 }
 
 // Please see the beginning of Section 5 of [ADD-96].
@@ -187,7 +191,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
 
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
-  REQUIRE(analysis.principal_structures == kExpectedPrincipalStructures);
   REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
+  REQUIRE(analysis.principal_structures == kExpectedPrincipalStructures);
   REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 }

@@ -83,97 +83,95 @@ MinimumDegreeAnalysis::FractionOfDegreeUpdatesWithMultipleElements() const {
 
 namespace minimum_degree {
 
-namespace compute_pivot_structure {
-
 // Computes the structure of the pivot:
 //
 //   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
 //
-// in the case where there are modest numbers of members of E_p.
-inline void FewElements(Int pivot, QuotientGraph* graph) {
-  FilterSet(
-      graph->adjacency_lists[pivot],
-      graph->supernodes[pivot],
-      &graph->structures[pivot]);
-
-  std::vector<Int> temp0, temp1; 
-  for (const Int& element : graph->element_lists[pivot]) {
-    FilterSet(graph->structures[element], graph->supernodes[pivot], &temp0);
-    temp1 = graph->structures[pivot];
-    MergeSets(temp1, temp0, &graph->structures[pivot]);
-  }
-}
-
-// Computes the structure of the pivot:
-//
-//   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
-//
-// in the case where there are many numbers of members of E_p.
-inline void ManyElements(Int pivot, QuotientGraph* graph) {
-  // Set up the list of index sets we will be merging (after filtering
-  // supernode(pivot)).
-  std::vector<std::vector<Int>*> index_sets;
-  index_sets.reserve(graph->element_lists[pivot].size() + 1);
-  index_sets.push_back(&graph->adjacency_lists[pivot]);
-  for (const Int& element : graph->element_lists[pivot]) {
-    index_sets.push_back(&graph->structures[element]);
-  }
-
-  // Count the number of (non-unique) filtered entries and compute the scan
-  // of the offsets.
-  Int num_non_unique = 0;
-  std::vector<Int> offsets;
-  offsets.reserve(index_sets.size());
-  for (const std::vector<Int>* index_set : index_sets) {
-    offsets.push_back(num_non_unique);
-    num_non_unique += SizeOfDifference(*index_set, graph->supernodes[pivot]);
-  }
-
-  // Fill the unsorted, non-unique list of elements.
+// It is assumed that the mask is of length 'num_orig_vertices' and set to all
+// zeros on input.
+inline void ComputePivotStructure(
+    Int pivot,
+    QuotientGraph* graph,
+    std::vector<Int>* supernodal_pivot_structure,
+    std::vector<int>* pivot_structure_mask) {
   graph->structures[pivot].clear();
-  graph->structures[pivot].resize(num_non_unique);
-  #pragma omp parallel for schedule(dynamic)
-  for (std::size_t index = 0; index < index_sets.size(); ++index) {
-    std::set_difference(
-        index_sets[index]->begin(), index_sets[index]->end(),
-        graph->supernodes[pivot].begin(), graph->supernodes[pivot].end(),
-        graph->structures[pivot].begin() + offsets[index]);
-  }
+  supernodal_pivot_structure->clear();
+  for (Int index : graph->adjacency_lists[pivot]) {
+    if (graph->supernode_sizes[index] > 0) {
+      (*pivot_structure_mask)[index] = 1;
+      supernodal_pivot_structure->push_back(index);
 
-  // Sort the non-unique list of elements and then erase duplicates.
-  //
-  // TODO(Jack Poulson): Use a multithreaded sort.
-  std::sort(graph->structures[pivot].begin(), graph->structures[pivot].end());
-  EraseDuplicatesInSortedVector(&graph->structures[pivot]);
+      // Fill in the supernode.
+      Int k = index;
+      const Int k_last = graph->tail_index[index];
+      while (true) {
+        graph->structures[pivot].push_back(k);
+        if (k == k_last) {
+          break;
+        }
+        k = graph->next_index[k];
+      }
+    }
+  }
+  for (Int element : graph->element_lists[pivot]) {
+    for (Int index : graph->structures[element]) {
+      if (index == pivot ||
+          graph->supernode_sizes[index] <= 0 ||
+          (*pivot_structure_mask)[index]) {
+        continue;
+      }
+      (*pivot_structure_mask)[index] = 1;
+      supernodal_pivot_structure->push_back(index);
+
+      // Fill in the supernode.
+      Int k = index;
+      const Int k_last = graph->tail_index[index];
+      while (true) {
+        graph->structures[pivot].push_back(k);
+        if (k == k_last) {
+          break;
+        }
+        k = graph->next_index[k];
+      }
+    }
+  }
 }
 
-}  // namespace compute_pivot_structure
-
-// Computes the structure of the pivot:
-//
-//   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
-//
-inline void ComputePivotStructure(Int pivot, QuotientGraph* graph) {
-  const Int kElementThreshold = 4;
-  if (graph->element_lists[pivot].size() < kElementThreshold) {
-    compute_pivot_structure::FewElements(pivot, graph);
-    return;
+// Sets the entry mask[i] to zero for each i in indices.
+inline void ClearMask(const std::vector<Int>& indices, std::vector<int>* mask) {
+  for (const Int& i : indices) {
+    (*mask)[i] = 0;
   }
-  compute_pivot_structure::ManyElements(pivot, graph);
+}
+
+inline bool MaskIsClear(const std::vector<int>& mask) {
+  for (const int& value : mask) {
+    if (value) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Update the adjacency lists after computing the supernodal pivot structure.
 inline void UpdateAdjacencyListsAfterSelectingPivot(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
+    const std::vector<int>& pivot_structure_mask,
     QuotientGraph* graph) {
   for (const Int& i : supernodal_pivot_structure) {
     // Remove redundant adjacency entries:
     //   A_i := (A_i \ L_p) \ supernode(p).
-    DoubleFilterSetInPlace(
-      graph->structures[pivot],
-      graph->supernodes[pivot],
-      &graph->adjacency_lists[i]);
+    Int packed_size = 0;
+    for (Int index : graph->adjacency_lists[i]) {
+      if (index == pivot ||
+          pivot_structure_mask[index] ||
+          graph->supernode_sizes[index] <= 0) {
+        continue;
+      }
+      graph->adjacency_lists[i][packed_size++] = index;
+    }
+    graph->adjacency_lists[i].resize(packed_size);
   }
 }
 
@@ -187,6 +185,8 @@ inline void UpdateElementListsAfterSelectingPivot(
   for (const Int& i : supernodal_pivot_structure) {
     // Element absorption:
     //   E_i := (E_i \ E_p) \cup {p}.
+    // TODO(Jack Poulson): Use a mask for E_p membership to quickly filter out
+    // E_p and insert {p}.
     FilterSetInPlace(graph->element_lists[pivot], &graph->element_lists[i]);
     InsertNewEntryIntoSet(pivot, &graph->element_lists[i]);
   }
@@ -208,26 +208,30 @@ inline void UpdateElementListsAfterSelectingPivot(
 inline void UpdateExternalDegreeApproximations(
     Int pivot,
     const std::vector<Int>& supernodal_pivot_structure,
+    const std::vector<int>& pivot_structure_mask,
     const std::vector<Int>& external_structure_sizes,
     ExternalDegreeType degree_type,
+    std::vector<int>* exact_degree_mask,
     QuotientGraph* graph) {
   // Compute and store the external degrees.
-  const std::size_t struct_size = supernodal_pivot_structure.size();
-  std::vector<Int> external_degrees(struct_size);
-  #pragma omp parallel for schedule(dynamic)
-  for (std::size_t index = 0; index < struct_size; ++index) {
+  const std::size_t supernodal_struct_size = supernodal_pivot_structure.size();
+  std::vector<Int> external_degrees(supernodal_struct_size);
+  // TODO(Jack Poulson): Consider how to parallelize using different masks
+  // for each thread.
+  for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
     const Int i = supernodal_pivot_structure[index];
 
     // Compute the external degree (or approximation) of supervariable i:
     //   d_i := |A_i \ supernode(i)| +
     //       |(\cup_{e in E_i} L_e) \ supernode(i)|.
     external_degrees[index] = ExternalDegree(
-        *graph, i, pivot, external_structure_sizes, degree_type);
+        *graph, i, pivot, pivot_structure_mask, external_structure_sizes,
+        degree_type, exact_degree_mask);
   }
 
   // Insert the external degrees into the heap.
-  graph->external_degree_heap.ReserveValueChanges(struct_size);
-  for (std::size_t index = 0; index < struct_size; ++index) {
+  graph->external_degree_heap.ReserveValueChanges(supernodal_struct_size);
+  for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
     graph->external_degree_heap.QueueValueAssignment(
         supernodal_pivot_structure[index], external_degrees[index]);
   }
@@ -250,10 +254,10 @@ inline void DetectAndMergeVariables(
     VariableHashType hash_type,
     QuotientGraph* graph) {
   // Compute the hashes for each variable.
-  const std::size_t struct_size = supernodal_pivot_structure.size();
-  std::vector<std::size_t> bucket_keys(struct_size);
+  const std::size_t supernodal_struct_size = supernodal_pivot_structure.size();
+  std::vector<std::size_t> bucket_keys(supernodal_struct_size);
   #pragma omp parallel for schedule(dynamic)
-  for (std::size_t i_index = 0; i_index < struct_size; ++i_index) {
+  for (std::size_t i_index = 0; i_index < supernodal_struct_size; ++i_index) {
     const Int i = supernodal_pivot_structure[i_index];
     bucket_keys[i_index] = graph->VariableHash(i, hash_type);
   }
@@ -261,9 +265,9 @@ inline void DetectAndMergeVariables(
   // Fill a set of buckets for the hashes of the supernodes adjacent to
   // the current pivot.
   std::vector<std::vector<Int>> buckets;
-  buckets.reserve(struct_size);
+  buckets.reserve(supernodal_struct_size);
   std::unordered_map<std::size_t, std::size_t> key_to_bucket_index;
-  for (std::size_t i_index = 0; i_index < struct_size; ++i_index) {
+  for (std::size_t i_index = 0; i_index < supernodal_struct_size; ++i_index) {
     const std::size_t bucket_key = bucket_keys[i_index];
     auto iter = key_to_bucket_index.find(bucket_key);
     if (iter == key_to_bucket_index.end()) {
@@ -317,13 +321,25 @@ inline void DetectAndMergeVariables(
         const Int j = supernodal_pivot_structure[j_index];
         if (graph->StructuralSupervariablesAreQuotientIndistinguishable(i, j)) {
           #pragma omp critical
-          variable_merges.emplace_back(i, j, graph->supernodes[j].size());
+          variable_merges.emplace_back(i, j, graph->supernode_sizes[j]);
 
-          temp = graph->supernodes[i];
-          MergeSets(temp, graph->supernodes[j], &graph->supernodes[i]);
-          SwapClearVector(&graph->supernodes[j]);
+          // Merge [i] -> [j] (and i becomes the principal member).
+          Int k = j;
+          while (true) {
+            graph->head_index[k] = i;
+            if (k == graph->tail_index[j]) {
+              break;
+            }
+            k = graph->next_index[k];
+          }
+          graph->next_index[graph->tail_index[i]] = j;
+          graph->tail_index[i] = graph->tail_index[j];
+          graph->supernode_sizes[i] += graph->supernode_sizes[j];
+          graph->supernode_sizes[j] = 0;
+
           SwapClearVector(&graph->adjacency_lists[j]);
           SwapClearVector(&graph->element_lists[j]);
+
           merged_supernode[j_bucket] = true;
         }
       }
@@ -353,7 +369,7 @@ inline void ConvertPivotIntoElement(Int pivot, QuotientGraph* graph) {
   graph->external_degree_heap.DisableIndex(pivot);
   SwapClearVector(&graph->adjacency_lists[pivot]);
   SwapClearVector(&graph->element_lists[pivot]);
-  graph->num_eliminated_vertices += graph->supernodes[pivot].size();
+  graph->num_eliminated_vertices += graph->supernode_sizes[pivot];
 }
 
 }  // namespace minimum_degree
@@ -405,10 +421,19 @@ inline MinimumDegreeAnalysis MinimumDegree(
     analysis.num_degree_updates_with_multiple_elements = 0;
     analysis.num_degree_updates_without_multiple_elements = 0;
   }
+
+  std::vector<int> pivot_structure_mask(num_orig_vertices, 0);
+
+  std::vector<int> exact_degree_mask;
+  if (control.degree_type == kExactExternalDegree) {
+    exact_degree_mask.resize(num_orig_vertices, 0);
+  }
+
+  std::vector<Int> supernodal_pivot_structure;
   while (quotient_graph.num_eliminated_vertices < num_orig_vertices) {
     // Retrieve a variable with minimal (approximate) external degree.
     const std::pair<Int, Int> pivot_pair =
-        quotient_graph.external_degree_heap.MinimalEntry(); 
+        quotient_graph.external_degree_heap.MinimalEntry();
     const Int pivot = pivot_pair.first;
     if (control.store_pivot_element_list_sizes) {
       analysis.pivot_element_list_sizes.push_back(
@@ -416,14 +441,15 @@ inline MinimumDegreeAnalysis MinimumDegree(
     }
 
     if (control.time_stages) timers[kComputePivotStructure].Start();
-    ComputePivotStructure(pivot, &quotient_graph);
+    ComputePivotStructure(
+        pivot, &quotient_graph, &supernodal_pivot_structure,
+        &pivot_structure_mask);
     if (control.time_stages) timers[kComputePivotStructure].Stop();
-    const std::vector<Int> supernodal_pivot_structure =
-        quotient_graph.FormSupernodalStructure(pivot);
 
     if (control.time_stages) timers[kUpdateAdjacencyLists].Start();
     UpdateAdjacencyListsAfterSelectingPivot(
-        pivot, supernodal_pivot_structure, &quotient_graph);
+        pivot, supernodal_pivot_structure, pivot_structure_mask,
+        &quotient_graph);
     if (control.time_stages) timers[kUpdateAdjacencyLists].Stop();
 
     // Compute the external structure cardinalities of the elements.
@@ -444,8 +470,9 @@ inline MinimumDegreeAnalysis MinimumDegree(
 
     if (control.time_stages) timers[kUpdateExternalDegrees].Start();
     UpdateExternalDegreeApproximations(
-        pivot, supernodal_pivot_structure, external_structure_sizes,
-        control.degree_type, &quotient_graph);
+        pivot, supernodal_pivot_structure, pivot_structure_mask,
+        external_structure_sizes, control.degree_type, &exact_degree_mask,
+        &quotient_graph);
     if (control.time_stages) timers[kUpdateExternalDegrees].Stop();
     if (control.store_num_degree_updates_with_multiple_elements) {
       for (const Int& i : supernodal_pivot_structure) {
@@ -456,6 +483,7 @@ inline MinimumDegreeAnalysis MinimumDegree(
         }
       }
     }
+    ClearMask(supernodal_pivot_structure, &pivot_structure_mask);
 
     if (control.allow_supernodes) {
       if (control.time_stages) timers[kDetectAndMergeVariables].Start();
@@ -472,18 +500,26 @@ inline MinimumDegreeAnalysis MinimumDegree(
     if (compute_external_structure_sizes) {
       if (control.time_stages) timers[kExternalStructureSizes].Start();
       quotient_graph.ResetExternalStructureSizes(
-          supernodal_pivot_structure, &external_structure_sizes);
+          quotient_graph.structures[pivot], &external_structure_sizes);
       if (control.time_stages) timers[kExternalStructureSizes].Stop();
     }
   }
 
   // Extract the relevant information from the QuotientGraph.
-  analysis.supernodes = quotient_graph.supernodes;
+  analysis.supernodes.resize(num_orig_vertices);
+  for (Int i = 0; i < num_orig_vertices; ++i) {
+    if (quotient_graph.supernode_sizes[i] > 0) {
+      analysis.supernodes[i] = quotient_graph.FormSupernode(i);
+    }
+  }
   analysis.principal_structures.resize(analysis.elimination_order.size());
   for (std::size_t index = 0; index < analysis.elimination_order.size();
        ++index) {
-    analysis.principal_structures[index] =
+    analysis.principal_structures[index] = 
         quotient_graph.structures[analysis.elimination_order[index]];
+    std::sort(
+        analysis.principal_structures[index].begin(),
+        analysis.principal_structures[index].end());
   }
   analysis.aggressive_absorptions = quotient_graph.aggressive_absorptions;
   analysis.variable_merges = quotient_graph.variable_merges;

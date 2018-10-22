@@ -49,16 +49,31 @@ struct QuotientGraph {
   // The number of vertices that have been eliminated from the original graph.
   Int num_eliminated_vertices;
 
-  // A list of length 'num_original_vertices' of supernodal sets. If index
-  // 'i' is a principal vertex of a supernode, then 'supernodes[i]'
-  // is a nontrivial, sorted list of integers that composes supernode(i).
-  std::vector<std::vector<Int>> supernodes;
+  // A list of length 'num_original_vertices' of the sizes of each supernode.
+  // If index 'i' is not principal, then it is set to zero.
+  std::vector<Int> supernode_sizes;
+
+  // A list of length 'num_original_vertices' such that each supernode is
+  // traversed from the principal member to the final member in a continuous
+  // manner by following the 'next_index' paths.
+  //
+  // The values are undefined on tail indices of supernodes.
+  std::vector<Int> next_index;
+
+  // A list of length 'num_original_vertices' such that, if 'j' is in supernode
+  // with principal member 'i', then 'head_index[j]' is 'i'.
+  std::vector<Int> head_index;
+
+  // A list of length 'num_original_vertices' such that, if 'i' is principal,
+  // then 'tail_index[i]' points to the last index in supernode i (with the
+  // ordering defined by the 'next_index' traversal).
+  std::vector<Int> tail_index;
 
   // A list of length 'num_original_vertices' of element nonzero structures.
   // The 'element' index of the list, 'structures[element]', will be created
   // when supernode 'element' is converted from a variable to an element.
   //
-  // The structure lists connect to each individual member of any supernode.
+  // The structure list also contains non-principal members.
   std::vector<std::vector<Int>> structures;
 
   // A list of length 'num_original_vertices' of the (unmodified) variable
@@ -100,13 +115,14 @@ struct QuotientGraph {
   // Pretty-prints the QuotientGraph.
   void Print() const;
 
-  // Uses 'supernodes' to filter 'structures[element]' into just its entries
-  // which are principal members of a supernode.
-  std::vector<Int> FormSupernodalStructure(Int element) const;
+  // Returns the principal member (if it exists) of the next supernode.
+  Int NextSupernode(Int i) const;
 
-  // Uses 'supernodes' to filter 'adjaency_lists[i]' into just its entries
-  // which are principal members of a supernode.
-  std::vector<Int> FormSupernodalAdjacencyList(Int i) const;
+  // Returns the principal member (if it exists) of the previous supernode.
+  Int PreviousSupernode(Int i) const;
+
+  // Forms the set of members of the supernode with principal variable 'i'.
+  std::vector<Int> FormSupernode(Int i) const;
 
   // Returns a hash of a particular variable.
   std::size_t VariableHash(Int i, VariableHashType hash_type) const;
@@ -158,7 +174,7 @@ struct QuotientGraph {
   // 'aggressive_absorption_elements' is filled with the elements which should
   // be absorbed.
   void ExternalStructureSizes(
-    const std::vector<Int>& supernodal_structure,
+    const std::vector<Int>& supernodal_pivot_structure,
     bool aggressive_absorption,
     std::vector<Int>* external_structure_sizes,
     std::vector<Int>* aggressive_absorption_elements) const;
