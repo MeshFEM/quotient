@@ -238,6 +238,22 @@ inline void UpdateExternalDegreeApproximations(
   graph->external_degree_heap.FlushValueChangeQueue();
 }
 
+// Computes hashes of the supervariables in the pivot structure.
+inline std::vector<std::size_t> ComputeVariableHashes(
+    const QuotientGraph& graph,
+    const std::vector<Int>& supernodal_pivot_structure,
+    VariableHashType hash_type) {
+  // Compute the hashes for each variable.
+  const std::size_t supernodal_struct_size = supernodal_pivot_structure.size();
+  std::vector<std::size_t> bucket_keys(supernodal_struct_size);
+  #pragma omp parallel for schedule(dynamic)
+  for (std::size_t i_index = 0; i_index < supernodal_struct_size; ++i_index) {
+    const Int i = supernodal_pivot_structure[i_index];
+    bucket_keys[i_index] = graph.VariableHash(i, hash_type);
+  }
+  return bucket_keys;
+}
+
 // Detects and merges pairs of supervariables in the pivot structure who are
 // indistinguishable with respect to the quotient graph.
 //
@@ -250,31 +266,20 @@ inline void UpdateExternalDegreeApproximations(
 // supernodal structure and is thus invariant to supervariable merges.
 inline void DetectAndMergeVariables(
     const std::vector<Int>& supernodal_pivot_structure,
+    const std::vector<std::size_t>& bucket_keys,
     bool store_variable_merges,
-    VariableHashType hash_type,
-    QuotientGraph* graph) {
-  // Compute the hashes for each variable.
-  const std::size_t supernodal_struct_size = supernodal_pivot_structure.size();
-  std::vector<std::size_t> bucket_keys(supernodal_struct_size);
-  #pragma omp parallel for schedule(dynamic)
-  for (std::size_t i_index = 0; i_index < supernodal_struct_size; ++i_index) {
-    const Int i = supernodal_pivot_structure[i_index];
-    bucket_keys[i_index] = graph->VariableHash(i, hash_type);
-  }
-
+    QuotientGraph* graph,
+    std::vector<std::vector<Int>>* buckets) {
   // Fill a set of buckets for the hashes of the supernodes adjacent to
   // the current pivot.
-  std::vector<std::vector<Int>> buckets;
-  buckets.reserve(supernodal_struct_size);
-  std::unordered_map<std::size_t, std::size_t> key_to_bucket_index;
-  for (std::size_t i_index = 0; i_index < supernodal_struct_size; ++i_index) {
+  const Int supernodal_struct_size = bucket_keys.size();
+  std::vector<Int> bucket_indices;
+  for (Int i_index = 0; i_index < supernodal_struct_size; ++i_index) {
     const std::size_t bucket_key = bucket_keys[i_index];
-    auto iter = key_to_bucket_index.find(bucket_key);
-    if (iter == key_to_bucket_index.end()) {
-      key_to_bucket_index[bucket_key] = buckets.size();
-      buckets.emplace_back(1, i_index);
-    } else {
-      buckets[iter->second].push_back(i_index);
+    const Int bucket_index = bucket_key % graph->num_original_vertices;
+    (*buckets)[bucket_index].push_back(i_index);
+    if ((*buckets)[bucket_index].size() == 2) {
+      bucket_indices.push_back(bucket_index);
     }
   }
 
@@ -300,11 +305,11 @@ inline void DetectAndMergeVariables(
     absorbed_size(absorbed_size_value) {}
   };
 
-  std::vector<Int> temp;
   std::vector<VariableMergeInfo> variable_merges;
-  #pragma omp parallel for schedule(dynamic) private(temp)
-  for (std::size_t index = 0; index < buckets.size(); ++index) {
-    const std::vector<Int>& bucket = buckets[index];
+  #pragma omp parallel for schedule(dynamic)
+  for (std::size_t index = 0; index < bucket_indices.size(); ++index) {
+    const Int bucket_index = bucket_indices[index];
+    const std::vector<Int>& bucket = (*buckets)[bucket_index];
     const Int bucket_size = bucket.size();
     std::vector<bool> merged_supernode(bucket_size, false);
     for (Int i_bucket  = 0; i_bucket < bucket_size; ++i_bucket) {
@@ -362,6 +367,13 @@ inline void DetectAndMergeVariables(
           merge.primary_index, merge.absorbed_index);
     }
   }
+
+  // Clear the buckets.
+  for (Int i_index = 0; i_index < supernodal_struct_size; ++i_index) {
+    const std::size_t bucket_key = bucket_keys[i_index];
+    const Int bucket_index = bucket_key % graph->num_original_vertices;
+    (*buckets)[bucket_index].clear();
+  }
 }
 
 // Converts the 'pivot' (super)variable into an element.
@@ -384,36 +396,11 @@ inline MinimumDegreeAnalysis MinimumDegree(
     return MinimumDegreeAnalysis(0);
   }
 #endif
-  QuotientGraph quotient_graph(graph);
-  const Int num_orig_vertices = quotient_graph.num_original_vertices;
+  const Int num_orig_vertices = graph.NumSources();
 
-  // Eliminate the variables.
+  // Initialize a data structure that will eventually contain the results of
+  // the (approximae) minimum degree analysis.
   MinimumDegreeAnalysis analysis(num_orig_vertices);
-  std::unordered_map<std::string, Timer> timers;
-  constexpr char kComputePivotStructure[] = "ComputePivotStructure";
-  constexpr char kUpdateAdjacencyLists[] = "UpdateAdjacencyLists";
-  constexpr char kExternalStructureSizes[] = "ExternalStructureSizes";
-  constexpr char kUpdateElementLists[] = "UpdateElementLists";
-  constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
-  constexpr char kDetectAndMergeVariables[] = "DetectAndMergeVariables";
-  if (control.time_stages) {
-    timers[kComputePivotStructure].Reset();
-    timers[kUpdateAdjacencyLists].Reset();
-    timers[kExternalStructureSizes].Reset();
-    timers[kUpdateElementLists].Reset();
-    timers[kUpdateExternalDegrees].Reset();
-    timers[kDetectAndMergeVariables].Reset();
-  }
-  const bool compute_external_structure_sizes =
-      control.aggressive_absorption ||
-      control.degree_type == kAmestoyExternalDegree;
-  std::vector<Int> external_structure_sizes;
-  if (compute_external_structure_sizes) {
-    if (control.time_stages) timers[kExternalStructureSizes].Start();
-    quotient_graph.InitializeExternalStructureSizes(&external_structure_sizes);
-    if (control.time_stages) timers[kExternalStructureSizes].Stop();
-  }
-  std::vector<Int> aggressive_absorption_elements;
   if (control.store_pivot_element_list_sizes) {
     analysis.pivot_element_list_sizes.reserve(num_orig_vertices);
   }
@@ -422,14 +409,62 @@ inline MinimumDegreeAnalysis MinimumDegree(
     analysis.num_degree_updates_without_multiple_elements = 0;
   }
 
+  // A mask of length 'num_orig_vertices' that can be used to quickly compute
+  // the cardinalities of |L_e \ L_p| for each element e in an element list of
+  // a supervariable in the current pivot structure, L_p.
+  std::vector<Int> external_structure_sizes;
+  const bool compute_external_structure_sizes =
+      control.aggressive_absorption ||
+      control.degree_type == kAmestoyExternalDegree;
+
+  // A vector that will be used to store the list of elements that should be
+  // aggressively absorbed in a particular stage.
+  std::vector<Int> aggressive_absorption_elements;
+
+  // A list of the principal members of the current pivot's structure.
+  std::vector<Int> supernodal_pivot_structure;
+
+  // A mask of length 'num_orig_vertices' that is 1 in index 'i' if and only
+  // if 'i' is a member of the current pivot's structure.
   std::vector<int> pivot_structure_mask(num_orig_vertices, 0);
 
+  // A mask of length 'num_orig_vertices' that used within exact external
+  // degree computations to perform set unions. It is only created if exact
+  // degree computations were requested, and it must be set to all zeros before
+  // and after each call to ExternalDegree.
   std::vector<int> exact_degree_mask;
   if (control.degree_type == kExactExternalDegree) {
     exact_degree_mask.resize(num_orig_vertices, 0);
   }
 
-  std::vector<Int> supernodal_pivot_structure;
+  // Set up a set of timers for the components of the analysis.
+  std::unordered_map<std::string, Timer> timers;
+  constexpr char kComputePivotStructure[] = "ComputePivotStructure";
+  constexpr char kUpdateAdjacencyLists[] = "UpdateAdjacencyLists";
+  constexpr char kExternalStructureSizes[] = "ExternalStructureSizes";
+  constexpr char kUpdateElementLists[] = "UpdateElementLists";
+  constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
+  constexpr char kComputeVariableHashes[] = "ComputeVariableHashes";
+  constexpr char kDetectAndMergeVariables[] = "DetectAndMergeVariables";
+  if (control.time_stages) {
+    timers[kComputePivotStructure].Reset();
+    timers[kUpdateAdjacencyLists].Reset();
+    timers[kExternalStructureSizes].Reset();
+    timers[kUpdateElementLists].Reset();
+    timers[kUpdateExternalDegrees].Reset();
+    timers[kComputeVariableHashes].Reset();
+    timers[kDetectAndMergeVariables].Reset();
+  }
+
+  // A set of buckets for each hash value (modulo num_original_vertices) of the
+  // supervariables.
+  std::vector<std::vector<Int>> buckets(num_orig_vertices);
+
+  // Eliminate the variables.
+  QuotientGraph quotient_graph(graph);
+  if (compute_external_structure_sizes) {
+    quotient_graph.InitializeExternalStructureSizes(&external_structure_sizes);
+  }
   while (quotient_graph.num_eliminated_vertices < num_orig_vertices) {
     // Retrieve a variable with minimal (approximate) external degree.
     const std::pair<Int, Int> pivot_pair =
@@ -486,10 +521,14 @@ inline MinimumDegreeAnalysis MinimumDegree(
     ClearMask(supernodal_pivot_structure, &pivot_structure_mask);
 
     if (control.allow_supernodes) {
+      if (control.time_stages) timers[kComputeVariableHashes].Start();
+      const std::vector<std::size_t> bucket_keys = ComputeVariableHashes(
+          quotient_graph, supernodal_pivot_structure, control.hash_type);
+      if (control.time_stages) timers[kComputeVariableHashes].Stop();
       if (control.time_stages) timers[kDetectAndMergeVariables].Start();
       DetectAndMergeVariables(
-          supernodal_pivot_structure, control.store_variable_merges,
-          control.hash_type, &quotient_graph);
+          supernodal_pivot_structure, bucket_keys,
+          control.store_variable_merges, &quotient_graph, &buckets);
       if (control.time_stages) timers[kDetectAndMergeVariables].Stop();
     }
 
@@ -500,7 +539,7 @@ inline MinimumDegreeAnalysis MinimumDegree(
     if (compute_external_structure_sizes) {
       if (control.time_stages) timers[kExternalStructureSizes].Start();
       quotient_graph.ResetExternalStructureSizes(
-          quotient_graph.structures[pivot], &external_structure_sizes);
+          supernodal_pivot_structure, &external_structure_sizes);
       if (control.time_stages) timers[kExternalStructureSizes].Stop();
     }
   }

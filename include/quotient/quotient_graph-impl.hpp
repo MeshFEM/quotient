@@ -127,29 +127,20 @@ inline std::size_t QuotientGraph::VariableHash(
 }
 
 inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
-  std::size_t result = 0;
-  for (const Int& j : adjacency_lists[i]) {
-    if (supernode_sizes[j] > 0) {
-      result += j;
-      result %= num_original_vertices - 1;
-    }
-  }
-  for (const Int& j : element_lists[i]) {
-    result += j;
-    result %= num_original_vertices - 1;
-  }
+  std::size_t result = BasicVariableHash(i);
+  result %= num_original_vertices - 1;
   return result + 1;
 }
 
 inline std::size_t QuotientGraph::BasicVariableHash(Int i) const {
   std::size_t result = 0;
-  for (std::size_t index = 0; index < adjacency_lists[i].size(); ++index) {
-    const Int j = adjacency_lists[i][index];
-    result += (index + 1) * (j + 1);
+  for (const Int& j : adjacency_lists[i]) {
+    if (supernode_sizes[j] > 0) {
+      result += j;
+    }
   }
-  for (std::size_t index = 0; index < element_lists[i].size(); ++index) {
-    const Int j = element_lists[i][index];
-    result += (index + 1) * (j + 1);
+  for (const Int& j : element_lists[i]) {
+    result += j;
   }
   return result;
 }
@@ -202,12 +193,14 @@ inline void QuotientGraph::ExternalStructureSizes(
   aggressive_absorption_elements->clear();
 
   for (const Int& i : supernodal_pivot_structure) {
+    const Int supernode_i_size = supernode_sizes[i];
     for (const Int& element : element_lists[i]) {
-      if ((*external_structure_sizes)[element] < 0) {
-        (*external_structure_sizes)[element] = structures[element].size();
-      }
       Int& external_structure_size = (*external_structure_sizes)[element];
-      external_structure_size -= supernode_sizes[i];
+      if (external_structure_size < 0) {
+        external_structure_size = structures[element].size();
+      }
+
+      external_structure_size -= supernode_i_size;
       if (aggressive_absorption && external_structure_size == 0) {
         aggressive_absorption_elements->push_back(element);
       }
