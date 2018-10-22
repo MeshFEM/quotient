@@ -116,9 +116,9 @@ inline Int Gilbert(const QuotientGraph& graph, Int i) {
 // Returns the external degree approximation of Ashcraft, Eisenstat, and Lucas:
 //   \tilde{d_i} = d_i if |E_i| = 2, \hat{d_i} otherwise.
 inline Int Ashcraft(
-    const QuotientGraph& graph, Int i, std::vector<int>* mask) {
+    const QuotientGraph& graph, Int i, std::vector<int>* exact_degree_mask) {
   if (graph.element_lists[i].size() == 2) {
-    return Exact(graph, i, mask);
+    return Exact(graph, i, exact_degree_mask);
   }
   return Gilbert(graph, i);
 }
@@ -132,11 +132,11 @@ inline Int ExternalDegree(
     const std::vector<int>& pivot_structure_mask,
     const std::vector<Int>& external_structure_sizes,
     ExternalDegreeType degree_type,
-    std::vector<int>* mask) {
+    std::vector<int>* exact_degree_mask) {
   Int degree = -1;
   switch(degree_type) {
     case kExactExternalDegree: {
-      degree = external_degree::Exact(graph, i, mask);
+      degree = external_degree::Exact(graph, i, exact_degree_mask);
       break;
     }
     case kAmestoyExternalDegree: {
@@ -145,7 +145,7 @@ inline Int ExternalDegree(
       break;
     }
     case kAshcraftExternalDegree: {
-      degree = external_degree::Ashcraft(graph, i, mask);
+      degree = external_degree::Ashcraft(graph, i, exact_degree_mask);
       break;
     }
     case kGilbertExternalDegree: {

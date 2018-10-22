@@ -47,7 +47,8 @@ Int ExternalDegree(
     Int pivot,
     const std::vector<int>& pivot_structure_mask,
     const std::vector<Int>& external_structure_sizes,
-    ExternalDegreeType degree_type);
+    ExternalDegreeType degree_type,
+    std::vector<int>* exact_degree_mask);
 
 } // namespace quotient
 
