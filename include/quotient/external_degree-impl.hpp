@@ -62,7 +62,7 @@ inline Int Amestoy(
     const std::vector<Int>& external_structure_sizes) {
   const Int num_vertices_left =
       graph.num_original_vertices - graph.num_eliminated_vertices;
-  const Int old_degree = graph.external_degree_heap.Value(i);
+  const Int old_degree = graph.degree_lists.degrees[i];
 
   // Note that this usage of 'external' refers to |L_p \ supernode(i)| and not
   // |L_e \ L_p|, as is the case for 'external_structure_sizes'.

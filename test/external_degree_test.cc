@@ -73,15 +73,12 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
       {2, 3, 4, 5, 6},
   };
 
-  graph.external_degree_heap.Reset(std::vector<Int>{
-      -1, 5, -1, -1, 4, -1, -1, -1
-  });
-  graph.external_degree_heap.DisableIndex(0);
-  graph.external_degree_heap.DisableIndex(2);
-  graph.external_degree_heap.DisableIndex(3);
-  graph.external_degree_heap.DisableIndex(5);
-  graph.external_degree_heap.DisableIndex(6);
-  graph.external_degree_heap.DisableIndex(7);
+  graph.degree_lists.degrees.resize(8, -1);
+  graph.degree_lists.degree_heads.resize(7, -1);
+  graph.degree_lists.next_degree_member.resize(8, -1);
+  graph.degree_lists.last_degree_member.resize(8, -1);
+  graph.degree_lists.AddDegree(1, 5);
+  graph.degree_lists.AddDegree(4, 4);
 
   const Int pivot = 1;
   const std::vector<Int> supernodal_pivot_structure{4};

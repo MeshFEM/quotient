@@ -12,7 +12,6 @@
 
 #include "quotient/config.hpp"
 #include "quotient/coordinate_graph.hpp"
-#include "quotient/random_access_heap.hpp"
 
 namespace quotient {
 
@@ -26,6 +25,47 @@ enum VariableHashType {
   // multiplying each index update by its position in the adjaency or
   // element list.
   kBasicVariableHash,
+};
+
+// A doubly-linked list for tracking node degrees in a manner which makes it
+// easy to find a minimal degree variable.
+struct DegreeLists {
+  // A lower-bound on the minimum degree of all degree list members.
+  Int degree_lower_bound = 0;
+
+  // A list of the external degrees associated with each index.
+  std::vector<Int> degrees;
+
+  // The indices of the heads of the degree lists for each degree. If no
+  // index exists for degree 'degree', then 'degree_heads[degree]' is -1.
+  std::vector<Int> degree_heads;
+
+  // Index 'i' will provide the index of the member that occurs directly after
+  // 'i' in the degree list containing index 'i' (if such a member does not
+  // exit, the value will be -1).
+  std::vector<Int> next_degree_member;
+
+  // Index 'i' will provide the index of the member that occurs directly before
+  // 'i' in the degree list containing index 'i' (if such a member does not
+  // exit, the value will be -1).
+  std::vector<Int> last_degree_member;
+
+  // Successively increases degree_lower_bound until a degree list member is
+  // found (and an index of minimal degree is returned).
+  // If 'demand_smallest_index' is true, then the member of the linked list with
+  // the smallest index is returned.
+  Int FindMinimalIndex(bool demand_smallest_index);
+
+  // Removes the current degree of occurrence with the given index.
+  void RemoveDegree(Int index);
+
+  // Adds in an occurrence of the specified index and degree.
+  void AddDegree(Int index, Int degree);
+
+  // If the old degree was the same as the current degree, then this routine
+  // removes the old occurrence and adds in the new occurrence. Otherwise,
+  // it is a no-op.
+  void UpdateDegree(Int index, Int degree);
 };
 
 // A data structure representing the "quotient graph" interpretation of the
@@ -93,10 +133,10 @@ struct QuotientGraph {
   // The element lists only contain the principal member of any supernode.
   std::vector<std::vector<Int>> element_lists;
 
-  // A cached binary tree of external degrees that allows for O(lg(n))
-  // random modification, O(1) random access, and O(1) extraction of the
-  // left-most minimal index.
-  RandomAccessHeap<Int> external_degree_heap;
+  // A set of linked lists for keeping track of supervariables of each degree
+  // (and, also, a way to provide fast access to a supervariable with
+  // minimal degree).
+  DegreeLists degree_lists;
 
   // An optional list of aggressive element absorption pairs: each pair (e, f)
   // consists of the absorbing element, e, and the absorbed element, f.

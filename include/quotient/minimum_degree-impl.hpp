@@ -195,7 +195,7 @@ inline void UpdateElementListsAfterSelectingPivot(
     std::vector<Int>& element_list = graph->element_lists[i];
     Int num_packed = 0;
     for (const Int& element : element_list) {
-      if ((*pivot_mask)[element]) { 
+      if ((*pivot_mask)[element]) {
         continue;
       }
       element_list[num_packed++] = element;
@@ -270,19 +270,17 @@ inline void ComputeExternalDegrees(
   }
 }
 
-// Insert the external degrees into the heap.
+// Insert the new external degrees.
 inline void UpdateExternalDegrees(
     const std::vector<Int>& supernodal_pivot_structure,
     const std::vector<Int>& external_degrees,
     QuotientGraph* graph) {
-  // Insert the external degrees into the heap.
   const Int supernodal_struct_size = supernodal_pivot_structure.size();
-  graph->external_degree_heap.ReserveValueChanges(supernodal_struct_size);
   for (Int index = 0; index < supernodal_struct_size; ++index) {
-    graph->external_degree_heap.QueueValueAssignment(
-        supernodal_pivot_structure[index], external_degrees[index]);
+    const Int i = supernodal_pivot_structure[index];
+    const Int degree = external_degrees[index];
+    graph->degree_lists.UpdateDegree(i, degree);
   }
-  graph->external_degree_heap.FlushValueChangeQueue();
 }
 
 // Computes hashes of the supervariables in the pivot structure.
@@ -398,14 +396,13 @@ inline void DetectAndMergeVariables(
     }
   }
 
-  // Update the external degree heap in a batched manner.
-  graph->external_degree_heap.ReserveValueChanges(2 * variable_merges.size());
+  // Update the external degrees in a batched manner.
   for (const VariableMergeInfo& merge : variable_merges) {
-    graph->external_degree_heap.QueueValueUpdate(
-        merge.primary_index, -merge.absorbed_size);
-    graph->external_degree_heap.QueueIndexDisablement(merge.absorbed_index);
+    const Int old_degree = graph->degree_lists.degrees[merge.primary_index];
+    const Int degree = old_degree - merge.absorbed_size;
+    graph->degree_lists.UpdateDegree(merge.primary_index, degree);
+    graph->degree_lists.RemoveDegree(merge.absorbed_index);
   }
-  graph->external_degree_heap.FlushValueChangeQueue();
 
   // If requested, keep track of the variable merges.
   if (store_variable_merges) {
@@ -425,7 +422,7 @@ inline void DetectAndMergeVariables(
 
 // Converts the 'pivot' (super)variable into an element.
 inline void ConvertPivotIntoElement(Int pivot, QuotientGraph* graph) {
-  graph->external_degree_heap.DisableIndex(pivot);
+  graph->degree_lists.RemoveDegree(pivot);
   SwapClearVector(&graph->adjacency_lists[pivot]);
   SwapClearVector(&graph->element_lists[pivot]);
   graph->num_eliminated_vertices += graph->supernode_sizes[pivot];
@@ -514,9 +511,8 @@ inline MinimumDegreeAnalysis MinimumDegree(
   }
   while (quotient_graph.num_eliminated_vertices < num_orig_vertices) {
     // Retrieve a variable with minimal (approximate) external degree.
-    const std::pair<Int, Int> pivot_pair =
-        quotient_graph.external_degree_heap.MinimalEntry();
-    const Int pivot = pivot_pair.first;
+    const Int pivot = quotient_graph.degree_lists.FindMinimalIndex(
+        control.force_minimal_pivot_indices);
     if (control.store_pivot_element_list_sizes) {
       analysis.pivot_element_list_sizes.push_back(
           quotient_graph.element_lists[pivot].size());
@@ -554,7 +550,7 @@ inline MinimumDegreeAnalysis MinimumDegree(
         external_structure_sizes, control.degree_type, &exact_degree_mask,
         &quotient_graph, &external_degrees);
     if (control.time_stages) timers[kComputeExternalDegrees].Stop();
-  
+
     if (control.time_stages) timers[kUpdateExternalDegrees].Start();
     UpdateExternalDegrees(
         supernodal_pivot_structure, external_degrees, &quotient_graph);
@@ -606,7 +602,7 @@ inline MinimumDegreeAnalysis MinimumDegree(
   analysis.principal_structures.resize(analysis.elimination_order.size());
   for (std::size_t index = 0; index < analysis.elimination_order.size();
        ++index) {
-    analysis.principal_structures[index] = 
+    analysis.principal_structures[index] =
         quotient_graph.structures[analysis.elimination_order[index]];
     std::sort(
         analysis.principal_structures[index].begin(),

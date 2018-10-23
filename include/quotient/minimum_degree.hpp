@@ -32,6 +32,10 @@ struct MinimumDegreeControl {
   // Whether aggressive element absorptions are allowed.
   bool aggressive_absorption = true;
 
+  // Whether the entire degree list will be traversed in order to ensure that
+  // the member of the minimal degree list with smallest index is chosen.
+  bool force_minimal_pivot_indices = false;
+
   // Whether the list of pairs of aggressive element absorptions should be
   // returned in the MinimumDegreeAnalysis result of MinimumDegree.
   bool store_aggressive_absorptions = false;

@@ -27,6 +27,65 @@ void PrintVector(const std::vector<T>& vec, const std::string& msg) {
   std::cout << "\n";
 }
 
+inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index) {
+  while (degree_lower_bound < Int(degree_heads.size()) &&
+      degree_heads[degree_lower_bound] == -1) {
+    ++degree_lower_bound;
+  }
+  if (degree_lower_bound == Int(degree_heads.size())) {
+    return -1;
+  }
+
+  Int index = degree_heads[degree_lower_bound];
+  if (demand_smallest_index) {
+    Int minimal_index = index;
+    while (next_degree_member[index] != -1) {
+      index = next_degree_member[index];
+      minimal_index = std::min(minimal_index, index);
+    }
+    index = minimal_index;
+  }
+  return index;
+}
+
+inline void DegreeLists::RemoveDegree(Int index) {
+  const Int degree = degrees[index];
+  const Int last = last_degree_member[index];
+  const Int next = next_degree_member[index];
+  if (last == -1) {
+    degree_heads[degree] = next;
+  } else {
+    // 'index' was not the head, so simply patch the connections.
+    next_degree_member[last] = next;
+  }
+  if (next != -1) {
+    last_degree_member[next] = last;
+  }
+}
+
+inline void DegreeLists::AddDegree(Int index, Int degree) {
+  const Int head = degree_heads[degree];
+  degree_heads[degree] = index;
+  last_degree_member[index] = -1;
+  next_degree_member[index] = head;
+  if (head != -1) {
+    last_degree_member[head] = index;
+  }
+  degrees[index] = degree;
+
+  // Update the minimal degree.
+  degree_lower_bound = std::min(degree_lower_bound, degree);
+}
+
+inline void DegreeLists::UpdateDegree(Int index, Int degree) {
+  if (degrees[index] == degree) {
+    return;
+  }
+  RemoveDegree(index);
+  AddDegree(index, degree);
+}
+
+
 inline QuotientGraph::QuotientGraph()
 : num_original_vertices(0), num_eliminated_vertices(0) { }
 
@@ -65,12 +124,15 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
   // Trivially initialize the element lists.
   element_lists.resize(num_original_vertices);
 
-  // Initialize the cached binary tree of external degrees.
-  std::vector<Int> external_degrees_vec(num_original_vertices);
+  // Initialize the degree lists.
+  degree_lists.degrees.resize(num_original_vertices);
+  degree_lists.degree_heads.resize(num_original_vertices - 1, -1);
+  degree_lists.next_degree_member.resize(num_original_vertices, -1);
+  degree_lists.last_degree_member.resize(num_original_vertices, -1);
   for (Int source = 0; source < num_original_vertices; ++source) {
-    external_degrees_vec[source] = adjacency_lists[source].size();
+    const Int degree = adjacency_lists[source].size();
+    degree_lists.AddDegree(source, degree);
   }
-  external_degree_heap.Reset(external_degrees_vec);
 }
 
 inline void QuotientGraph::Print() const {
@@ -81,12 +143,11 @@ inline void QuotientGraph::Print() const {
     std::cout << "Supernode " << i << "\n";
     const std::vector<Int> supernode = FormSupernode(i);
     PrintVector(supernode, "  members");
-    std::cout << "  external_degree: " << external_degree_heap.Value(i) << "\n";
-    if (external_degree_heap.ValidValue(i)) {
+    if (!structures[i].empty()) {
+      PrintVector(structures[i], "  structure");
+    } else {
       PrintVector(adjacency_lists[i], "  adjacency_list");
       PrintVector(element_lists[i], "  element_list");
-    } else {
-      PrintVector(structures[i], "  structure");
     }
     std::cout << "\n";
   }
