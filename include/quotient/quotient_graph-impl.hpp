@@ -137,13 +137,13 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
 
 inline void QuotientGraph::Print() const {
   for (Int i = 0; i < num_original_vertices; ++i) {
-    if (supernode_sizes[i] <= 0) {
+    if (supernode_sizes[i] == 0) {
       continue;
     }
     std::cout << "Supernode " << i << "\n";
     const std::vector<Int> supernode = FormSupernode(i);
     PrintVector(supernode, "  members");
-    if (!structures[i].empty()) {
+    if (supernode_sizes[i] < 0) {
       PrintVector(structures[i], "  structure");
     } else {
       PrintVector(adjacency_lists[i], "  adjacency_list");

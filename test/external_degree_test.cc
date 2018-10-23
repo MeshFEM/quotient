@@ -32,7 +32,7 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
   //   {},
   //   {7},
 
-  graph.supernode_sizes = std::vector<Int>{1, 1, 2, 0, 3, 0, 0, 1};
+  graph.supernode_sizes = std::vector<Int>{-1, 1, -2, 0, 3, 0, 0, -1};
 
   graph.next_index = std::vector<Int>{1, 2, 3, 4, 5, 6, 7, -1};
 
@@ -45,7 +45,7 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
       {4},
       {},
       {},
-      {1},
+      {},
       {},
       {},
       {},
@@ -124,16 +124,13 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
       quotient::kGilbertExternalDegree, &exact_degree_mask);
 
   // d_4 = |A_4 \ supernode(4)| + |(\cup_{e in E_4} L_e) \ supernode(4)|
-  //     = |{1} \ {4, 5, 6}| + |{1, 2, 3, 4, 5, 6} \ {4, 5, 6}|
-  //     = |{1}| + |{1, 2, 3}| = 1 + 3 = 4.
-  REQUIRE(exact_external_degree == 4);
+  //     = |{} \ {4, 5, 6}| + |{1, 4, 5, 6} \ {4, 5, 6}|
+  //     = |{}| + |{1}| = 0 + 1 = 1.
+  REQUIRE(exact_external_degree == 1);
 
-  // \bar{d}_4 = min(4, 4 + 0, 1 + 0 + 3) = 3.
-  REQUIRE(amestoy_external_degree == 4);
+  REQUIRE(amestoy_external_degree == 1);
 
-  // \tilde{d}_4 = d_i if |E_i| = 2, \hat{d}_i otherwise.
-  REQUIRE(ashcraft_external_degree == 4);
+  REQUIRE(ashcraft_external_degree == 1);
 
-  // \hat{d}_4 = 1 + 3 = 4.
-  REQUIRE(gilbert_external_degree == 4);
+  REQUIRE(gilbert_external_degree == 1);
 }

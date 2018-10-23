@@ -89,8 +89,10 @@ struct QuotientGraph {
   // The number of vertices that have been eliminated from the original graph.
   Int num_eliminated_vertices;
 
-  // A list of length 'num_original_vertices' of the sizes of each supernode.
-  // If index 'i' is not principal, then it is set to zero.
+  // A list of length 'num_original_vertices' of the (signed) sizes of each
+  // supernode. If index 'i' is not principal, then it is set to zero; if
+  // 'i' is a principal variable, then 'supernode_sizes[i]' is the size of the
+  // supernode; if 'i' is a principal element, the value is negated.
   std::vector<Int> supernode_sizes;
 
   // A list of length 'num_original_vertices' such that each supernode is

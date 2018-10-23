@@ -97,7 +97,7 @@ inline void ComputePivotStructure(
   graph->structures[pivot].clear();
   supernodal_pivot_structure->clear();
   for (const Int& index : graph->adjacency_lists[pivot]) {
-    if (graph->supernode_sizes[index] == 0) {
+    if (!graph->supernode_sizes[index]) {
       continue;
     }
     (*pivot_mask)[index] = 1;
@@ -117,7 +117,7 @@ inline void ComputePivotStructure(
   for (const Int& element : graph->element_lists[pivot]) {
     for (const Int& index : graph->structures[element]) {
       if (index == pivot ||
-          graph->supernode_sizes[index] == 0 ||
+          graph->supernode_sizes[index] <= 0 ||
           (*pivot_mask)[index]) {
         continue;
       }
@@ -167,7 +167,7 @@ inline void UpdateAdjacencyListsAfterSelectingPivot(
     for (Int index : graph->adjacency_lists[i]) {
       if (index == pivot ||
           pivot_mask[index] ||
-          graph->supernode_sizes[index] == 0) {
+          !graph->supernode_sizes[index]) {
         continue;
       }
       graph->adjacency_lists[i][packed_size++] = index;
@@ -426,6 +426,7 @@ inline void ConvertPivotIntoElement(Int pivot, QuotientGraph* graph) {
   SwapClearVector(&graph->adjacency_lists[pivot]);
   SwapClearVector(&graph->element_lists[pivot]);
   graph->num_eliminated_vertices += graph->supernode_sizes[pivot];
+  graph->supernode_sizes[pivot] *= -1;
 }
 
 }  // namespace minimum_degree
@@ -464,6 +465,9 @@ inline MinimumDegreeAnalysis MinimumDegree(
   // A vector that will be used to store the list of elements that should be
   // aggressively absorbed in a particular stage.
   std::vector<Int> aggressive_absorption_elements;
+  if (compute_external_structure_sizes && control.aggressive_absorption) {
+    aggressive_absorption_elements.reserve(num_orig_vertices - 1);
+  }
 
   // A list of the principal members of the current pivot's structure.
   std::vector<Int> supernodal_pivot_structure;
@@ -481,7 +485,8 @@ inline MinimumDegreeAnalysis MinimumDegree(
   // degree computations were requested, and it must be set to all zeros before
   // and after each call to ExternalDegree.
   std::vector<int> exact_degree_mask;
-  if (control.degree_type == kExactExternalDegree) {
+  if (control.degree_type == kExactExternalDegree ||
+      control.degree_type == kAshcraftExternalDegree) {
     exact_degree_mask.resize(num_orig_vertices, 0);
   }
 
@@ -490,6 +495,7 @@ inline MinimumDegreeAnalysis MinimumDegree(
   constexpr char kComputePivotStructure[] = "ComputePivotStructure";
   constexpr char kUpdateAdjacencyLists[] = "UpdateAdjacencyLists";
   constexpr char kExternalStructureSizes[] = "ExternalStructureSizes";
+  constexpr char kResetExternalStructureSizes[] = "ResetExternalStructureSizes";
   constexpr char kUpdateElementLists[] = "UpdateElementLists";
   constexpr char kComputeExternalDegrees[] = "ComputeExternalDegrees";
   constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
@@ -585,17 +591,17 @@ inline MinimumDegreeAnalysis MinimumDegree(
     analysis.elimination_order.push_back(pivot);
 
     if (compute_external_structure_sizes) {
-      if (control.time_stages) timers[kExternalStructureSizes].Start();
+      if (control.time_stages) timers[kResetExternalStructureSizes].Start();
       quotient_graph.ResetExternalStructureSizes(
           supernodal_pivot_structure, &external_structure_sizes);
-      if (control.time_stages) timers[kExternalStructureSizes].Stop();
+      if (control.time_stages) timers[kResetExternalStructureSizes].Stop();
     }
   }
 
   // Extract the relevant information from the QuotientGraph.
   analysis.supernodes.resize(num_orig_vertices);
   for (Int i = 0; i < num_orig_vertices; ++i) {
-    if (quotient_graph.supernode_sizes[i] > 0) {
+    if (quotient_graph.supernode_sizes[i]) {
       analysis.supernodes[i] = quotient_graph.FormSupernode(i);
     }
   }

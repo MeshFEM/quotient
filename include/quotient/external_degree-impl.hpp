@@ -33,7 +33,8 @@ inline Int Exact(const QuotientGraph& graph, Int i, std::vector<int>* mask) {
   // that are outside supernode(i).
   for (const Int& element : graph.element_lists[i]) {
     for (const Int& j : graph.structures[element]) {
-      if (graph.head_index[j] == i || (*mask)[j]) {
+      const Int head = graph.head_index[j];
+      if ((*mask)[j] || head == i || graph.supernode_sizes[head] < 0) {
         continue;
       }
       ++degree;
@@ -54,6 +55,9 @@ inline Int Exact(const QuotientGraph& graph, Int i, std::vector<int>* mask) {
 
 // Computes an approximation of the external degree of supernode i using Eq. (4)
 // of [ADD-96].
+//
+// This routine is made slightly more accurate by subtracting the size of
+// supernode(i) from bound0.
 inline Int Amestoy(
     const QuotientGraph& graph,
     Int i,
@@ -71,7 +75,7 @@ inline Int Amestoy(
     external_pivot_structure_size -= graph.supernode_sizes[i];
   }
 
-  const Int bound0 = num_vertices_left;
+  const Int bound0 = num_vertices_left - graph.supernode_sizes[i];
   const Int bound1 = old_degree + external_pivot_structure_size;
 
   // bound_2 = |A_i \ supernode(i)| + |L_p \ supernode(i)| +
@@ -97,20 +101,27 @@ inline Int Amestoy(
 
 // Returns the external degree approximation of Gilbert, Moler, and Schreiber,
 //   \hat{d_i} = |A_i \ supernode(i)|  + \sum_{e in E_i} |L_e \ supernode(i)|.
+//
+// We slightly modify this formula to ensure that the estimated degree is
+// at most
+//   (num_original_vertices - num_eliminated_vertices) - size(supernode(i)).
 inline Int Gilbert(const QuotientGraph& graph, Int i) {
   Int degree = 0;
   for (const Int& index : graph.adjacency_lists[i]) {
     degree += graph.supernode_sizes[index];
   }
   for (const Int& element : graph.element_lists[i]) {
-    for (const Int& index : graph.structures[element]) {
-      if (graph.head_index[index] == i) {
+    for (const Int& j : graph.structures[element]) {
+      const Int head = graph.head_index[j];
+      if (head == i || graph.supernode_sizes[head] < 0) {
         continue;
       }
       ++degree;
     }
   }
-  return degree;
+  const Int num_vertices_left =
+      graph.num_original_vertices - graph.num_eliminated_vertices;
+  return std::min(degree, num_vertices_left - graph.supernode_sizes[i]);
 }
 
 // Returns the external degree approximation of Ashcraft, Eisenstat, and Lucas:
