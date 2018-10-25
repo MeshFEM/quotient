@@ -239,8 +239,10 @@ inline Int Gilbert(const QuotientGraph& graph, Int i) {
   for (const Int& index : graph.adjacency_lists[i]) {
     degree += graph.supernode_sizes[index];
   }
+
+  const Int supernode_size = graph.supernode_sizes[i];
   for (const Int& element : graph.element_lists[i]) {
-    degree += graph.element_sizes[element];
+    degree += graph.element_sizes[element] - supernode_size;
   }
   const Int num_vertices_left =
       graph.num_original_vertices - graph.num_eliminated_vertices;
