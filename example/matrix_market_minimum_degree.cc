@@ -40,12 +40,26 @@ void PrintSufficientStatistics(
 
 // A list of properties to measure from an AMD reordering.
 struct AMDExperiment {
-  // The number of (structural) nonzeros in the strictly lower triangle of the
-  // associated Cholesky factor.
-  SufficientStatistics num_lower_nonzeros;
-
   // The number of members of the largest supernode.
   SufficientStatistics largest_supernode_size;
+
+  // The number of (structural) nonzeros in the associated Cholesky factor.
+  SufficientStatistics num_nonzeros;
+
+  // The number of (structural) nonzeros in the strictly lower triangle of the
+  // associated Cholesky factor.
+  SufficientStatistics num_strictly_lower_nonzeros;
+
+  // The number of floating-point operations required for a standard Cholesky
+  // factorization using the returned ordering.
+  SufficientStatistics num_flops;
+
+  // The number of degree updates performed during the AMD analysis.
+  SufficientStatistics num_degree_updates;
+
+  // The number of processed members of an element in the pivot element list
+  // that were inactive (i.e., converted into an element from a variable).
+  SufficientStatistics num_stale_element_members;
 
   // The number of seconds that elapsed during the AMD analysis.
   SufficientStatistics elapsed_seconds;
@@ -62,9 +76,15 @@ void PrintAMDExperiment(
     const AMDExperiment& experiment, const std::string& label) {
   std::cout << label << ":\n";
   PrintSufficientStatistics(
-      experiment.num_lower_nonzeros, "  num_lower_nonzeros");
-  PrintSufficientStatistics(
       experiment.largest_supernode_size, "  largest_supernode_size");
+  PrintSufficientStatistics(experiment.num_nonzeros, "  num_nonzeros");
+  PrintSufficientStatistics(
+      experiment.num_strictly_lower_nonzeros, "  num_strictly_lower_nonzeros");
+  PrintSufficientStatistics(experiment.num_flops, "  num_flops");
+  PrintSufficientStatistics(
+      experiment.num_degree_updates, "  num_degree_updates");
+  PrintSufficientStatistics(
+      experiment.num_stale_element_members, "  num_stale_element_members");
   PrintSufficientStatistics(
       experiment.elapsed_seconds, "  elapsed_seconds");
   PrintSufficientStatistics(
@@ -208,21 +228,28 @@ AMDExperiment RunMatrixMarketAMDTest(
   }
 
   std::vector<quotient::Int> largest_supernode_sizes;
+  std::vector<quotient::Int> num_nonzeros;
   std::vector<quotient::Int> num_strictly_lower_nonzeros;
+  std::vector<double> num_flops;
+  std::vector<quotient::Int> num_degree_updates;
+  std::vector<quotient::Int> num_stale_element_members;
   std::vector<double> elapsed_seconds;
   std::vector<double> fraction_of_pivots_with_multiple_elements;
   std::vector<double> fraction_of_degree_updates_with_multiple_elements;
-  largest_supernode_sizes.reserve(num_random_permutations + 1);
-  num_strictly_lower_nonzeros.reserve(num_random_permutations + 1);
-  elapsed_seconds.reserve(num_random_permutations + 1); 
-  fraction_of_pivots_with_multiple_elements.reserve(
-      num_random_permutations + 1);
-  fraction_of_degree_updates_with_multiple_elements.reserve(
-      num_random_permutations + 1);
-  for (int instance = 0; instance < num_random_permutations + 1; ++instance) {
+  const int num_experiments = num_random_permutations + 1;
+  largest_supernode_sizes.reserve(num_experiments);
+  num_nonzeros.reserve(num_experiments);
+  num_strictly_lower_nonzeros.reserve(num_experiments);
+  num_flops.reserve(num_experiments);
+  num_degree_updates.reserve(num_experiments);
+  num_stale_element_members.reserve(num_experiments);
+  elapsed_seconds.reserve(num_experiments); 
+  fraction_of_pivots_with_multiple_elements.reserve(num_experiments);
+  fraction_of_degree_updates_with_multiple_elements.reserve(num_experiments);
+  for (int instance = 0; instance < num_experiments; ++instance) {
     if (print_progress) {
       std::cout << "  Running analysis " << instance << " of "
-                << num_random_permutations + 1 << "..." << std::endl;
+                << num_experiments << "..." << std::endl;
     }
     quotient::Timer timer;
     timer.Start();
@@ -230,7 +257,12 @@ AMDExperiment RunMatrixMarketAMDTest(
       *graph, control);
     elapsed_seconds.push_back(timer.Stop());
     largest_supernode_sizes.push_back(analysis.LargestSupernodeSize());
-    num_strictly_lower_nonzeros.push_back(analysis.NumStrictlyLowerNonzeros());
+    num_nonzeros.push_back(analysis.num_cholesky_nonzeros);
+    num_strictly_lower_nonzeros.push_back(
+        analysis.NumStrictlyLowerCholeskyNonzeros());
+    num_flops.push_back(analysis.num_cholesky_flops);
+    num_degree_updates.push_back(analysis.num_degree_updates);
+    num_stale_element_members.push_back(analysis.num_stale_element_members);
     if (print_progress) {
       std::cout << "  Finished analysis in " << elapsed_seconds.back()
                 << " seconds. There were " << num_strictly_lower_nonzeros.back()
@@ -281,10 +313,15 @@ AMDExperiment RunMatrixMarketAMDTest(
   }
 
   AMDExperiment experiment;
-  experiment.num_lower_nonzeros = GetSufficientStatistics(
+  experiment.num_nonzeros = GetSufficientStatistics(num_nonzeros);
+  experiment.num_strictly_lower_nonzeros = GetSufficientStatistics(
       num_strictly_lower_nonzeros);
+  experiment.num_flops = GetSufficientStatistics(num_flops);
   experiment.largest_supernode_size = GetSufficientStatistics(
       largest_supernode_sizes);
+  experiment.num_degree_updates = GetSufficientStatistics(num_degree_updates);
+  experiment.num_stale_element_members =
+      GetSufficientStatistics(num_stale_element_members);
   experiment.elapsed_seconds = GetSufficientStatistics(elapsed_seconds);
   experiment.fraction_of_pivots_with_multiple_elements =
       GetSufficientStatistics(fraction_of_pivots_with_multiple_elements);

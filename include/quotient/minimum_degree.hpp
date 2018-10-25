@@ -108,21 +108,35 @@ struct MinimumDegreeAnalysis {
   // more than two members in its element list.
   Int num_degree_updates_without_multiple_elements = -1;
 
+  // The number of structural nonzeros in the Cholesky factor.
+  Int num_cholesky_nonzeros = 0;
+
+  // The number of floating-point operations in a standard Cholesky
+  // factorization using this ordering.
+  double num_cholesky_flops = 0;
+
+  // The number of degree updates performed during the minimum-degree analysis.
+  Int num_degree_updates = 0;
+
+  // The number of processed members of the elements in the pivot element lists
+  // that were no longer active.
+  Int num_stale_element_members = 0;
+
   // We will push to elimination order as the reordering algorithm progresses,
   // so we will allocate an upper bound for the amount of required space.
   // The 'supernodes' and 'structures' variables will be copied over from
   // the quotient graph just before the analysis completes.
   MinimumDegreeAnalysis(Int num_vertices);
 
-  // Returns the number of structural nonzeros in the strictly lower-triangular
-  // factor.
-  Int NumStrictlyLowerNonzeros() const;
-
   // Returns the principal member of the largest supernode.
   Int LargestSupernode() const;
 
   // Returns the number of members of the largest supernode.
   Int LargestSupernodeSize() const;
+
+  // Returns the number of strictly-lower nonzeros in the associated Cholesky
+  // factor.
+  Int NumStrictlyLowerCholeskyNonzeros() const;
 
   // Returns the fraction of pivots whose element list had more than two
   // members.

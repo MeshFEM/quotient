@@ -29,23 +29,8 @@ inline MinimumDegreeAnalysis::MinimumDegreeAnalysis(Int num_vertices) {
   elimination_order.reserve(num_vertices);
 }
 
-inline Int MinimumDegreeAnalysis::NumStrictlyLowerNonzeros() const {
-  if (principal_structures.empty()) {
-    return -1;
-  }
-
-  Int num_nonzeros = 0;
-  for (std::size_t index = 0; index < elimination_order.size(); ++index) {
-    const Int j = elimination_order[index];
-    const Int supernode_j_size = supernodes[j].size();
-
-    // Add the strictly-lower triangular portion of the diagonal block.
-    num_nonzeros += ((supernode_j_size - 1) * supernode_j_size) / 2;
-
-    // Add the rectangular portion below the diagonal block.
-    num_nonzeros += supernode_j_size * principal_structures[index].size();
-  }
-  return num_nonzeros;
+inline Int MinimumDegreeAnalysis::NumStrictlyLowerCholeskyNonzeros() const {
+  return num_cholesky_nonzeros - supernodes.size();
 }
 
 inline Int MinimumDegreeAnalysis::LargestSupernode() const {
@@ -93,16 +78,26 @@ namespace minimum_degree {
 //
 // It is assumed that the mask is of length 'num_orig_vertices' and set to all
 // zeros on input.
-inline void ComputePivotElement(
+//
+// The return value is the number of traversed members of the elements in the
+// element list of the pivot that are no longer variables.
+inline Int ComputePivotElement(
     Int pivot,
     bool compute_structure,
     QuotientGraph* graph,
     std::vector<int>* pivot_mask) {
 #ifdef QUOTIENT_DEBUG
+  for (Int index = 0; index < graph->num_original_vertices; ++index) {
+    if ((*pivot_mask)[index]) {
+      std::cerr << "Pivot mask had a nonzero on entry to ComputePivotElement."
+                << std::endl;
+    }
+  }
   if (!graph->elements[pivot].empty()) {
     std::cerr << "Chose a pivot more than once." << std::endl;
   }
 #endif
+  // TODO(Jack Poulson): Reserve space for graph->elements[pivot].
   for (const Int& index : graph->adjacency_lists[pivot]) {
     const Int supernode_size = graph->supernode_sizes[index];
 #ifdef QUOTIENT_DEBUG
@@ -130,13 +125,17 @@ inline void ComputePivotElement(
       }
     }
   }
+
+  Int num_stale_element_members = 0;
   for (const Int& element : graph->element_lists[pivot]) {
     for (const Int& index : graph->elements[element]) {
       const Int supernode_size = graph->supernode_sizes[index];
+      if (supernode_size < 0) {
+        ++num_stale_element_members;
+        // TODO(Jack Poulson): Quickly remove elements[element][index]. Though
+        // this branch appears to be extremely rare.
+      }
       if (index == pivot || supernode_size <= 0 || (*pivot_mask)[index]) {
-        if (supernode_size < 0) {
-          // TODO(Jack Poulson): Quickly remove elements[element][index].
-        }
         continue;
       }
       (*pivot_mask)[index] = 1;
@@ -157,6 +156,27 @@ inline void ComputePivotElement(
       }
     }
   }
+
+#ifdef QUOTIENT_DEBUG
+  for (const Int& element : graph->element_lists[pivot]) {
+    Int element_size = 0;
+    for (const Int& index : graph->elements[element]) {
+      const Int supernode_size = graph->supernode_sizes[index];
+      if (supernode_size <= 0) {
+        continue;
+      }
+      element_size += supernode_size;
+    }
+    const Int cached_element_size = graph->element_sizes[element];
+    if (element_size != cached_element_size) {
+      std::cerr << "Element " << element << " had a size of "
+                << element_size << " but the cached size was "
+                << cached_element_size << std::endl;
+    }
+  }
+#endif
+
+  return num_stale_element_members;
 }
 
 // Quickly reset the pivot mask to all zeros after having flagged the entries
@@ -597,9 +617,22 @@ inline MinimumDegreeAnalysis MinimumDegree(
     }
 
     if (control.time_stages) timers[kComputePivotElement].Start();
-    ComputePivotElement(
+    const Int num_stale_element_members = ComputePivotElement(
         pivot, control.store_structures, &quotient_graph, &pivot_mask);
     if (control.time_stages) timers[kComputePivotElement].Stop();
+    analysis.num_stale_element_members += num_stale_element_members;
+    const Int pivot_size = quotient_graph.supernode_sizes[pivot];
+    const Int structure_size = quotient_graph.element_sizes[pivot];
+    analysis.num_cholesky_nonzeros +=
+        // Add the diagonal block nonzeros.
+        (pivot_size * (pivot_size + 1)) / 2 +
+        // Add the sub-diagonal-block nonzeros.
+        structure_size * pivot_size;
+    analysis.num_cholesky_flops +=
+        // Add the diagonal block factorization flops.
+        std::pow(1. * pivot_size, 3.) / 3. +
+        // Add the symmetric Schur-complement flops.
+        std::pow(1. * structure_size, 2.) * pivot_size;
 
     if (control.time_stages) timers[kUpdateAdjacencyLists].Start();
     UpdateAdjacencyListsAfterSelectingPivot(pivot, pivot_mask, &quotient_graph);
@@ -637,6 +670,7 @@ inline MinimumDegreeAnalysis MinimumDegree(
     if (control.time_stages) timers[kUpdateExternalDegrees].Start();
     UpdateExternalDegrees(pivot, external_degrees, &quotient_graph);
     if (control.time_stages) timers[kUpdateExternalDegrees].Stop();
+    analysis.num_degree_updates += quotient_graph.elements[pivot].size();
 
     if (control.store_num_degree_updates_with_multiple_elements) {
       for (const Int& i : quotient_graph.elements[pivot]) {
