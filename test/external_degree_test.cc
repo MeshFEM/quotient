@@ -73,6 +73,21 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
       {2, 3, 4, 5, 6},
   };
 
+  graph.elements = std::vector<std::vector<Int>>{
+      {1, 4},
+      {4},
+      {1},
+      {},
+      {},
+      {},
+      {},
+      {4},
+  };
+
+  graph.element_sizes = std::vector<Int>{
+      4, 3, 1, 0, 0, 0, 0, 5
+  };
+
   graph.degree_lists.degrees.resize(8, -1);
   graph.degree_lists.degree_heads.resize(7, -1);
   graph.degree_lists.next_degree_member.resize(8, -1);
@@ -81,11 +96,10 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
   graph.degree_lists.AddDegree(4, 4);
 
   const Int pivot = 1;
-  const std::vector<Int> supernodal_pivot_structure{4};
   const std::vector<int> pivot_structure_mask{0, 0, 0, 0, 1, 0, 0, 0};
   std::vector<int> exact_degree_mask{0, 0, 0, 0, 0, 0, 0};
 
-  const std::vector<Int> kExpectedExternalStructureSizes{
+  const std::vector<Int> kExpectedExternalElementSizes{
       1,  // L_0 \ L_1 = [1] = {1}
       -1,
       -1,
@@ -99,28 +113,28 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
   const std::vector<Int> kExpectedAggressiveAbsorptions;
 
   const bool aggressive_absorption = false;
-  std::vector<Int> external_structure_sizes;
+  std::vector<Int> external_element_sizes;
   std::vector<Int> aggressive_absorption_elements;
-  graph.InitializeExternalStructureSizes(&external_structure_sizes);
-  graph.ExternalStructureSizes(
-      supernodal_pivot_structure, aggressive_absorption,
-      &external_structure_sizes, &aggressive_absorption_elements);
+  graph.InitializeExternalElementSizes(&external_element_sizes);
+  graph.ExternalElementSizes(
+      pivot, aggressive_absorption,
+      &external_element_sizes, &aggressive_absorption_elements);
 
-  REQUIRE(external_structure_sizes == kExpectedExternalStructureSizes);
+  REQUIRE(external_element_sizes == kExpectedExternalElementSizes);
   REQUIRE(aggressive_absorption_elements == kExpectedAggressiveAbsorptions);
 
   const Int variable = 4;
   const Int exact_external_degree = ExternalDegree(
-      graph, variable, pivot, pivot_structure_mask, external_structure_sizes,
+      graph, variable, pivot, pivot_structure_mask, external_element_sizes,
       quotient::kExactExternalDegree, &exact_degree_mask);
   const Int amestoy_external_degree = ExternalDegree(
-      graph, variable, pivot, pivot_structure_mask, external_structure_sizes,
+      graph, variable, pivot, pivot_structure_mask, external_element_sizes,
       quotient::kAmestoyExternalDegree, &exact_degree_mask);
   const Int ashcraft_external_degree = ExternalDegree(
-      graph, variable, pivot, pivot_structure_mask, external_structure_sizes,
+      graph, variable, pivot, pivot_structure_mask, external_element_sizes,
       quotient::kAshcraftExternalDegree, &exact_degree_mask);
   const Int gilbert_external_degree = ExternalDegree(
-      graph, variable, pivot, pivot_structure_mask, external_structure_sizes,
+      graph, variable, pivot, pivot_structure_mask, external_element_sizes,
       quotient::kGilbertExternalDegree, &exact_degree_mask);
 
   // d_4 = |A_4 \ supernode(4)| + |(\cup_{e in E_4} L_e) \ supernode(4)|

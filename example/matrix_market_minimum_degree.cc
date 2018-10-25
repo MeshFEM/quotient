@@ -408,6 +408,10 @@ int main(int argc, char** argv) {
           "Store the number of degree updates whose corresponding variable had "
           "more than two members in its element list?",
           true);
+  const bool store_structures = parser.OptionalInput<bool>(
+      "store_structure",
+      "Store the original structures for each pivot?",
+      true);
   const int num_random_permutations = parser.OptionalInput<int>(
       "num_random_permutations",
       "The number of random permutations to test "
@@ -475,6 +479,7 @@ int main(int argc, char** argv) {
   control.store_pivot_element_list_sizes = store_pivot_element_list_sizes;
   control.store_num_degree_updates_with_multiple_elements =
       store_num_degree_updates_with_multiple_elements;
+  control.store_structures = store_structures;
   control.time_stages = time_stages;
 
   if (randomly_seed) {

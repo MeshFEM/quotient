@@ -32,12 +32,12 @@ inline Int Exact(const QuotientGraph& graph, Int i, std::vector<int>* mask) {
   // Add on the number of unique entries in the structures of the element lists
   // that are outside supernode(i).
   for (const Int& element : graph.element_lists[i]) {
-    for (const Int& j : graph.structures[element]) {
+    for (const Int& j : graph.elements[element]) {
       const Int head = graph.head_index[j];
       if ((*mask)[j] || head == i || graph.supernode_sizes[head] < 0) {
         continue;
       }
-      ++degree;
+      degree += graph.supernode_sizes[j];
       (*mask)[j] = 1;
     }
   }
@@ -45,7 +45,7 @@ inline Int Exact(const QuotientGraph& graph, Int i, std::vector<int>* mask) {
   // Clear the mask.
   // NOTE: We allow (*mask)[i] to be set to zero to avoid branching.
   for (const Int& element : graph.element_lists[i]) {
-    for (const Int& j : graph.structures[element]) {
+    for (const Int& j : graph.elements[element]) {
       (*mask)[j] = 0;
     }
   }
@@ -63,17 +63,25 @@ inline Int Amestoy(
     Int i,
     Int pivot,
     const std::vector<int>& pivot_structure_mask,
-    const std::vector<Int>& external_structure_sizes) {
+    const std::vector<Int>& external_element_sizes) {
   const Int num_vertices_left =
       graph.num_original_vertices - graph.num_eliminated_vertices;
   const Int old_degree = graph.degree_lists.degrees[i];
 
   // Note that this usage of 'external' refers to |L_p \ supernode(i)| and not
-  // |L_e \ L_p|, as is the case for 'external_structure_sizes'.
-  Int external_pivot_structure_size = graph.structures[pivot].size();
+  // |L_e \ L_p|, as is the case for 'external_element_sizes'.
+  Int external_pivot_structure_size = graph.element_sizes[pivot];
   if (pivot_structure_mask[i]) {
+    // This branch should *always* activate within MinimumDegree, as external
+    // degrees are only computed for supernodes within the pivot structure.
     external_pivot_structure_size -= graph.supernode_sizes[i];
   }
+#ifdef QUOTIENT_DEBUG
+  if (external_pivot_structure_size < 0) {
+    std::cerr << "Encountered a negative external_pivot_structure_size"
+              << std::endl;
+  }
+#endif
 
   const Int bound0 = num_vertices_left - graph.supernode_sizes[i];
   const Int bound1 = old_degree + external_pivot_structure_size;
@@ -82,6 +90,11 @@ inline Int Amestoy(
   //           \sum_{e in E_i \ {p}} |L_e \ L_p|.
   Int bound2 = 0;
   for (const Int& index : graph.adjacency_lists[i]) {
+#ifdef QUOTIENT_DEBUG
+    if (graph.supernode_sizes[index] < 0) {
+      std::cerr << "Encountered an element in an adjacency list." << std::endl;
+    }
+#endif
     bound2 += graph.supernode_sizes[index];
   }
   bound2 += external_pivot_structure_size;
@@ -89,14 +102,20 @@ inline Int Amestoy(
     if (element == pivot) {
       continue;
     }
-    if (external_structure_sizes[element] >= 0) {
-      bound2 += external_structure_sizes[element];
+    if (external_element_sizes[element] >= 0) {
+      bound2 += external_element_sizes[element];
     } else {
-      bound2 += graph.structures[element].size();
+#ifdef QUOTIENT_DEBUG
+      if (graph.element_sizes[element] < 0) {
+        std::cerr << "Encountered a negative element_size." << std::endl;
+      }
+#endif
+      bound2 += graph.element_sizes[element];
     }
   }
 
-  return std::min(bound0, std::min(bound1, bound2));
+  const Int degree = std::min(bound0, std::min(bound1, bound2));
+  return degree;
 }
 
 // Returns the external degree approximation of Gilbert, Moler, and Schreiber,
@@ -111,13 +130,7 @@ inline Int Gilbert(const QuotientGraph& graph, Int i) {
     degree += graph.supernode_sizes[index];
   }
   for (const Int& element : graph.element_lists[i]) {
-    for (const Int& j : graph.structures[element]) {
-      const Int head = graph.head_index[j];
-      if (head == i || graph.supernode_sizes[head] < 0) {
-        continue;
-      }
-      ++degree;
-    }
+    degree += graph.element_sizes[element];
   }
   const Int num_vertices_left =
       graph.num_original_vertices - graph.num_eliminated_vertices;
@@ -141,7 +154,7 @@ inline Int ExternalDegree(
     Int i,
     Int pivot,
     const std::vector<int>& pivot_structure_mask,
-    const std::vector<Int>& external_structure_sizes,
+    const std::vector<Int>& external_element_sizes,
     ExternalDegreeType degree_type,
     std::vector<int>* exact_degree_mask) {
   Int degree = -1;
@@ -152,7 +165,7 @@ inline Int ExternalDegree(
     }
     case kAmestoyExternalDegree: {
       degree = external_degree::Amestoy(
-          graph, i, pivot, pivot_structure_mask, external_structure_sizes);
+          graph, i, pivot, pivot_structure_mask, external_element_sizes);
       break;
     }
     case kAshcraftExternalDegree: {

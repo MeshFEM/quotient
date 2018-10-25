@@ -111,13 +111,6 @@ struct QuotientGraph {
   // ordering defined by the 'next_index' traversal).
   std::vector<Int> tail_index;
 
-  // A list of length 'num_original_vertices' of element nonzero structures.
-  // The 'element' index of the list, 'structures[element]', will be created
-  // when supernode 'element' is converted from a variable to an element.
-  //
-  // The structure list also contains non-principal members.
-  std::vector<std::vector<Int>> structures;
-
   // A list of length 'num_original_vertices' of the (unmodified) variable
   // adjacencies of each principal variable. For example, if index 'i' is a
   // principal variable, then 'adjacency_lists[i]' contains the set of neighbor
@@ -127,6 +120,11 @@ struct QuotientGraph {
   // The adjacency lists connect to each individual member of any supernode.
   std::vector<std::vector<Int>> adjacency_lists;
 
+  // A set of linked lists for keeping track of supervariables of each degree
+  // (and, also, a way to provide fast access to a supervariable with
+  // minimal degree).
+  DegreeLists degree_lists;
+
   // A list of length 'num_original_vertices' of the elements adjacent to
   // each principal variable. For example, if index 'i' is a principal
   // variable, then 'element_lists[i]' contains the list of elements adjacent
@@ -135,10 +133,24 @@ struct QuotientGraph {
   // The element lists only contain the principal member of any supernode.
   std::vector<std::vector<Int>> element_lists;
 
-  // A set of linked lists for keeping track of supervariables of each degree
-  // (and, also, a way to provide fast access to a supervariable with
-  // minimal degree).
-  DegreeLists degree_lists;
+  // An (optional) list of length 'num_original_vertices' of element nonzero
+  // structures. The 'element' index of the list, 'structures[element]', will
+  // be created when supernode 'element' is converted from a variable to an
+  // element.
+  //
+  // The structure list also contains non-principal members.
+  std::vector<std::vector<Int>> structures;
+
+  // A list of length 'num_original_vertices' of elements (lists of principal
+  // variables in the nonzero pattern). The 'e' index of the list,
+  // 'elements[e]', will be created when supernode 'e' is converted from a
+  // variable to an element.
+  //
+  // The structure list also contains non-principal members.
+  std::vector<std::vector<Int>> elements;
+
+  // The total number of variables (including nonprincipal) in each element.
+  std::vector<Int> element_sizes;
 
   // An optional list of aggressive element absorption pairs: each pair (e, f)
   // consists of the absorbing element, e, and the absorbed element, f.
@@ -198,35 +210,35 @@ struct QuotientGraph {
   //
   bool StructuralSupervariablesAreQuotientIndistinguishable(Int i, Int j) const;
 
-  // Initializes 'external_structure_sizes' to a 'num_original_vertices' length
+  // Initializes 'external_element_sizes' to a 'num_original_vertices' length
   // vector with all entries equal to -1.
-  void InitializeExternalStructureSizes(
-    std::vector<Int>* external_structure_sizes) const;
+  void InitializeExternalElementSizes(
+    std::vector<Int>* external_element_sizes) const;
 
   // An implementation of Algorithm 2 from [ADD-96].
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
   // of a supernode in the structure, L_p.
   //
-  // On entry all entries of external_structure_sizes should be less than zero.
-  // On exit, all entries of 'external_structure_sizes' corresponding to element
+  // On entry all entries of external_element_sizes should be less than zero.
+  // On exit, all entries of 'external_element_sizes' corresponding to element
   // indices in the element list of a supernode in the structure L_p should be
   // non-negative and equal to |L_e \ L_p|.
   //
   // If the 'aggressive_absorption' boolean is true, then
   // 'aggressive_absorption_elements' is filled with the elements which should
   // be absorbed.
-  void ExternalStructureSizes(
-    const std::vector<Int>& supernodal_pivot_structure,
+  void ExternalElementSizes(
+    Int pivot,
     bool aggressive_absorption,
-    std::vector<Int>* external_structure_sizes,
+    std::vector<Int>* external_element_sizes,
     std::vector<Int>* aggressive_absorption_elements) const;
 
-  // Sets all entries of 'external_structure_sizes' that correspond to an
+  // Sets all entries of 'external_element_sizes' that correspond to an
   // element index in the element list of a supernode in the structure L_p to
   // -1.
-  void ResetExternalStructureSizes(
-    const std::vector<Int>& supernodal_structure,
-    std::vector<Int>* external_structure_sizes) const;
+  void ResetExternalElementSizes(
+    const std::vector<Int>& original_pivot_element,
+    std::vector<Int>* external_element_sizes) const;
 
  private:
   // A definition of Ashcraft's hash function (as described in [ADD-96]).

@@ -53,6 +53,9 @@ struct MinimumDegreeControl {
   // to two) elements in the variable's element list.
   bool store_num_degree_updates_with_multiple_elements = false;
 
+  // Whether or not to create and store the nonzeros structures of each pivot.
+  bool store_structures = false;
+
   // Whether a breakdown of the elapsed seconds of each stage of the reordering
   // should be saved.
   bool time_stages = false;

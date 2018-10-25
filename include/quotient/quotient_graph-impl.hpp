@@ -85,7 +85,6 @@ inline void DegreeLists::UpdateDegree(Int index, Int degree) {
   AddDegree(index, degree);
 }
 
-
 inline QuotientGraph::QuotientGraph()
 : num_original_vertices(0), num_eliminated_vertices(0) { }
 
@@ -98,9 +97,6 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
   std::iota(head_index.begin(), head_index.end(), 0);
   tail_index.resize(num_original_vertices);
   std::iota(tail_index.begin(), tail_index.end(), 0);
-
-  // Trivially initialize the lower-triangular nonzero structures.
-  structures.resize(num_original_vertices);
 
   // Initialize the adjacency lists from the original graph.
   adjacency_lists.resize(num_original_vertices);
@@ -121,9 +117,6 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
     }
   }
 
-  // Trivially initialize the element lists.
-  element_lists.resize(num_original_vertices);
-
   // Initialize the degree lists.
   degree_lists.degrees.resize(num_original_vertices);
   degree_lists.degree_heads.resize(num_original_vertices - 1, -1);
@@ -133,6 +126,16 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph)
     const Int degree = adjacency_lists[source].size();
     degree_lists.AddDegree(source, degree);
   }
+
+  // Trivially initialize the element lists.
+  element_lists.resize(num_original_vertices);
+
+  // Trivially initialize the lower-triangular nonzero structures.
+  // TODO(Jack Poulson): Avoid allocating 'structures' unless the
+  // 'store_structures' flag of 'MinimumDegreeControl' is true.
+  structures.resize(num_original_vertices);
+  elements.resize(num_original_vertices);
+  element_sizes.resize(num_original_vertices, 0);
 }
 
 inline void QuotientGraph::Print() const {
@@ -144,7 +147,7 @@ inline void QuotientGraph::Print() const {
     const std::vector<Int> supernode = FormSupernode(i);
     PrintVector(supernode, "  members");
     if (supernode_sizes[i] < 0) {
-      PrintVector(structures[i], "  structure");
+      PrintVector(elements[i], "  elements");
     } else {
       PrintVector(adjacency_lists[i], "  adjacency_list");
       PrintVector(element_lists[i], "  element_list");
@@ -238,45 +241,64 @@ inline bool QuotientGraph::StructuralSupervariablesAreQuotientIndistinguishable(
   return true;
 }
 
-inline void QuotientGraph::InitializeExternalStructureSizes(
-    std::vector<Int>* external_structure_sizes) const {
-  external_structure_sizes->clear();
-  external_structure_sizes->resize(num_original_vertices, -1);
+inline void QuotientGraph::InitializeExternalElementSizes(
+    std::vector<Int>* external_element_sizes) const {
+  external_element_sizes->clear();
+  external_element_sizes->resize(num_original_vertices, -1);
 }
 
-inline void QuotientGraph::ExternalStructureSizes(
-    const std::vector<Int>& supernodal_pivot_structure,
+inline void QuotientGraph::ExternalElementSizes(
+    Int pivot,
     bool aggressive_absorption,
-    std::vector<Int>* external_structure_sizes,
+    std::vector<Int>* external_element_sizes,
     std::vector<Int>* aggressive_absorption_elements) const {
   // Follow the advice at the beginning of Section 5 of [AMD-96] and absorb
   // any element e that satisfies |L_e \ L_p| = 0.
   aggressive_absorption_elements->clear();
 
-  for (const Int& i : supernodal_pivot_structure) {
+  for (const Int& i : elements[pivot]) {
     const Int supernode_i_size = supernode_sizes[i];
+#ifdef QUOTIENT_DEBUG
+    if (supernode_i_size <= 0) {
+      std::cerr << "supernode_" << i << "_size=" << supernode_i_size
+                << " in ExternalElementSizes" << std::endl;
+    }
+#endif
     for (const Int& element : element_lists[i]) {
-      Int& external_structure_size = (*external_structure_sizes)[element];
-      if (external_structure_size < 0) {
-        external_structure_size = structures[element].size();
+      if (element == pivot) {
+        continue;
+      }
+      Int& external_element_size = (*external_element_sizes)[element];
+      if (external_element_size < 0) {
+        external_element_size = element_sizes[element];
       }
 
-      external_structure_size -= supernode_i_size;
-      if (aggressive_absorption && external_structure_size == 0) {
+      external_element_size -= supernode_i_size;
+      if (aggressive_absorption && external_element_size == 0) {
         aggressive_absorption_elements->push_back(element);
       }
     }
   }
 }
 
-inline void QuotientGraph::ResetExternalStructureSizes(
-    const std::vector<Int>& supernodal_structure,
-    std::vector<Int>* external_structure_sizes) const {
-  for (const Int& i : supernodal_structure) {
+inline void QuotientGraph::ResetExternalElementSizes(
+    const std::vector<Int>& original_pivot_element,
+    std::vector<Int>* external_element_sizes) const {
+  for (const Int& i : original_pivot_element) {
     for (const Int& element : element_lists[i]) {
-      (*external_structure_sizes)[element] = -1;
+      (*external_element_sizes)[element] = -1;
     }
   }
+
+#ifdef QUOTIENT_DEBUG
+  for (std::size_t index = 0; index < external_element_sizes->size(); ++index) {
+    if ((*external_element_sizes)[index] != -1) {
+      std::cerr << "external_element_sizes[" << index << "] was "
+                << (*external_element_sizes)[index] << " after reset."
+                << std::endl;
+    }
+  }
+#endif
 }
 
 } // namespace quotient
