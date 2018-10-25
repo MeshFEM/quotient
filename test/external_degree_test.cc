@@ -10,6 +10,9 @@
 #include "quotient.hpp"
 #include "catch.hpp"
 
+// TODO(Jack Poulson): Add much more detailed external degree tests that
+// nontrivially distinguish between the various approximations.
+
 TEST_CASE("ExactExternalDegree", "[exact]") {
   using quotient::Int;
   quotient::QuotientGraph graph;
@@ -56,7 +59,7 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
       {0, 2},
       {},
       {},
-      {0, 7},
+      {0, 1, 7},
       {},
       {},
       {},
