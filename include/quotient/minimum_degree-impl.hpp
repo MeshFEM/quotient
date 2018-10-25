@@ -486,7 +486,6 @@ inline void ConvertPivotIntoElement(
   // decrementing their element sizes and marking the supernode as eliminated
   // by making its sign negative.
   for (const Int& element : original_pivot_element_list) {
-    // HERE: Is this where the element sizes become negative?
     graph->element_sizes[element] -= supernode_size;
   }
   graph->supernode_sizes[pivot] *= -1;
