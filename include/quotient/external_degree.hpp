@@ -45,7 +45,6 @@ Int ExternalDegree(
     const QuotientGraph& graph,
     Int i,
     Int pivot,
-    const std::vector<int>& pivot_structure_mask,
     const std::vector<Int>& external_element_sizes,
     ExternalDegreeType degree_type,
     std::vector<int>* exact_degree_mask);

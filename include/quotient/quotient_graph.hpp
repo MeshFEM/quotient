@@ -82,7 +82,8 @@ struct DegreeLists {
 //
 // There appears to be a plethora of publicly available preprints.
 //
-struct QuotientGraph {
+class QuotientGraph {
+ public:
   // The number of vertices in the original graph.
   Int num_original_vertices;
 

@@ -20,9 +20,102 @@ namespace quotient {
 
 namespace external_degree {
 
+// Computes the exact external degree of supernode i using a short-cut of
+// Eq. (2) of [ADD-96] meant for the case where there are no members in the
+// element list.
+//   d_i = |A_i \ supernode(i)|.
+inline Int ExactEmpty(const QuotientGraph& graph, Int i) {
+  // Add the cardinality of A_i \ supernode(i).
+  Int degree = 0;
+  for (const Int& index : graph.adjacency_lists[i]) {
+    degree += graph.supernode_sizes[index];
+  }
+
+#ifdef QUOTIENT_DEBUG
+  // We should only have one member of the element list, 'pivot'.
+  if (graph.element_lists[i].size() != 0) {
+    std::cerr << "The element list was assumed empty." << std::endl;
+  }
+#endif
+
+  return degree;
+}
+
+// Computes the exact external degree of supernode i using a short-cut of
+// Eq. (2) of [ADD-96] meant for the case where there is only one member of the
+// element list.
+//   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)|.
+//
+// NOTE: It is assumed that 'i' is a principal member of L_p.
+inline Int ExactSingle(const QuotientGraph& graph, Int i, Int pivot) {
+  // Add the cardinality of A_i \ supernode(i).
+  Int degree = 0;
+  for (const Int& index : graph.adjacency_lists[i]) {
+    degree += graph.supernode_sizes[index];
+  }
+
+#ifdef QUOTIENT_DEBUG
+  // We should only have one member of the element list, 'pivot'.
+  if (graph.element_lists[i].size() != 1) {
+    std::cerr << "There was more than one member in the element list."
+              << std::endl;
+  }
+  if (graph.element_lists[i][0] != pivot) {
+    std::cerr << "The element list should have only contained the pivot."
+              << std::endl;
+  }
+#endif
+  // Add |L_p \ supernode(i)|.
+  degree += graph.element_sizes[pivot] - graph.supernode_sizes[i];
+
+  return degree;
+}
+
+// Computes the exact external degree of supernode i using a short-cut of
+// Eq. (2) of [ADD-96] meant for the case where there are two members of the
+// element list.
+//   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)| + |L_e \ L_p|.
+//
+// NOTE: It is assumed that 'i' is a principal member of L_p.
+inline Int ExactDouble(
+    const QuotientGraph& graph,
+    Int i,
+    Int pivot,
+    const std::vector<Int>& external_element_sizes) {
+  // Add the cardinality of A_i \ supernode(i).
+  Int degree = 0;
+  for (const Int& index : graph.adjacency_lists[i]) {
+    degree += graph.supernode_sizes[index];
+  }
+
+#ifdef QUOTIENT_DEBUG
+  // We should only have one member of the element list, 'pivot'.
+  if (graph.element_lists[i].size() != 2) {
+    std::cerr << "There was more than one member in the element list."
+              << std::endl;
+  }
+  if (graph.element_lists[i][0] != pivot &&
+      graph.element_lists[i][1] != pivot) {
+    std::cerr << "The element list should have contained the pivot."
+              << std::endl;
+  }
+#endif
+
+  // Add |L_p \ supernode(i)|.
+  degree += graph.element_sizes[pivot] - graph.supernode_sizes[i];
+
+  // Add |L_e \ L_p|.
+  const Int element = graph.element_lists[i][0] == pivot ?
+      graph.element_lists[i][1] : graph.element_lists[i][0];
+  degree += external_element_sizes[element];
+
+  return degree;
+}
+
 // Computes the exact external degree of supernode i using Eq. (2) of [ADD-96].
 //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
-inline Int Exact(const QuotientGraph& graph, Int i, std::vector<int>* mask) {
+inline Int ExactGeneric(
+    const QuotientGraph& graph, Int i, std::vector<int>* mask) {
   // Add the cardinality of A_i \ supernode(i).
   Int degree = 0;
   for (const Int& index : graph.adjacency_lists[i]) {
@@ -33,8 +126,7 @@ inline Int Exact(const QuotientGraph& graph, Int i, std::vector<int>* mask) {
   // that are outside supernode(i).
   for (const Int& element : graph.element_lists[i]) {
     for (const Int& j : graph.elements[element]) {
-      const Int head = graph.head_index[j];
-      if ((*mask)[j] || head == i || graph.supernode_sizes[head] < 0) {
+      if ((*mask)[j] || i == j || graph.supernode_sizes[j] < 0) {
         continue;
       }
       degree += graph.supernode_sizes[j];
@@ -53,16 +145,38 @@ inline Int Exact(const QuotientGraph& graph, Int i, std::vector<int>* mask) {
   return degree;
 }
 
+
+// Computes the exact external degree of supernode i using Eq. (2) of [ADD-96].
+//   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
+inline Int Exact(
+    const QuotientGraph& graph,
+    Int i,
+    Int pivot,
+    const std::vector<Int>& external_element_sizes,
+    std::vector<int>* mask) {
+  const Int num_elements = graph.element_lists[i].size();
+  if (num_elements == 0) {
+    return ExactEmpty(graph, i); 
+  } else if (num_elements == 1) {
+    return ExactSingle(graph, i, pivot);
+  } else if (num_elements == 2) {
+    return ExactDouble(graph, i, pivot, external_element_sizes);
+  } else {
+    return ExactGeneric(graph, i, mask);
+  }
+}
+
 // Computes an approximation of the external degree of supernode i using Eq. (4)
 // of [ADD-96].
 //
 // This routine is made slightly more accurate by subtracting the size of
 // supernode(i) from bound0.
+//
+// NOTE: It is assumed that 'i' is a principal member of L_p.
 inline Int Amestoy(
     const QuotientGraph& graph,
     Int i,
     Int pivot,
-    const std::vector<int>& pivot_structure_mask,
     const std::vector<Int>& external_element_sizes) {
   const Int num_vertices_left =
       graph.num_original_vertices - graph.num_eliminated_vertices;
@@ -70,12 +184,8 @@ inline Int Amestoy(
 
   // Note that this usage of 'external' refers to |L_p \ supernode(i)| and not
   // |L_e \ L_p|, as is the case for 'external_element_sizes'.
-  Int external_pivot_structure_size = graph.element_sizes[pivot];
-  if (pivot_structure_mask[i]) {
-    // This branch should *always* activate within MinimumDegree, as external
-    // degrees are only computed for supernodes within the pivot structure.
-    external_pivot_structure_size -= graph.supernode_sizes[i];
-  }
+  Int external_pivot_structure_size = graph.element_sizes[pivot] -
+      graph.supernode_sizes[i];
 #ifdef QUOTIENT_DEBUG
   if (external_pivot_structure_size < 0) {
     std::cerr << "Encountered a negative external_pivot_structure_size"
@@ -140,9 +250,12 @@ inline Int Gilbert(const QuotientGraph& graph, Int i) {
 // Returns the external degree approximation of Ashcraft, Eisenstat, and Lucas:
 //   \tilde{d_i} = d_i if |E_i| = 2, \hat{d_i} otherwise.
 inline Int Ashcraft(
-    const QuotientGraph& graph, Int i, std::vector<int>* exact_degree_mask) {
+    const QuotientGraph& graph,
+    Int i,
+    Int pivot, 
+    const std::vector<Int>& external_element_sizes) {
   if (graph.element_lists[i].size() == 2) {
-    return Exact(graph, i, exact_degree_mask);
+    return ExactDouble(graph, i, pivot, external_element_sizes);
   }
   return Gilbert(graph, i);
 }
@@ -153,23 +266,24 @@ inline Int ExternalDegree(
     const QuotientGraph& graph,
     Int i,
     Int pivot,
-    const std::vector<int>& pivot_structure_mask,
     const std::vector<Int>& external_element_sizes,
     ExternalDegreeType degree_type,
     std::vector<int>* exact_degree_mask) {
   Int degree = -1;
   switch(degree_type) {
     case kExactExternalDegree: {
-      degree = external_degree::Exact(graph, i, exact_degree_mask);
+      degree = external_degree::Exact(
+          graph, i, pivot, external_element_sizes, exact_degree_mask);
       break;
     }
     case kAmestoyExternalDegree: {
       degree = external_degree::Amestoy(
-          graph, i, pivot, pivot_structure_mask, external_element_sizes);
+          graph, i, pivot, external_element_sizes);
       break;
     }
     case kAshcraftExternalDegree: {
-      degree = external_degree::Ashcraft(graph, i, exact_degree_mask);
+      degree = external_degree::Ashcraft(
+          graph, i, pivot, external_element_sizes);
       break;
     }
     case kGilbertExternalDegree: {

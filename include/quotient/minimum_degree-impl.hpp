@@ -81,6 +81,8 @@ namespace minimum_degree {
 //
 // The return value is the number of traversed members of the elements in the
 // element list of the pivot that are no longer variables.
+//
+// TODO(Jack Poulson): Move this into a QuotientGraph.
 inline Int ComputePivotElement(
     Int pivot,
     bool compute_structure,
@@ -181,6 +183,8 @@ inline Int ComputePivotElement(
 
 // Quickly reset the pivot mask to all zeros after having flagged the entries
 // corresponding to the principal variables of the current pivot structure.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void ResetPivotElementMask(
     Int pivot, QuotientGraph* graph, std::vector<int>* pivot_mask) {
   for (const Int& index : graph->adjacency_lists[pivot]) {
@@ -202,6 +206,8 @@ inline void ResetPivotElementMask(
 }
 
 // Sets the entry mask[i] to zero for each i in indices.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void UnflagPivotStructure(
     Int pivot, const QuotientGraph& graph, std::vector<int>* pivot_mask) {
   for (const Int& i : graph.elements[pivot]) {
@@ -218,6 +224,8 @@ inline void UnflagPivotStructure(
 }
 
 // Update the adjacency lists after computing the supernodal pivot structure.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void UpdateAdjacencyListsAfterSelectingPivot(
     Int pivot,
     const std::vector<int>& pivot_mask,
@@ -239,6 +247,8 @@ inline void UpdateAdjacencyListsAfterSelectingPivot(
 }
 
 // Mark the pivot elements in the mask.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void FlagPivotElementList(
     Int pivot, QuotientGraph* graph, std::vector<int>* pivot_mask) {
   for (const Int& element : graph->element_lists[pivot]) {
@@ -247,6 +257,8 @@ inline void FlagPivotElementList(
 }
 
 // Unmark the pivot elements in the mask.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void UnflagPivotElementList(
     Int pivot, QuotientGraph* graph, std::vector<int>* pivot_mask) {
   for (const Int& element : graph->element_lists[pivot]) {
@@ -265,6 +277,8 @@ inline void UnflagPivotElementList(
 }
 
 // Update the element lists after computing the supernodal pivot structure.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void UpdateElementListsAfterSelectingPivot(
     Int pivot, QuotientGraph* graph, std::vector<int>* pivot_mask) {
   for (const Int& i : graph->elements[pivot]) {
@@ -284,6 +298,8 @@ inline void UpdateElementListsAfterSelectingPivot(
 }
 
 // Perform any aggressive absorptions and clear the pivot structure mask.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void AggressiveAbsorption(
     Int pivot,
     const std::vector<Int>& aggressive_absorption_elements,
@@ -325,27 +341,47 @@ inline void AggressiveAbsorption(
 
 // Compute the external degree approximations of the supernodes
 // adjacent to the current pivot.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void ComputeExternalDegrees(
     Int pivot,
-    const std::vector<int>& pivot_mask,
     const std::vector<Int>& external_element_sizes,
     ExternalDegreeType degree_type,
     std::vector<int>* exact_degree_mask,
     QuotientGraph* graph,
     std::vector<Int>* external_degrees) {
+  std::vector<Int> degrees(4);
   const std::size_t supernodal_struct_size = graph->elements[pivot].size();
   external_degrees->resize(supernodal_struct_size);
   // TODO(Jack Poulson): Consider how to parallelize using different masks
   // for each thread.
   for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
     const Int i = graph->elements[pivot][index];
+#ifdef QUOTIENT_DEBUG
+    for (Int type = 0; type < 4; ++type) {
+      degrees[type] = ExternalDegree(
+          *graph, i, pivot, external_element_sizes,
+          static_cast<ExternalDegreeType>(type), exact_degree_mask);
+    }
+    if (degrees[1] < degrees[0] ||
+        degrees[2] < degrees[1] ||
+        degrees[3] < degrees[2]) { 
+      std::cerr << "Degrees: " << degrees[0] << ", " << degrees[1] << ", "
+                << degrees[2] << ", " << degrees[3] << "\n";
+    }
+    std::cerr.flush();
+    (*external_degrees)[index] = degrees[degree_type];
+#else
     (*external_degrees)[index] = ExternalDegree(
-        *graph, i, pivot, pivot_mask, external_element_sizes, degree_type,
+        *graph, i, pivot, external_element_sizes, degree_type,
         exact_degree_mask);
+#endif
   }
 }
 
 // Insert the new external degrees.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void UpdateExternalDegrees(
     Int pivot,
     const std::vector<Int>& external_degrees,
@@ -359,6 +395,8 @@ inline void UpdateExternalDegrees(
 }
 
 // Computes hashes of the supervariables in the pivot structure.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void ComputeVariableHashes(
     const QuotientGraph& graph,
     Int pivot,
@@ -384,6 +422,8 @@ inline void ComputeVariableHashes(
 //
 // The test for indistinguishability does not depend upon the variable
 // supernodal structure and is thus invariant to supervariable merges.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void DetectAndMergeVariables(
     Int pivot,
     const std::vector<std::size_t>& bucket_keys,
@@ -496,6 +536,8 @@ inline void DetectAndMergeVariables(
 }
 
 // Converts the 'pivot' (super)variable into an element.
+//
+// TODO(Jack Poulson): Move this into QuotientGraph.
 inline void ConvertPivotIntoElement(
     Int pivot, const std::vector<Int>& original_pivot_element_list,
     QuotientGraph* graph) {
@@ -546,9 +588,17 @@ inline MinimumDegreeAnalysis MinimumDegree(
   // the cardinalities of |L_e \ L_p| for each element e in an element list of
   // a supervariable in the current pivot structure, L_p.
   std::vector<Int> external_element_sizes;
+#ifdef QUOTIENT_DEBUG
+  // We will compute all degree approximations to ensure that the guaranteed
+  // inequalities hold.
+  const bool compute_external_element_sizes = true;
+#else
   const bool compute_external_element_sizes =
       control.aggressive_absorption ||
-      control.degree_type == kAmestoyExternalDegree;
+      control.degree_type == kExactExternalDegree ||
+      control.degree_type == kAmestoyExternalDegree ||
+      control.degree_type == kAshcraftExternalDegree;
+#endif
 
   // A vector that will be used to store the list of elements that should be
   // aggressively absorbed in a particular stage.
@@ -567,6 +617,8 @@ inline MinimumDegreeAnalysis MinimumDegree(
   // A mask of length 'num_orig_vertices' that is 1 in index 'i' if and only
   // if 'i' is a member of the current pivot's structure. All other entries
   // will be zero.
+  //
+  // TODO(Jack Poulson): Move this into QuotientGraph.
   std::vector<int> pivot_mask(num_orig_vertices, 0);
 
   // A vector for storing the list of new external degree updates.
@@ -577,10 +629,13 @@ inline MinimumDegreeAnalysis MinimumDegree(
   // degree computations were requested, and it must be set to all zeros before
   // and after each call to ExternalDegree.
   std::vector<int> exact_degree_mask;
-  if (control.degree_type == kExactExternalDegree ||
-      control.degree_type == kAshcraftExternalDegree) {
+#ifdef QUOTIENT_DEBUG
+  exact_degree_mask.resize(num_orig_vertices, 0);
+#else
+  if (control.degree_type == kExactExternalDegree) {
     exact_degree_mask.resize(num_orig_vertices, 0);
   }
+#endif
 
   // A set of buckets for each hash value (modulo num_original_vertices) of the
   // supervariables.
@@ -663,8 +718,8 @@ inline MinimumDegreeAnalysis MinimumDegree(
 
     if (control.time_stages) timers[kComputeExternalDegrees].Start();
     ComputeExternalDegrees(
-        pivot, pivot_mask, external_element_sizes, control.degree_type,
-        &exact_degree_mask, &quotient_graph, &external_degrees);
+        pivot, external_element_sizes, control.degree_type, &exact_degree_mask,
+        &quotient_graph, &external_degrees);
     if (control.time_stages) timers[kComputeExternalDegrees].Stop();
 
     if (control.time_stages) timers[kUpdateExternalDegrees].Start();

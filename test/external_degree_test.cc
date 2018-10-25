@@ -125,16 +125,16 @@ TEST_CASE("ExactExternalDegree", "[exact]") {
 
   const Int variable = 4;
   const Int exact_external_degree = ExternalDegree(
-      graph, variable, pivot, pivot_structure_mask, external_element_sizes,
+      graph, variable, pivot, external_element_sizes,
       quotient::kExactExternalDegree, &exact_degree_mask);
   const Int amestoy_external_degree = ExternalDegree(
-      graph, variable, pivot, pivot_structure_mask, external_element_sizes,
+      graph, variable, pivot, external_element_sizes,
       quotient::kAmestoyExternalDegree, &exact_degree_mask);
   const Int ashcraft_external_degree = ExternalDegree(
-      graph, variable, pivot, pivot_structure_mask, external_element_sizes,
+      graph, variable, pivot, external_element_sizes,
       quotient::kAshcraftExternalDegree, &exact_degree_mask);
   const Int gilbert_external_degree = ExternalDegree(
-      graph, variable, pivot, pivot_structure_mask, external_element_sizes,
+      graph, variable, pivot, external_element_sizes,
       quotient::kGilbertExternalDegree, &exact_degree_mask);
 
   // d_4 = |A_4 \ supernode(4)| + |(\cup_{e in E_4} L_e) \ supernode(4)|
