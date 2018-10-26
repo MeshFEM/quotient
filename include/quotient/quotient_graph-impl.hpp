@@ -848,7 +848,7 @@ inline void QuotientGraph::MergeVariables(
 inline void QuotientGraph::ConvertPivotIntoElement() {
   const Int supernode_size = supernode_sizes_[pivot_];
   const std::vector<Int>& pivot_element_list = control_.aggressive_absorption ?
-      original_pivot_element_list_ : elements_[pivot_];
+      original_pivot_element_list_ : element_lists_[pivot_];
 
   // Since this supervariable is being eliminated, it needs to be implicitly
   // removed from all elements containing it. This is accomplished through
