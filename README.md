@@ -40,7 +40,7 @@ graph.FlushEdgeQueues();
 // approximation.
 quotient::MinimumDegreeControl control;
 control.degree_type = quotient::kAmestoyExternalDegree;
-const quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(
+const quotient::MinimumDegreeResult analysis = quotient::MinimumDegree(
     graph, control);
 ```
 

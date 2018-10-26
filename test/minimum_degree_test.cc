@@ -72,7 +72,7 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   control.store_structures = true;
   control.store_aggressive_absorptions = true;
   control.store_variable_merges = true;
-  const quotient::MinimumDegreeAnalysis analysis =
+  const quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
 
   const std::vector<Int> kExpectedEliminationOrder{
@@ -161,7 +161,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   control.store_structures = true;
   control.store_aggressive_absorptions = true;
   control.store_variable_merges = true;
-  const quotient::MinimumDegreeAnalysis analysis =
+  const quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
 
   const std::vector<Int> kExpectedEliminationOrder{

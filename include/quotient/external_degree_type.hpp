@@ -5,13 +5,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-#ifndef QUOTIENT_EXTERNAL_DEGREE_H_
-#define QUOTIENT_EXTERNAL_DEGREE_H_
-
-#include <vector>
-
-#include "quotient/config.hpp"
-#include "quotient/quotient_graph.hpp"
+#ifndef QUOTIENT_EXTERNAL_DEGREE_TYPE_H_
+#define QUOTIENT_EXTERNAL_DEGREE_TYPE_H_
 
 namespace quotient {
 
@@ -39,18 +34,6 @@ enum ExternalDegreeType {
   kGilbertExternalDegree,
 };
 
-
-// Returns (an approximation of) the external degree of a given supervariable.
-Int ExternalDegree(
-    const QuotientGraph& graph,
-    Int i,
-    Int pivot,
-    const std::vector<Int>& external_element_sizes,
-    ExternalDegreeType degree_type,
-    std::vector<int>* exact_degree_mask);
-
 } // namespace quotient
 
-#include "quotient/external_degree-impl.hpp"
-
-#endif // ifndef QUOTIENT_EXTERNAL_DEGREE_H_
+#endif // ifndef QUOTIENT_EXTERNAL_DEGREE_TYPE_H_

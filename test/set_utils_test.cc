@@ -8,6 +8,7 @@
 #define CATCH_CONFIG_MAIN
 #include <vector>
 #include "quotient.hpp"
+#include "quotient/set_utils.hpp"
 #include "catch.hpp"
 
 TEST_CASE("SizeOfIntersection", "[size-of-intersection]") {

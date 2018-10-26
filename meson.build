@@ -56,14 +56,6 @@ random_access_heap_test_exe = executable(
     dependencies : openmp_dep)
 test('RandomAccessHeap tests', random_access_heap_test_exe)
 
-# Unit tests for the ExternalDegree function.
-external_degree_test_exe = executable(
-    'external_degree_test',
-    ['test/external_degree_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir,
-    dependencies : openmp_dep)
-test('ExternalDegree tests', external_degree_test_exe)
-
 # Unit tests for the MinimumDegree function.
 minimum_degree_test_exe = executable(
     'minimum_degree_test',

@@ -253,7 +253,7 @@ AMDExperiment RunMatrixMarketAMDTest(
     }
     quotient::Timer timer;
     timer.Start();
-    const quotient::MinimumDegreeAnalysis analysis = quotient::MinimumDegree(
+    const quotient::MinimumDegreeResult analysis = quotient::MinimumDegree(
       *graph, control);
     elapsed_seconds.push_back(timer.Stop());
     largest_supernode_sizes.push_back(analysis.LargestSupernodeSize());

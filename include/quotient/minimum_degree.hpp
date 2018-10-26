@@ -13,59 +13,14 @@
 
 #include "quotient/config.hpp"
 #include "quotient/coordinate_graph.hpp"
-#include "quotient/external_degree.hpp"
+#include "quotient/minimum_degree_control.hpp"
 
 namespace quotient {
-
-// A data structure for controlling the MinimumDegree reordering routine.
-struct MinimumDegreeControl {
-  // The type of approximation to use for the external degree estimates.
-  ExternalDegreeType degree_type = kAmestoyExternalDegree;
-
-  // The type of hash function to use for converting a variable to std::size_t.
-  VariableHashType hash_type = kBasicVariableHash;
-
-  // Whether nontrivial supernodes are allowed. It is highly recommended that
-  // this remain true.
-  bool allow_supernodes = true;
-
-  // Whether aggressive element absorptions are allowed.
-  bool aggressive_absorption = true;
-
-  // Whether the entire degree list will be traversed in order to ensure that
-  // the member of the minimal degree list with smallest index is chosen.
-  bool force_minimal_pivot_indices = false;
-
-  // Whether the list of pairs of aggressive element absorptions should be
-  // returned in the MinimumDegreeAnalysis result of MinimumDegree.
-  bool store_aggressive_absorptions = false;
-
-  // Whether the list of pairs of variable merges should be returned in the
-  // MinimumDegreeAnalysis result of MinimumDegree.
-  bool store_variable_merges = false;
-
-  // Whether a list should be stored of the lengths of the element lists of
-  // the pivots.
-  bool store_pivot_element_list_sizes = false;
-
-  // Whether or not to store the count of the number of external degree updates
-  // which involved more than two (and, separately, how many less than or equal
-  // to two) elements in the variable's element list.
-  bool store_num_degree_updates_with_multiple_elements = false;
-
-  // Whether or not to create and store the nonzeros structures of each pivot.
-  bool store_structures = false;
-
-  // Whether a breakdown of the elapsed seconds of each stage of the reordering
-  // should be saved.
-  bool time_stages = false;
-};
-
 
 // The result of running the MinimumDegree reordering algorithm. It contains
 // the ordered list of eliminated principal vertices, the list of supernodes,
 // and the supernodal nonzero structure of each principal column.
-struct MinimumDegreeAnalysis {
+struct MinimumDegreeResult {
   // The recommended elimination order of the supernodes (with each supernode
   // represented by its principal member).
   std::vector<Int> elimination_order;
@@ -126,7 +81,7 @@ struct MinimumDegreeAnalysis {
   // so we will allocate an upper bound for the amount of required space.
   // The 'supernodes' and 'structures' variables will be copied over from
   // the quotient graph just before the analysis completes.
-  MinimumDegreeAnalysis(Int num_vertices);
+  MinimumDegreeResult(Int num_vertices);
 
   // Returns the principal member of the largest supernode.
   Int LargestSupernode() const;
@@ -157,7 +112,7 @@ struct MinimumDegreeAnalysis {
 //
 // The input graph must be explicitly symmetric.
 //
-MinimumDegreeAnalysis MinimumDegree(
+MinimumDegreeResult MinimumDegree(
   const CoordinateGraph& graph, const MinimumDegreeControl& control);
 
 } // namespace quotient
