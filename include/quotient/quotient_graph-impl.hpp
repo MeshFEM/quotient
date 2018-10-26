@@ -109,6 +109,10 @@ inline QuotientGraph::QuotientGraph(
 #endif
 }
 
+inline const std::vector<Int>& QuotientGraph::EliminationOrder() const {
+  return elimination_order_;
+}
+
 inline Int QuotientGraph::GetNextPivot() {
   pivot_ = degree_lists_.FindMinimalIndex(control_.force_minimal_pivot_indices);
   return pivot_;

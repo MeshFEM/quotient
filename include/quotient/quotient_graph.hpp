@@ -49,15 +49,12 @@ class QuotientGraph {
   // Returns the number of vertices that have been eliminated from the graph.
   Int NumEliminatedVertices() const;
 
+  // Returns the ordered list of eliminated principal variables.
+  const std::vector<Int>& EliminationOrder() const;
+
   // Returns the number of times that supervariables have been falsely hashed
   // into the same bucket.
   Int NumHashCollisions() const;
-
-  // Returns the principal member (if it exists) of the next supernode.
-  Int NextSupernode(Int i) const;
-
-  // Returns the principal member (if it exists) of the previous supernode.
-  Int PreviousSupernode(Int i) const;
 
   // Forms the set of members of the supernode with principal variable 'i'.
   std::vector<Int> FormSupernode(Int i) const;

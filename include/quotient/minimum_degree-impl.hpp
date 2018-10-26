@@ -24,9 +24,7 @@
 
 namespace quotient {
 
-inline MinimumDegreeResult::MinimumDegreeResult(Int num_vertices) {
-  elimination_order.reserve(num_vertices);
-}
+inline MinimumDegreeResult::MinimumDegreeResult(Int num_vertices) { }
 
 inline Int MinimumDegreeResult::NumStrictlyLowerCholeskyNonzeros() const {
   return num_cholesky_nonzeros - supernodes.size();
@@ -115,12 +113,14 @@ inline MinimumDegreeResult MinimumDegree(
   // Eliminate the variables.
   QuotientGraph quotient_graph(graph, control);
   while (quotient_graph.NumEliminatedVertices() < num_orig_vertices) {
-    const Int pivot = quotient_graph.GetNextPivot();
+    // Get the next pivot.
+    quotient_graph.GetNextPivot();
     if (control.store_pivot_element_list_sizes) {
       analysis.pivot_element_list_sizes.push_back(
           quotient_graph.NumPivotElements());
     }
 
+    // Compute the structure of this pivot block.
     if (control.time_stages) timers[kComputePivotStructure].Start();
     const Int num_stale_element_members =
         quotient_graph.ComputePivotStructure();
@@ -129,65 +129,77 @@ inline MinimumDegreeResult MinimumDegree(
     analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
     analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
 
+    // Update the adjacency lists.
     if (control.time_stages) timers[kUpdateAdjacencyLists].Start();
     quotient_graph.UpdateAdjacencyListsAfterSelectingPivot();
     if (control.time_stages) timers[kUpdateAdjacencyLists].Stop();
 
+    // Update the element lists.
     if (control.time_stages) timers[kUpdateElementLists].Start();
     quotient_graph.FlagPivotElementList();
     quotient_graph.UpdateElementListsAfterSelectingPivot();
     if (control.time_stages) timers[kUpdateElementLists].Stop();
 
-    // Compute the external structure cardinalities of the elements.
-    // (but only if the Amestoy external degree approximation is requested).
     if (quotient_graph.UsingExternalElementSizes()) {
+      // Compute the external structure cardinalities, |L_e \ L_p|, of all
+      // elements e in an element list of a supernode in L_p. Any elements to
+      // be aggressively absorbed are also returned.
       if (control.time_stages) timers[kExternalElementSizes].Start();
       quotient_graph.RecomputeExternalElementSizes(
           &aggressive_absorption_elements);
       if (control.time_stages) timers[kExternalElementSizes].Stop();
     }
 
+    // Perform any aggressive absorption.
     if (control.time_stages) timers[kUpdateElementLists].Start();
     quotient_graph.AggressiveAbsorption(aggressive_absorption_elements);
     if (control.time_stages) timers[kUpdateElementLists].Stop();
 
+    // Clear the pivot element list mask.
     quotient_graph.UnflagPivotElementList();
 
+    // Store the external degrees of all supervariables in the pivot structure.
     if (control.time_stages) timers[kComputeExternalDegrees].Start();
     quotient_graph.ComputeExternalDegrees(&external_degrees);
     if (control.time_stages) timers[kComputeExternalDegrees].Stop();
 
+    // Update the degree lists using the computed degrees.
     if (control.time_stages) timers[kUpdateExternalDegrees].Start();
     quotient_graph.UpdateExternalDegrees(external_degrees);
     if (control.time_stages) timers[kUpdateExternalDegrees].Stop();
 
+    // Update/store metadata associated with the degree computations.
     analysis.num_degree_updates += quotient_graph.NumPivotDegreeUpdates();
     if (control.store_num_degree_updates_with_multiple_elements) {
       analysis.num_degree_updates_with_multiple_elements +=
           quotient_graph.NumPivotDegreeUpdatesWithMultipleElements();
     }
 
+    // Clear the supernodes in the pivot structure from the pivot mask.
     quotient_graph.UnflagPivotStructure();
 
     if (control.allow_supernodes) {
+      // Compute the hashes of all of the supervariables in the pivot structure.
       if (control.time_stages) timers[kComputeVariableHashes].Start();
       quotient_graph.ComputeVariableHashes(&bucket_keys);
       if (control.time_stages) timers[kComputeVariableHashes].Stop();
 
+      // Merge any equivalent supernodes by explicitly checking for equality
+      // between pairs that are in the same hash bucket.
       if (control.time_stages) timers[kMergeVariables].Start();
       quotient_graph.MergeVariables(bucket_keys);
       if (control.time_stages) timers[kMergeVariables].Stop();
     }
 
     if (quotient_graph.UsingExternalElementSizes()) {
+      // Clear the external element size array.
       if (control.time_stages) timers[kResetExternalElementSizes].Start();
       quotient_graph.ResetExternalElementSizes(); 
       if (control.time_stages) timers[kResetExternalElementSizes].Stop();
     }
 
+    // Formally convert the pivot from a supervariable into an element.
     quotient_graph.ConvertPivotIntoElement();
-
-    analysis.elimination_order.push_back(pivot);
   }
 
   // Extract the relevant information from the QuotientGraph.
@@ -195,6 +207,7 @@ inline MinimumDegreeResult MinimumDegree(
   for (Int i = 0; i < num_orig_vertices; ++i) {
     analysis.supernodes[i] = quotient_graph.FormSupernode(i);
   }
+  analysis.elimination_order = quotient_graph.EliminationOrder();
   if (control.store_structures) {
     quotient_graph.FormEliminatedStructures(&analysis.eliminated_structures);
   }
