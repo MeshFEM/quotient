@@ -162,21 +162,27 @@ inline void QuotientGraph::Print() const {
   }
 }
 
-inline std::vector<Int> QuotientGraph::FormSupernode(Int i) const {
+inline std::vector<Int> QuotientGraph::FormSupernode(
+    Int principal_member) const {
   std::vector<Int> supernode;
-  if (supernode_sizes_[i] == 0) {
+  if (supernode_sizes_[principal_member] == 0) {
     return supernode;
   }
 
-  supernode.reserve(std::abs(supernode_sizes_[i]));
-  Int index = i;
+  supernode.reserve(std::abs(supernode_sizes_[principal_member]));
+  Int index = principal_member;
   supernode.push_back(index);
-  while (index != tail_index_[i]) {
+  while (index != tail_index_[principal_member]) {
     index = next_index_[index];
     supernode.push_back(index);
   }
 
   return supernode;
+}
+
+inline const std::vector<Int>& QuotientGraph::Element(
+    Int principal_member) const {
+  return elements_[principal_member];
 }
 
 inline void QuotientGraph::FormEliminatedStructures(
@@ -424,16 +430,18 @@ inline void QuotientGraph::AggressiveAbsorption(
   }
 }
 
-inline Int QuotientGraph::ExactEmptyExternalDegree(Int i) const {
-  // Add the cardinality of A_i \ supernode(i).
+inline Int QuotientGraph::ExactEmptyExternalDegree(Int principal_variable)
+    const {
+  // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
+  // variable.
   Int degree = 0;
-  for (const Int& index : adjacency_lists_[i]) {
+  for (const Int& index : adjacency_lists_[principal_variable]) {
     degree += supernode_sizes_[index];
   }
 
 #ifdef QUOTIENT_DEBUG
   // We should only have one member of the element list, 'pivot'.
-  if (element_lists_[i].size() != 0) {
+  if (element_lists_[principal_variable].size() != 0) {
     std::cerr << "The element list was assumed empty." << std::endl;
   }
 #endif
@@ -441,72 +449,81 @@ inline Int QuotientGraph::ExactEmptyExternalDegree(Int i) const {
   return degree;
 }
 
-inline Int QuotientGraph::ExactSingleExternalDegree(Int i) const {
-  // Add the cardinality of A_i \ supernode(i).
+inline Int QuotientGraph::ExactSingleExternalDegree(Int principal_variable)
+    const {
+  // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
+  // variable.
   Int degree = 0;
-  for (const Int& index : adjacency_lists_[i]) {
+  for (const Int& index : adjacency_lists_[principal_variable]) {
     degree += supernode_sizes_[index];
   }
 
 #ifdef QUOTIENT_DEBUG
   // We should only have one member of the element list, 'pivot'.
-  if (element_lists_[i].size() != 1) {
+  if (element_lists_[principal_variable].size() != 1) {
     std::cerr << "There was more than one member in the element list."
               << std::endl;
   }
-  if (element_lists_[i][0] != pivot_) {
+  if (element_lists_[principal_variable][0] != pivot_) {
     std::cerr << "The element list should have only contained the pivot."
               << std::endl;
   }
 #endif
   // Add |L_p \ supernode(i)|.
-  degree += element_sizes_[pivot_] - supernode_sizes_[i];
+  degree += element_sizes_[pivot_] - supernode_sizes_[principal_variable];
 
   return degree;
 }
 
-inline Int QuotientGraph::ExactDoubleExternalDegree(Int i) const {
-  // Add the cardinality of A_i \ supernode(i).
+inline Int QuotientGraph::ExactDoubleExternalDegree(Int principal_variable)
+    const {
+  // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
+  // variable.
   Int degree = 0;
-  for (const Int& index : adjacency_lists_[i]) {
+  for (const Int& index : adjacency_lists_[principal_variable]) {
     degree += supernode_sizes_[index];
   }
 
 #ifdef QUOTIENT_DEBUG
   // We should only have one member of the element list, 'pivot'.
-  if (element_lists_[i].size() != 2) {
+  if (element_lists_[principal_variable].size() != 2) {
     std::cerr << "There was more than one member in the element list."
               << std::endl;
   }
-  if (element_lists_[i][0] != pivot_ && element_lists_[i][1] != pivot_) {
+  if (element_lists_[principal_variable][0] != pivot_ &&
+      element_lists_[principal_variable][1] != pivot_) {
     std::cerr << "The element list should have contained the pivot."
               << std::endl;
   }
 #endif
 
   // Add |L_p \ supernode(i)|.
-  degree += element_sizes_[pivot_] - supernode_sizes_[i];
+  degree += element_sizes_[pivot_] - supernode_sizes_[principal_variable];
 
   // Add |L_e \ L_p|.
-  const Int element = element_lists_[i][0] == pivot_ ? element_lists_[i][1] :
-      element_lists_[i][0];
+  const Int element = element_lists_[principal_variable][0] == pivot_ ?
+      element_lists_[principal_variable][1] :
+      element_lists_[principal_variable][0];
   degree += external_element_sizes_[element];
 
   return degree;
 }
 
-inline Int QuotientGraph::ExactGenericExternalDegree(Int i) const {
-  // Add the cardinality of A_i \ supernode(i).
+inline Int QuotientGraph::ExactGenericExternalDegree(Int principal_variable)
+    const {
+  // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
+  // variable.
   Int degree = 0;
-  for (const Int& index : adjacency_lists_[i]) {
+  for (const Int& index : adjacency_lists_[principal_variable]) {
     degree += supernode_sizes_[index];
   }
 
   // Add on the number of unique entries in the structures of the element lists
   // that are outside supernode(i).
-  for (const Int& element : element_lists_[i]) {
+  for (const Int& element : element_lists_[principal_variable]) {
     for (const Int& j : elements_[element]) {
-      if (exact_degree_mask_[j] || i == j || supernode_sizes_[j] < 0) {
+      if (exact_degree_mask_[j] || principal_variable == j ||
+          supernode_sizes_[j] < 0) {
         continue;
       }
       degree += supernode_sizes_[j];
@@ -516,7 +533,7 @@ inline Int QuotientGraph::ExactGenericExternalDegree(Int i) const {
 
   // Clear the mask.
   // NOTE: We allow (*mask)[i] to be set to zero to avoid branching.
-  for (const Int& element : element_lists_[i]) {
+  for (const Int& element : element_lists_[principal_variable]) {
     for (const Int& j : elements_[element]) {
       exact_degree_mask_[j] = 0;
     }
@@ -525,28 +542,29 @@ inline Int QuotientGraph::ExactGenericExternalDegree(Int i) const {
   return degree;
 }
 
-inline Int QuotientGraph::ExactExternalDegree(Int i) const {
-  const Int num_elements = element_lists_[i].size();
+inline Int QuotientGraph::ExactExternalDegree(Int principal_variable) const {
+  const Int num_elements = element_lists_[principal_variable].size();
   if (num_elements == 0) {
-    return ExactEmptyExternalDegree(i);
+    return ExactEmptyExternalDegree(principal_variable);
   } else if (num_elements == 1) {
-    return ExactSingleExternalDegree(i);
+    return ExactSingleExternalDegree(principal_variable);
   } else if (num_elements == 2) {
-    return ExactDoubleExternalDegree(i);
+    return ExactDoubleExternalDegree(principal_variable);
   } else {
-    return ExactGenericExternalDegree(i);
+    return ExactGenericExternalDegree(principal_variable);
   }
 }
 
-inline Int QuotientGraph::AmestoyExternalDegree(Int i) const {
+inline Int QuotientGraph::AmestoyExternalDegree(Int principal_variable) const {
   const Int num_vertices_left =
       num_original_vertices_ - num_eliminated_vertices_;
-  const Int old_degree = degree_lists_.degrees[i];
+  const Int old_degree = degree_lists_.degrees[principal_variable];
 
   // Note that this usage of 'external' refers to |L_p \ supernode(i)| and not
-  // |L_e \ L_p|, as is the case for 'external_element_sizes'.
+  // |L_e \ L_p|, as is the case for 'external_element_sizes', where 'i'
+  // is 'principal_variable'.
   Int external_pivot_structure_size =
-      element_sizes_[pivot_] - supernode_sizes_[i];
+      element_sizes_[pivot_] - supernode_sizes_[principal_variable];
 #ifdef QUOTIENT_DEBUG
   if (external_pivot_structure_size < 0) {
     std::cerr << "Encountered a negative external_pivot_structure_size"
@@ -554,13 +572,13 @@ inline Int QuotientGraph::AmestoyExternalDegree(Int i) const {
   }
 #endif
 
-  const Int bound0 = num_vertices_left - supernode_sizes_[i];
+  const Int bound0 = num_vertices_left - supernode_sizes_[principal_variable];
   const Int bound1 = old_degree + external_pivot_structure_size;
 
   // bound_2 = |A_i \ supernode(i)| + |L_p \ supernode(i)| +
   //           \sum_{e in E_i \ {p}} |L_e \ L_p|.
   Int bound2 = 0;
-  for (const Int& index : adjacency_lists_[i]) {
+  for (const Int& index : adjacency_lists_[principal_variable]) {
 #ifdef QUOTIENT_DEBUG
     if (supernode_sizes_[index] < 0) {
       std::cerr << "Encountered an element in an adjacency list." << std::endl;
@@ -569,7 +587,7 @@ inline Int QuotientGraph::AmestoyExternalDegree(Int i) const {
     bound2 += supernode_sizes_[index];
   }
   bound2 += external_pivot_structure_size;
-  for (const Int& element : element_lists_[i]) {
+  for (const Int& element : element_lists_[principal_variable]) {
     if (element == pivot_) {
       continue;
     }
@@ -589,45 +607,46 @@ inline Int QuotientGraph::AmestoyExternalDegree(Int i) const {
   return degree;
 }
 
-inline Int QuotientGraph::AshcraftExternalDegree(Int i) const {
-  if (element_lists_[i].size() == 2) {
-    return ExactDoubleExternalDegree(i);
+inline Int QuotientGraph::AshcraftExternalDegree(Int principal_variable) const {
+  if (element_lists_[principal_variable].size() == 2) {
+    return ExactDoubleExternalDegree(principal_variable);
   }
-  return GilbertExternalDegree(i);
+  return GilbertExternalDegree(principal_variable);
 }
 
-inline Int QuotientGraph::GilbertExternalDegree(Int i) const {
+inline Int QuotientGraph::GilbertExternalDegree(Int principal_variable) const {
   Int degree = 0;
-  for (const Int& index : adjacency_lists_[i]) {
+  for (const Int& index : adjacency_lists_[principal_variable]) {
     degree += supernode_sizes_[index];
   }
 
-  const Int supernode_size = supernode_sizes_[i];
-  for (const Int& element : element_lists_[i]) {
+  const Int supernode_size = supernode_sizes_[principal_variable];
+  for (const Int& element : element_lists_[principal_variable]) {
     degree += element_sizes_[element] - supernode_size;
   }
   const Int num_vertices_left =
       num_original_vertices_ - num_eliminated_vertices_;
-  return std::min(degree, num_vertices_left - supernode_sizes_[i]);
+  return std::min(degree,
+      num_vertices_left - supernode_sizes_[principal_variable]);
 }
 
-inline Int QuotientGraph::ExternalDegree(Int i) const {
+inline Int QuotientGraph::ExternalDegree(Int principal_variable) const {
   Int degree = -1;
   switch(control_.degree_type) {
     case kExactExternalDegree: {
-      degree = ExactExternalDegree(i);
+      degree = ExactExternalDegree(principal_variable);
       break;
     }
     case kAmestoyExternalDegree: {
-      degree = AmestoyExternalDegree(i);
+      degree = AmestoyExternalDegree(principal_variable);
       break;
     }
     case kAshcraftExternalDegree: {
-      degree = AshcraftExternalDegree(i);
+      degree = AshcraftExternalDegree(principal_variable);
       break;
     }
     case kGilbertExternalDegree: {
-      degree = GilbertExternalDegree(i);
+      degree = GilbertExternalDegree(principal_variable);
       break;
     }
   }
@@ -674,28 +693,30 @@ inline void QuotientGraph::UpdateExternalDegrees(
 }
 
 inline std::size_t QuotientGraph::VariableHash(
-    Int i, VariableHashType hash_type) const {
+    Int principal_variable, VariableHashType hash_type) const {
   if (hash_type == kAshcraftVariableHash) {
-    return AshcraftVariableHash(i);
+    return AshcraftVariableHash(principal_variable);
   } else {
-    return BasicVariableHash(i);
+    return BasicVariableHash(principal_variable);
   }
 }
 
-inline std::size_t QuotientGraph::AshcraftVariableHash(Int i) const {
-  std::size_t result = BasicVariableHash(i);
+inline std::size_t QuotientGraph::AshcraftVariableHash(
+    Int principal_variable) const {
+  std::size_t result = BasicVariableHash(principal_variable);
   result %= num_original_vertices_;
   return result;
 }
 
-inline std::size_t QuotientGraph::BasicVariableHash(Int i) const {
+inline std::size_t QuotientGraph::BasicVariableHash(
+    Int principal_variable) const {
   std::size_t result = 0;
-  for (const Int& j : adjacency_lists_[i]) {
+  for (const Int& j : adjacency_lists_[principal_variable]) {
     if (supernode_sizes_[j] > 0) {
       result += j;
     }
   }
-  for (const Int& j : element_lists_[i]) {
+  for (const Int& j : element_lists_[principal_variable]) {
     result += j;
   }
   return result;
