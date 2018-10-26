@@ -8,6 +8,7 @@
 #ifndef QUOTIENT_QUOTIENT_GRAPH_IMPL_H_
 #define QUOTIENT_QUOTIENT_GRAPH_IMPL_H_
 
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <numeric>
