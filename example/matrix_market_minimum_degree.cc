@@ -435,7 +435,7 @@ int main(int argc, char** argv) {
   const bool aggressive_absorption = parser.OptionalInput<bool>(
       "aggressive_absorption",
       "Eliminate elements with aggressive absorption?",
-      true);
+      false);
   const bool store_aggressive_absorptions = parser.OptionalInput<bool>(
       "store_aggressive_absorptions",
       "Store the aggressive absorption list?",
@@ -448,17 +448,17 @@ int main(int argc, char** argv) {
       parser.OptionalInput<bool>(
           "store_pivot_element_list_sizes",
           "Store the length of each pivot's element list?",
-          true);
+          false);
   const bool store_num_degree_updates_with_multiple_elements =
       parser.OptionalInput<bool>(
           "store_num_degree_updates_with_multiple_elements",
           "Store the number of degree updates whose corresponding variable had "
           "more than two members in its element list?",
-          true);
+          false);
   const bool store_structures = parser.OptionalInput<bool>(
       "store_structure",
       "Store the original structures for each pivot?",
-      true);
+      false);
   const int num_random_permutations = parser.OptionalInput<int>(
       "num_random_permutations",
       "The number of random permutations to test "

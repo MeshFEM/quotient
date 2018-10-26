@@ -38,7 +38,7 @@ struct MinimumDegreeControl {
   bool allow_supernodes = true;
 
   // Whether aggressive element absorptions are allowed.
-  bool aggressive_absorption = true;
+  bool aggressive_absorption = false;
 
   // Whether the entire degree list will be traversed in order to ensure that
   // the member of the minimal degree list with smallest index is chosen.
