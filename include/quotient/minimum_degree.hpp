@@ -30,9 +30,10 @@ struct MinimumDegreeResult {
   // the sorted list of members of the supernode.
   std::vector<std::vector<Int>> supernodes;
 
-  // The structures of the supernodes. Entry 'index' corresponds to the
-  // structure of supernode 'elimination_order[index]'.
-  std::vector<std::vector<Int>> principal_structures;
+  // The structures of the eliminated supernodes. Entry 'index' corresponds to
+  // the structure of supernode 'elimination_order[index]'. This will only be
+  // formed if 'MinimumDegreeControl.store_structures' was true.
+  std::vector<std::vector<Int>> eliminated_structures;
 
   // An optional list (based on the value of
   // 'MinimumDegreeControl.store_aggressive_absorptions') of aggressive element
@@ -51,17 +52,18 @@ struct MinimumDegreeResult {
   // the element lists of each pivot.
   std::vector<Int> pivot_element_list_sizes;
 
+  // The number of degree updates performed during the minimum-degree analysis.
+  Int num_degree_updates = 0;
+
   // An optional count (based on the value of
   // 'MinimumDegreeControl.store_num_degree_updates_with_multiple_elements')
   // of the number of external degree updates that involved a variable with
   // more than two members in its element list.
   Int num_degree_updates_with_multiple_elements = -1;
 
-  // An optional count (based on the value of
-  // 'MinimumDegreeControl.store_num_degree_updates_with_multiple_elements')
-  // of the number of external degree updates that involved a variable with
-  // more than two members in its element list.
-  Int num_degree_updates_without_multiple_elements = -1;
+  // The number of times that supervariables were falsely placed into the
+  // same bucket.
+  Int num_hash_collisions;
 
   // The number of structural nonzeros in the Cholesky factor.
   Int num_cholesky_nonzeros = 0;
@@ -69,9 +71,6 @@ struct MinimumDegreeResult {
   // The number of floating-point operations in a standard Cholesky
   // factorization using this ordering.
   double num_cholesky_flops = 0;
-
-  // The number of degree updates performed during the minimum-degree analysis.
-  Int num_degree_updates = 0;
 
   // The number of processed members of the elements in the pivot element lists
   // that were no longer active.

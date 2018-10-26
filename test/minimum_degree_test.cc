@@ -96,7 +96,7 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
 
   // This structure is defined directly (modulo translation from 1-based to
   // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
-  const std::vector<std::vector<Int>> kExpectedPrincipalStructures{
+  const std::vector<std::vector<Int>> kExpectedEliminatedStructures{
       {3, 5},
       {4, 5, 8},
       {4, 5, 6},
@@ -135,7 +135,7 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 #endif
   REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
-  REQUIRE(analysis.principal_structures == kExpectedPrincipalStructures);
+  REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
 }
 
 // Please see the beginning of Section 5 of [ADD-96].
@@ -179,7 +179,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
 
   // This structure is defined directly (modulo translation from 1-based to
   // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
-  const std::vector<std::vector<Int>> kExpectedPrincipalStructures{
+  const std::vector<std::vector<Int>> kExpectedEliminatedStructures{
       {2, 3},
       {2, 3},
       {3},
@@ -196,6 +196,6 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
   REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
-  REQUIRE(analysis.principal_structures == kExpectedPrincipalStructures);
+  REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
   REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 }

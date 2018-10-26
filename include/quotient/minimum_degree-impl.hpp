@@ -62,11 +62,7 @@ MinimumDegreeResult::FractionOfPivotsWithMultipleElements() const {
 
 inline double
 MinimumDegreeResult::FractionOfDegreeUpdatesWithMultipleElements() const {
-  const Int num_total_degree_updates =
-      num_degree_updates_with_multiple_elements +
-      num_degree_updates_without_multiple_elements;
-  return num_degree_updates_with_multiple_elements /
-      (1. * num_total_degree_updates);
+  return num_degree_updates_with_multiple_elements / (1. * num_degree_updates);
 }
 
 inline MinimumDegreeResult MinimumDegree(
@@ -88,7 +84,6 @@ inline MinimumDegreeResult MinimumDegree(
   }
   if (control.store_num_degree_updates_with_multiple_elements) {
     analysis.num_degree_updates_with_multiple_elements = 0;
-    analysis.num_degree_updates_without_multiple_elements = 0;
   }
 
   // A vector that will be used to store the list of elements that should be
@@ -100,10 +95,6 @@ inline MinimumDegreeResult MinimumDegree(
 
   // A vector for storing the list of new external degree updates.
   std::vector<Int> external_degrees;
-
-  // A set of buckets for each hash value (modulo num_original_vertices) of the
-  // supervariables.
-  std::vector<std::vector<Int>> buckets(num_orig_vertices);
 
   // A vector for storing the hashes of the supervariables in the current
   // pivot's structure.
@@ -123,11 +114,11 @@ inline MinimumDegreeResult MinimumDegree(
 
   // Eliminate the variables.
   QuotientGraph quotient_graph(graph, control);
-  while (quotient_graph.num_eliminated_vertices < num_orig_vertices) {
+  while (quotient_graph.NumEliminatedVertices() < num_orig_vertices) {
     const Int pivot = quotient_graph.GetNextPivot();
     if (control.store_pivot_element_list_sizes) {
       analysis.pivot_element_list_sizes.push_back(
-          quotient_graph.element_lists[pivot].size());
+          quotient_graph.NumPivotElements());
     }
 
     if (control.time_stages) timers[kComputePivotStructure].Start();
@@ -135,19 +126,8 @@ inline MinimumDegreeResult MinimumDegree(
         quotient_graph.ComputePivotStructure();
     if (control.time_stages) timers[kComputePivotStructure].Stop();
     analysis.num_stale_element_members += num_stale_element_members;
-
-    const Int pivot_size = quotient_graph.supernode_sizes[pivot];
-    const Int structure_size = quotient_graph.element_sizes[pivot];
-    analysis.num_cholesky_nonzeros +=
-        // Add the diagonal block nonzeros.
-        (pivot_size * (pivot_size + 1)) / 2 +
-        // Add the sub-diagonal-block nonzeros.
-        structure_size * pivot_size;
-    analysis.num_cholesky_flops +=
-        // Add the diagonal block factorization flops.
-        std::pow(1. * pivot_size, 3.) / 3. +
-        // Add the symmetric Schur-complement flops.
-        std::pow(1. * structure_size, 2.) * pivot_size;
+    analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
+    analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
 
     if (control.time_stages) timers[kUpdateAdjacencyLists].Start();
     quotient_graph.UpdateAdjacencyListsAfterSelectingPivot();
@@ -181,16 +161,10 @@ inline MinimumDegreeResult MinimumDegree(
     quotient_graph.UpdateExternalDegrees(external_degrees);
     if (control.time_stages) timers[kUpdateExternalDegrees].Stop();
 
-    analysis.num_degree_updates += quotient_graph.elements[pivot].size();
-
+    analysis.num_degree_updates += quotient_graph.NumPivotDegreeUpdates();
     if (control.store_num_degree_updates_with_multiple_elements) {
-      for (const Int& i : quotient_graph.elements[pivot]) {
-        if (quotient_graph.element_lists[i].size() > 2) {
-          ++analysis.num_degree_updates_with_multiple_elements;
-        } else {
-          ++analysis.num_degree_updates_without_multiple_elements;
-        }
-      }
+      analysis.num_degree_updates_with_multiple_elements +=
+          quotient_graph.NumPivotDegreeUpdatesWithMultipleElements();
     }
 
     quotient_graph.UnflagPivotStructure();
@@ -201,7 +175,7 @@ inline MinimumDegreeResult MinimumDegree(
       if (control.time_stages) timers[kComputeVariableHashes].Stop();
 
       if (control.time_stages) timers[kMergeVariables].Start();
-      quotient_graph.MergeVariables(bucket_keys, &buckets);
+      quotient_graph.MergeVariables(bucket_keys);
       if (control.time_stages) timers[kMergeVariables].Stop();
     }
 
@@ -219,22 +193,13 @@ inline MinimumDegreeResult MinimumDegree(
   // Extract the relevant information from the QuotientGraph.
   analysis.supernodes.resize(num_orig_vertices);
   for (Int i = 0; i < num_orig_vertices; ++i) {
-    if (quotient_graph.supernode_sizes[i]) {
-      analysis.supernodes[i] = quotient_graph.FormSupernode(i);
-    }
+    analysis.supernodes[i] = quotient_graph.FormSupernode(i);
   }
   if (control.store_structures) {
-    analysis.principal_structures.resize(analysis.elimination_order.size());
-    for (std::size_t index = 0; index < analysis.elimination_order.size();
-         ++index) {
-      analysis.principal_structures[index] =
-          quotient_graph.structures[analysis.elimination_order[index]];
-      std::sort(
-          analysis.principal_structures[index].begin(),
-          analysis.principal_structures[index].end());
-    }
+    quotient_graph.FormEliminatedStructures(&analysis.eliminated_structures);
   }
-  analysis.aggressive_absorptions = quotient_graph.aggressive_absorptions;
+  analysis.num_hash_collisions = quotient_graph.NumHashCollisions();
+  analysis.aggressive_absorptions = quotient_graph.AggressiveAbsorptions();
   analysis.variable_merges = quotient_graph.VariableMerges();
   for (const std::pair<std::string, Timer>& pairing : timers) {
     analysis.elapsed_seconds[pairing.first] = pairing.second.TotalSeconds();

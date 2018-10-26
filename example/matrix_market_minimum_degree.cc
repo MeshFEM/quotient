@@ -57,6 +57,10 @@ struct AMDExperiment {
   // The number of degree updates performed during the AMD analysis.
   SufficientStatistics num_degree_updates;
 
+  // The number of times supervariables were falsely hashed into the same
+  // bucket.
+  SufficientStatistics num_hash_collisions;
+
   // The number of processed members of an element in the pivot element list
   // that were inactive (i.e., converted into an element from a variable).
   SufficientStatistics num_stale_element_members;
@@ -83,6 +87,8 @@ void PrintAMDExperiment(
   PrintSufficientStatistics(experiment.num_flops, "  num_flops");
   PrintSufficientStatistics(
       experiment.num_degree_updates, "  num_degree_updates");
+  PrintSufficientStatistics(
+      experiment.num_hash_collisions, "  num_hash_collisions");
   PrintSufficientStatistics(
       experiment.num_stale_element_members, "  num_stale_element_members");
   PrintSufficientStatistics(
@@ -232,6 +238,7 @@ AMDExperiment RunMatrixMarketAMDTest(
   std::vector<quotient::Int> num_strictly_lower_nonzeros;
   std::vector<double> num_flops;
   std::vector<quotient::Int> num_degree_updates;
+  std::vector<quotient::Int> num_hash_collisions;
   std::vector<quotient::Int> num_stale_element_members;
   std::vector<double> elapsed_seconds;
   std::vector<double> fraction_of_pivots_with_multiple_elements;
@@ -242,6 +249,7 @@ AMDExperiment RunMatrixMarketAMDTest(
   num_strictly_lower_nonzeros.reserve(num_experiments);
   num_flops.reserve(num_experiments);
   num_degree_updates.reserve(num_experiments);
+  num_hash_collisions.reserve(num_experiments);
   num_stale_element_members.reserve(num_experiments);
   elapsed_seconds.reserve(num_experiments); 
   fraction_of_pivots_with_multiple_elements.reserve(num_experiments);
@@ -262,6 +270,7 @@ AMDExperiment RunMatrixMarketAMDTest(
         analysis.NumStrictlyLowerCholeskyNonzeros());
     num_flops.push_back(analysis.num_cholesky_flops);
     num_degree_updates.push_back(analysis.num_degree_updates);
+    num_hash_collisions.push_back(analysis.num_hash_collisions);
     num_stale_element_members.push_back(analysis.num_stale_element_members);
     if (print_progress) {
       std::cout << "  Finished analysis in " << elapsed_seconds.back()
@@ -320,6 +329,7 @@ AMDExperiment RunMatrixMarketAMDTest(
   experiment.largest_supernode_size = GetSufficientStatistics(
       largest_supernode_sizes);
   experiment.num_degree_updates = GetSufficientStatistics(num_degree_updates);
+  experiment.num_hash_collisions = GetSufficientStatistics(num_hash_collisions);
   experiment.num_stale_element_members =
       GetSufficientStatistics(num_stale_element_members);
   experiment.elapsed_seconds = GetSufficientStatistics(elapsed_seconds);

@@ -33,75 +33,6 @@ namespace quotient {
 //
 class QuotientGraph {
  public:
-  // The number of vertices in the original graph.
-  Int num_original_vertices;
-
-  // The number of vertices that have been eliminated from the original graph.
-  Int num_eliminated_vertices;
-
-  // A list of length 'num_original_vertices' of the (signed) sizes of each
-  // supernode. If index 'i' is not principal, then it is set to zero; if
-  // 'i' is a principal variable, then 'supernode_sizes[i]' is the size of the
-  // supernode; if 'i' is a principal element, the value is negated.
-  std::vector<Int> supernode_sizes;
-
-  // A list of length 'num_original_vertices' such that each supernode is
-  // traversed from the principal member to the final member in a continuous
-  // manner by following the 'next_index' paths.
-  //
-  // The values are undefined on tail indices of supernodes.
-  std::vector<Int> next_index;
-
-  // A list of length 'num_original_vertices' such that, if 'i' is principal,
-  // then 'tail_index[i]' points to the last index in supernode i (with the
-  // ordering defined by the 'next_index' traversal).
-  std::vector<Int> tail_index;
-
-  // A list of length 'num_original_vertices' of the (unmodified) variable
-  // adjacencies of each principal variable. For example, if index 'i' is a
-  // principal variable, then 'adjacency_lists[i]' contains the set of neighbor
-  // variables for variable i that are not redundant with respect to edges
-  // implied by 'structures'.
-  //
-  // The adjacency lists connect to each individual member of any supernode.
-  std::vector<std::vector<Int>> adjacency_lists;
-
-  // A set of linked lists for keeping track of supervariables of each degree
-  // (and, also, a way to provide fast access to a supervariable with
-  // minimal degree).
-  DegreeLists degree_lists;
-
-  // A list of length 'num_original_vertices' of the elements adjacent to
-  // each principal variable. For example, if index 'i' is a principal
-  // variable, then 'element_lists[i]' contains the list of elements adjacent
-  // to supervariable 'i'.
-  //
-  // The element lists only contain the principal member of any supernode.
-  std::vector<std::vector<Int>> element_lists;
-
-  // An (optional) list of length 'num_original_vertices' of element nonzero
-  // structures. The 'element' index of the list, 'structures[element]', will
-  // be created when supernode 'element' is converted from a variable to an
-  // element.
-  //
-  // The structure list also contains non-principal members.
-  std::vector<std::vector<Int>> structures;
-
-  // A list of length 'num_original_vertices' of elements (lists of principal
-  // variables in the nonzero pattern). The 'e' index of the list,
-  // 'elements[e]', will be created when supernode 'e' is converted from a
-  // variable to an element.
-  //
-  // The structure list also contains non-principal members.
-  std::vector<std::vector<Int>> elements;
-
-  // The total number of variables (including nonprincipal) in each element.
-  std::vector<Int> element_sizes;
-
-  // An optional list of aggressive element absorption pairs: each pair (e, f)
-  // consists of the absorbing element, e, and the absorbed element, f.
-  std::vector<std::pair<Int, Int>> aggressive_absorptions;
-
   // Trivial constructor.
   QuotientGraph();
 
@@ -112,6 +43,16 @@ class QuotientGraph {
   // Pretty-prints the QuotientGraph.
   void Print() const;
 
+  // Returns the number of vertices in the original graph.
+  Int NumOriginalVertices() const;
+
+  // Returns the number of vertices that have been eliminated from the graph.
+  Int NumEliminatedVertices() const;
+
+  // Returns the number of times that supervariables have been falsely hashed
+  // into the same bucket.
+  Int NumHashCollisions() const;
+
   // Returns the principal member (if it exists) of the next supernode.
   Int NextSupernode(Int i) const;
 
@@ -121,11 +62,17 @@ class QuotientGraph {
   // Forms the set of members of the supernode with principal variable 'i'.
   std::vector<Int> FormSupernode(Int i) const;
 
+  //  If control_.store_structures was true, then this routine overwrites
+  // 'eliminated_structures' with the (sorted) structures of the eliminated
+  // supernodes, in the order in which they were eliminated.
+  void FormEliminatedStructures(
+      std::vector<std::vector<Int>>* eliminated_structures) const;
+
   // Retrieve a variable with minimal (approximate) external degree and set it
   // as the active pivot.
   Int GetNextPivot();
 
-  // Computes the element for the pivot:
+  // Stores the element for the pivot:
   //
   //   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
   //
@@ -135,6 +82,24 @@ class QuotientGraph {
   // The return value is the number of traversed members of the elements in the
   // element list of the pivot that are no longer variables.
   Int ComputePivotStructure();
+
+  // Returns the number of members of the element list of the pivot.
+  Int NumPivotElements() const;
+
+  // Returns the number of degree updates required to process the current pivot.
+  Int NumPivotDegreeUpdates() const;
+
+  //Returns the number of degree updates required to process the current pivot
+  // that will involve more than two elements in the element list.
+  Int NumPivotDegreeUpdatesWithMultipleElements() const;
+
+  // Returns the number of nonzeros in the current pivot's columns of the
+  // lower-triangular Cholesky factor.
+  Int NumPivotCholeskyNonzeros() const;
+
+  // Returns the number of floating-point operations required for a standard
+  // Cholesky factorization to eliminate the current pivot.
+  double NumPivotCholeskyFlops() const;
 
   // Update the adjacency lists after computing the supernodal pivot structure.
   void UpdateAdjacencyListsAfterSelectingPivot();
@@ -194,11 +159,6 @@ class QuotientGraph {
   //
   // We therefore test for the equality of the element lists and adjacency
   // lists.
-  //
-  // TODO(Jack Poulson): Characterize when non-principal members can be in
-  // the adjacency lists. In the mean time, we will be conservative and require
-  // the non-principal members of the adjacency list to also be equal.
-  //
   bool StructuralSupervariablesAreQuotientIndistinguishable(Int i, Int j) const;
 
   // Detects and merges pairs of supervariables in the pivot structure who are
@@ -211,9 +171,7 @@ class QuotientGraph {
   //
   // The test for indistinguishability does not depend upon the variable
   // supernodal structure and is thus invariant to supervariable merges.
-  void MergeVariables(
-      const std::vector<std::size_t>& bucket_keys,
-      std::vector<std::vector<Int>>* buckets);
+  void MergeVariables(const std::vector<std::size_t>& bucket_keys);
 
   // Converts the 'pivot' (super)variable into an element.
   void ConvertPivotIntoElement();
@@ -247,6 +205,12 @@ class QuotientGraph {
   // the absorbing supervariable, i, and the absorbed supervariable, j.
   const std::vector<std::pair<Int, Int>>& VariableMerges() const;
 
+  // Returns an optional list of aggressive element absorption pairs: each
+  // pair (e, f) consists of the absorbing element, e, and the absorbed
+  // element, f. This will only return a non-empty list if
+  // control.store_aggressive_absorptions was true.
+  const std::vector<std::pair<Int, Int>>& AggressiveAbsorptions() const;
+
  private:
   // A data structure for representing the relevant information of a merge of
   // one supervariable (the 'absorbed_index') into another
@@ -270,12 +234,90 @@ class QuotientGraph {
     absorbed_size(absorbed_size_value) {}
   };
 
+  // The number of vertices in the original graph.
+  Int num_original_vertices_;
+
+  // The number of vertices that have been eliminated from the original graph.
+  Int num_eliminated_vertices_;
+
   // The control structure used to configure the MinimumDegree analysis.
   MinimumDegreeControl control_; 
 
   // Whether or not external element sizes will be maintained throughout the
   // minimum degree analysis.
   bool using_external_element_sizes_;
+
+  // The principal member of the current pivot.
+  Int pivot_;
+
+  // A list of length 'num_original_vertices' of the (signed) sizes of each
+  // supernode. If index 'i' is not principal, then it is set to zero; if
+  // 'i' is a principal variable, then 'supernode_sizes[i]' is the size of the
+  // supernode; if 'i' is a principal element, the value is negated.
+  std::vector<Int> supernode_sizes_;
+
+  // The ordered list of principal members of eliminated supernodes.
+  std::vector<Int> elimination_order_;
+
+  // A list of length 'num_original_vertices' such that each supernode is
+  // traversed from the principal member to the final member in a continuous
+  // manner by following the 'next_index' paths.
+  //
+  // The values are undefined on tail indices of supernodes.
+  std::vector<Int> next_index_;
+
+  // A list of length 'num_original_vertices' such that, if 'i' is principal,
+  // then 'tail_index[i]' points to the last index in supernode i (with the
+  // ordering defined by the 'next_index' traversal).
+  std::vector<Int> tail_index_;
+
+  // A list of length 'num_original_vertices' of the (unmodified) variable
+  // adjacencies of each principal variable. For example, if index 'i' is a
+  // principal variable, then 'adjacency_lists[i]' contains the set of neighbor
+  // variables for variable i that are not redundant with respect to edges
+  // implied by 'structures'.
+  //
+  // The adjacency lists connect to each individual member of any supernode.
+  std::vector<std::vector<Int>> adjacency_lists_;
+
+  // A list of length 'num_original_vertices' of the elements adjacent to
+  // each principal variable. For example, if index 'i' is a principal
+  // variable, then 'element_lists[i]' contains the list of elements adjacent
+  // to supervariable 'i'.
+  //
+  // The element lists only contain the principal member of any supernode.
+  std::vector<std::vector<Int>> element_lists_;
+
+  // A copy of the pivot element list that can be used to update 'element_sizes'
+  // when the pivot is converted to an element. This is only needed when
+  // aggressive absorption is activated, as the element list will no longer
+  // correspond to the set that needs to be decremented by the pivot supernode
+  // size.
+  std::vector<Int> original_pivot_element_list_;
+
+  // A set of linked lists for keeping track of supervariables of each degree
+  // (and, also, a way to provide fast access to a supervariable with
+  // minimal degree).
+  DegreeLists degree_lists_;
+
+  // An (optional) list of length 'num_original_vertices' of element nonzero
+  // structures. The 'element' index of the list, 'structures[element]', will
+  // be created when supernode 'element' is converted from a variable to an
+  // element.
+  //
+  // The structure list also contains non-principal members.
+  std::vector<std::vector<Int>> structures_;
+
+  // A list of length 'num_original_vertices' of elements (lists of principal
+  // variables in the nonzero pattern). The 'e' index of the list,
+  // 'elements[e]', will be created when supernode 'e' is converted from a
+  // variable to an element.
+  //
+  // The structure list also contains non-principal members.
+  std::vector<std::vector<Int>> elements_;
+
+  // The total number of variables (including nonprincipal) in each element.
+  std::vector<Int> element_sizes_;
 
   // A mask of length 'num_orig_vertices' that can be used to quickly compute
   // the cardinalities of |L_e \ L_p| for each element e in an element list of
@@ -293,19 +335,21 @@ class QuotientGraph {
   // and after each call to ExternalDegree.
   mutable std::vector<int> exact_degree_mask_;
 
-  // The principal member of the current pivot.
-  Int pivot_;
+  // A set of buckets for each hash value (modulo num_original_vertices) of the
+  // supervariables.
+  std::vector<std::vector<Int>> buckets_;
 
-  // A copy of the pivot element list that can be used to update 'element_sizes'
-  // when the pivot is converted to an element. This is only needed when
-  // aggressive absorption is activated, as the element list will no longer
-  // correspond to the set that needs to be decremented by the pivot supernode
-  // size.
-  std::vector<Int> original_pivot_element_list_;
+  // The number of times that supervariables were falsely placed within the
+  // same bucket.
+  Int num_hash_collisions_;
 
   // An optional list of supervariable merge pairs: each pair (i, j) consists of
   // the absorbing supervariable, i, and the absorbed supervariable, j.
   std::vector<std::pair<Int, Int>> variable_merges_;
+
+  // An optional list of aggressive element absorption pairs: each pair (e, f)
+  // consists of the absorbing element, e, and the absorbed element, f.
+  std::vector<std::pair<Int, Int>> aggressive_absorptions_;
 
   // A definition of Ashcraft's hash function (as described in [ADD-96]).
   // Note that only principal members of A_i are incorporated in the hash.

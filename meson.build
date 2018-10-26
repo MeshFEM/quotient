@@ -40,14 +40,6 @@ coordinate_graph_test_exe = executable(
     dependencies : openmp_dep)
 test('CoordinateGraph tests', coordinate_graph_test_exe)
 
-# Unit tests for the QuotientGraph class.
-quotient_graph_test_exe = executable(
-    'quotient_graph_test',
-    ['test/quotient_graph_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir,
-    dependencies : openmp_dep)
-test('QuotientGraph tests', quotient_graph_test_exe)
-
 # Unit tests for the RandomAccessHeap class.
 random_access_heap_test_exe = executable(
     'random_access_heap_test',
