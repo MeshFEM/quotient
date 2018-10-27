@@ -869,9 +869,12 @@ inline void QuotientGraph::ConvertPivotIntoElement() {
 
 inline void QuotientGraph::RecomputeExternalElementSizes(
     std::vector<Int>* aggressive_absorption_elements) {
-  // Follow the advice at the beginning of Section 5 of [AMD-96] and absorb
-  // any element e that satisfies |L_e \ L_p| = 0.
-  aggressive_absorption_elements->clear();
+  const bool aggressive_absorption = control_.aggressive_absorption;
+  if (aggressive_absorption) {
+    // Follow the advice at the beginning of Section 5 of [AMD-96] and absorb
+    // any element e that satisfies |L_e \ L_p| = 0.
+    aggressive_absorption_elements->clear();
+  }
 
   for (const Int& i : elements_[pivot_]) {
     const Int supernode_i_size = supernode_sizes_[i];
@@ -891,7 +894,7 @@ inline void QuotientGraph::RecomputeExternalElementSizes(
       }
 
       external_element_size -= supernode_i_size;
-      if (control_.aggressive_absorption && external_element_size == 0) {
+      if (aggressive_absorption && external_element_size == 0) {
         aggressive_absorption_elements->push_back(element);
       }
     }

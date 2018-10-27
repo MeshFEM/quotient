@@ -18,9 +18,12 @@ inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index) {
       degree_heads[degree_lower_bound] == -1) {
     ++degree_lower_bound;
   }
+#ifdef QUOTIENT_DEBUG
   if (degree_lower_bound == Int(degree_heads.size())) {
+    std::cerr << "Could not find a minimal degree." << std::endl;
     return -1;
   }
+#endif
 
   Int index = degree_heads[degree_lower_bound];
   if (demand_smallest_index) {
@@ -31,6 +34,18 @@ inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index) {
     }
     index = minimal_index;
   }
+
+#ifdef QUOTIENT_DEBUG
+  Int degree = 0;
+  while (degree_heads[degree] == -1) {
+    ++degree;
+  }
+  if (degree != degree_lower_bound) {
+    std::cerr << "Minimal degree was " << degree << ", chose "
+              << degree_lower_bound << std::endl;
+  }
+#endif
+
   return index;
 }
 

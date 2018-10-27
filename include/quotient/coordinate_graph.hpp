@@ -145,6 +145,9 @@ class CoordinateGraph {
       bool skip_explicit_zeros,
       EntryMask mask=kEntryMaskFull);
 
+  // Writes a copy of the CoordinateGraph to a Matrix Market file.
+  void ToMatrixMarket(const std::string& filename) const;
+
   // A trivial destructor.
   ~CoordinateGraph();
 

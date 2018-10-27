@@ -350,6 +350,40 @@ inline std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
   return result;
 }
 
+inline void CoordinateGraph::ToMatrixMarket(const std::string& filename) const {
+  std::ofstream file(filename);
+  if (!file.is_open()) { 
+    std::cerr << "Could not open " << filename << std::endl;
+    return;
+  }
+  
+  // Write the header.
+  {
+    std::ostringstream os;
+    os << kMatrixMarketStampString << " " << kMatrixMarketObjectMatrixString
+       << " " << kMatrixMarketFormatCoordinateString << " "
+       << kMatrixMarketFieldRealString << " "
+       << kMatrixMarketSymmetryGeneralString << "\n";
+    file << os.str();
+  }
+
+  // Write the size information.
+  {
+    std::ostringstream os;
+    os << NumSources() << " " << NumTargets() << " " << NumEdges() << "\n";
+    file << os.str();
+  }
+
+  // Write out the entries.
+  const std::vector<GraphEdge>& edges = Edges();
+  for (const GraphEdge& edge : edges) {
+    std::ostringstream os;
+    // We must convert from 0-based to 1-based indexing.
+    os << edge.first + 1 << " " << edge.second + 1 << " 1.\n";
+    file << os.str();
+  }
+}
+
 inline CoordinateGraph::~CoordinateGraph() { }
 
 inline Int CoordinateGraph::NumSources() const noexcept { return num_sources_; }

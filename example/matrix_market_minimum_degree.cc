@@ -18,6 +18,8 @@
 #include "quotient.hpp"
 #include "specify.hpp"
 
+using quotient::Int;
+
 // A simple data structure for storing the median, mean, and standard deviation
 // of a random variable.
 struct SufficientStatistics {
@@ -191,7 +193,8 @@ AMDExperiment RunMatrixMarketAMDTest(
     const quotient::MinimumDegreeControl& control,
     bool force_symmetry,
     int num_random_permutations,
-    bool print_progress) {
+    bool print_progress,
+    bool write_permuted_graphs) {
   if (print_progress) {
     std::cout << "Reading CoordinateGraph from " << filename << "..."
               << std::endl;
@@ -204,13 +207,27 @@ AMDExperiment RunMatrixMarketAMDTest(
     AMDExperiment experiment;
     return experiment;
   }
+
+  // Force symmetry since many of the examples are not. We form the nonzero
+  // pattern of A + A'.
+  if (force_symmetry) {
+    if (print_progress) {
+      std::cout << "Enforcing graph symmetry..." << std::endl;
+    }
+    graph->ReserveEdgeAdditions(graph->NumEdges());
+    for (const std::pair<Int, Int>& edge : graph->Edges()) {
+      graph->QueueEdgeAddition(edge.second, edge.first);
+    }
+    graph->FlushEdgeQueues();
+  }
+
   if (print_progress) {
     std::cout << "Graph had " << graph->NumSources() << " sources and "
               << graph->NumEdges() << " edges." << std::endl;
 
-    quotient::Int densest_row_size = 0;
-    quotient::Int densest_row_index = -1;
-    for (quotient::Int i = 0; i < graph->NumSources(); ++i ) {
+    Int densest_row_size = 0;
+    Int densest_row_index = -1;
+    for (Int i = 0; i < graph->NumSources(); ++i ) {
       if (graph->NumConnections(i) > densest_row_size) {
         densest_row_size = graph->NumConnections(i);
         densest_row_index = i;
@@ -220,26 +237,13 @@ AMDExperiment RunMatrixMarketAMDTest(
               << densest_row_size << " connections." << std::endl;
   }
 
-  // Force symmetry since many of the examples are not. We form the nonzero
-  // pattern of A + A'.
-  if (force_symmetry) {
-    if (print_progress) {
-      std::cout << "Enforcing graph symmetry..." << std::endl;
-    }
-    graph->ReserveEdgeAdditions(graph->NumEdges());
-    for (const std::pair<quotient::Int, quotient::Int>& edge : graph->Edges()) {
-      graph->QueueEdgeAddition(edge.second, edge.first);
-    }
-    graph->FlushEdgeQueues();
-  }
-
-  std::vector<quotient::Int> largest_supernode_sizes;
-  std::vector<quotient::Int> num_nonzeros;
-  std::vector<quotient::Int> num_strictly_lower_nonzeros;
+  std::vector<Int> largest_supernode_sizes;
+  std::vector<Int> num_nonzeros;
+  std::vector<Int> num_strictly_lower_nonzeros;
   std::vector<double> num_flops;
-  std::vector<quotient::Int> num_degree_updates;
-  std::vector<quotient::Int> num_hash_collisions;
-  std::vector<quotient::Int> num_stale_element_members;
+  std::vector<Int> num_degree_updates;
+  std::vector<Int> num_hash_collisions;
+  std::vector<Int> num_stale_element_members;
   std::vector<double> elapsed_seconds;
   std::vector<double> fraction_of_pivots_with_multiple_elements;
   std::vector<double> fraction_of_degree_updates_with_multiple_elements;
@@ -299,12 +303,43 @@ AMDExperiment RunMatrixMarketAMDTest(
                   << " seconds." << std::endl;
       }
     }
+
+    if (write_permuted_graphs) {
+      // TODO(Jack Poulson): Package this functionality.
+      Int offset = 0;
+      std::vector<Int> inverse_permutation(graph->NumSources());
+      for (const Int& i : analysis.elimination_order) {
+        for (const Int& j : analysis.supernodes[i]) {
+          inverse_permutation[offset++] = j;
+        }
+      }
+      if (offset != graph->NumSources()) {
+        std::cerr << "Invalid permutation formation!" << std::endl;
+      }
+      std::vector<Int> permutation(graph->NumSources());
+      for (Int index = 0; index < graph->NumSources(); ++index) {
+        permutation[inverse_permutation[index]] = index;
+      }
+
+      quotient::CoordinateGraph permuted_graph;
+      permuted_graph.Resize(graph->NumSources());
+      permuted_graph.ReserveEdgeAdditions(graph->NumEdges());
+      for (const std::pair<Int, Int>& edge : graph->Edges()) {
+        permuted_graph.QueueEdgeAddition(
+            permutation[edge.first], permutation[edge.second]);
+      }
+      permuted_graph.FlushEdgeQueues();
+      const std::string new_filename =
+          filename + "perm-" + std::to_string(instance) + ".mtx";
+      permuted_graph.ToMatrixMarket(new_filename);
+    }
+
     if (instance == num_random_permutations) {
       break;
     }
 
     // Generate a random permutation.
-    std::vector<quotient::Int> permutation(graph->NumSources());
+    std::vector<Int> permutation(graph->NumSources());
     std::iota(permutation.begin(), permutation.end(), 0);
     std::random_shuffle(permutation.begin(), permutation.end());
 
@@ -312,7 +347,7 @@ AMDExperiment RunMatrixMarketAMDTest(
     quotient::CoordinateGraph permuted_graph;
     permuted_graph.Resize(graph->NumSources());
     permuted_graph.ReserveEdgeAdditions(graph->NumEdges());
-    for (const std::pair<quotient::Int, quotient::Int>& edge : graph->Edges()) {
+    for (const std::pair<Int, Int>& edge : graph->Edges()) {
       permuted_graph.QueueEdgeAddition(
           permutation[edge.first], permutation[edge.second]);
     }
@@ -359,7 +394,8 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
     quotient::EntryMask mask,
     const quotient::MinimumDegreeControl& control,
     int num_random_permutations,
-    bool print_progress) {
+    bool print_progress,
+    bool write_permuted_graphs) {
   const std::vector<std::string> kMatrixNames{
       "appu",
       "bbmat",
@@ -401,7 +437,8 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
         control,
         force_symmetry,
         num_random_permutations,
-        print_progress);
+        print_progress,
+        write_permuted_graphs);
   }
 
   return experiments;
@@ -471,6 +508,10 @@ int main(int argc, char** argv) {
   const bool print_progress = parser.OptionalInput<bool>(
       "print_progress",
       "Print the progress of the experiments?",
+      false);
+  const bool write_permuted_graphs = parser.OptionalInput<bool>(
+      "write_permuted_graphs",
+      "Write the permuted graphs to file?",
       false);
   const std::string matrix_market_directory = parser.OptionalInput<std::string>(
       "matrix_market_directory",
@@ -544,7 +585,8 @@ int main(int argc, char** argv) {
             mask,
             control,
             num_random_permutations,
-            print_progress);
+            print_progress,
+            write_permuted_graphs);
     for (const std::pair<std::string, AMDExperiment>& pairing : experiments) {
       PrintAMDExperiment(pairing.second, pairing.first);  
     }
@@ -556,7 +598,8 @@ int main(int argc, char** argv) {
         control,
         force_symmetry,
         num_random_permutations,
-        print_progress);
+        print_progress,
+        write_permuted_graphs);
     PrintAMDExperiment(experiment, filename);
   }
 
