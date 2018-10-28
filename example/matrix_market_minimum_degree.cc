@@ -63,10 +63,6 @@ struct AMDExperiment {
   // bucket.
   SufficientStatistics num_hash_collisions;
 
-  // The number of processed members of an element in the pivot element list
-  // that were inactive (i.e., converted into an element from a variable).
-  SufficientStatistics num_stale_element_members;
-
   // The number of seconds that elapsed during the AMD analysis.
   SufficientStatistics elapsed_seconds;
 
@@ -91,8 +87,6 @@ void PrintAMDExperiment(
       experiment.num_degree_updates, "  num_degree_updates");
   PrintSufficientStatistics(
       experiment.num_hash_collisions, "  num_hash_collisions");
-  PrintSufficientStatistics(
-      experiment.num_stale_element_members, "  num_stale_element_members");
   PrintSufficientStatistics(
       experiment.elapsed_seconds, "  elapsed_seconds");
   PrintSufficientStatistics(
@@ -243,7 +237,6 @@ AMDExperiment RunMatrixMarketAMDTest(
   std::vector<double> num_flops;
   std::vector<Int> num_degree_updates;
   std::vector<Int> num_hash_collisions;
-  std::vector<Int> num_stale_element_members;
   std::vector<double> elapsed_seconds;
   std::vector<double> fraction_of_pivots_with_multiple_elements;
   std::vector<double> fraction_of_degree_updates_with_multiple_elements;
@@ -254,7 +247,6 @@ AMDExperiment RunMatrixMarketAMDTest(
   num_flops.reserve(num_experiments);
   num_degree_updates.reserve(num_experiments);
   num_hash_collisions.reserve(num_experiments);
-  num_stale_element_members.reserve(num_experiments);
   elapsed_seconds.reserve(num_experiments); 
   fraction_of_pivots_with_multiple_elements.reserve(num_experiments);
   fraction_of_degree_updates_with_multiple_elements.reserve(num_experiments);
@@ -275,7 +267,6 @@ AMDExperiment RunMatrixMarketAMDTest(
     num_flops.push_back(analysis.num_cholesky_flops);
     num_degree_updates.push_back(analysis.num_degree_updates);
     num_hash_collisions.push_back(analysis.num_hash_collisions);
-    num_stale_element_members.push_back(analysis.num_stale_element_members);
     if (print_progress) {
       std::cout << "  Finished analysis in " << elapsed_seconds.back()
                 << " seconds. There were " << num_strictly_lower_nonzeros.back()
@@ -351,8 +342,6 @@ AMDExperiment RunMatrixMarketAMDTest(
       largest_supernode_sizes);
   experiment.num_degree_updates = GetSufficientStatistics(num_degree_updates);
   experiment.num_hash_collisions = GetSufficientStatistics(num_hash_collisions);
-  experiment.num_stale_element_members =
-      GetSufficientStatistics(num_stale_element_members);
   experiment.elapsed_seconds = GetSufficientStatistics(elapsed_seconds);
   experiment.fraction_of_pivots_with_multiple_elements =
       GetSufficientStatistics(fraction_of_pivots_with_multiple_elements);

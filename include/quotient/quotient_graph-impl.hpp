@@ -200,7 +200,7 @@ inline void QuotientGraph::FormEliminatedStructures(
   }
 }
 
-inline Int QuotientGraph::ComputePivotStructure() {
+inline void QuotientGraph::ComputePivotStructure() {
 #ifdef QUOTIENT_DEBUG
   for (Int index = 0; index < num_original_vertices_; ++index) {
     QUOTIENT_ASSERT(!pivot_mask_[index],
@@ -236,7 +236,6 @@ inline Int QuotientGraph::ComputePivotStructure() {
   // Push the unique supervariables in the patterns of the pivot element list
   // into the current structure.
   Int num_kept_elements = 0;
-  Int num_stale_element_members = 0;
   std::vector<Int>& pivot_elements = element_lists_[pivot_];
   for (std::size_t elem_index = 0; elem_index < pivot_elements.size();
       ++elem_index) {
@@ -255,12 +254,9 @@ inline Int QuotientGraph::ComputePivotStructure() {
 
     for (const Int& index : elements_[element]) {
       const Int supernode_size = supernode_sizes_[index];
-      if (supernode_size < 0) {
-        ++num_stale_element_members;
-        // TODO(Jack Poulson): Quickly remove elements[element][index]. Though
-        // this branch appears to be extremely rare.
-      }
-      if (index == pivot_ || supernode_size <= 0 || pivot_mask_[index]) {
+      QUOTIENT_ASSERT(supernode_size >= 0,
+          "Absorbed supernodes should not appear in unabsorbed elements.");
+      if (index == pivot_ || !supernode_size || pivot_mask_[index]) {
         continue;
       }
 
@@ -298,8 +294,6 @@ inline Int QuotientGraph::ComputePivotStructure() {
       "Element size did not match its cached value.");
   }
 #endif
-
-  return num_stale_element_members;
 }
 
 inline Int QuotientGraph::NumPivotElements() const {
@@ -341,14 +335,15 @@ inline void QuotientGraph::RemoveRedundantAdjacencies() {
   for (const Int& i : elements_[pivot_]) {
     // Remove redundant adjacency entries:
     //   A_i := (A_i \ L_p) \ supernode(p).
+    std::vector<Int>& adjacency_list = adjacency_lists_[i];
     Int packed_size = 0;
-    for (const Int& index : adjacency_lists_[i]) {
+    for (const Int& index : adjacency_list) {
       if (index == pivot_ || pivot_mask_[index] || !supernode_sizes_[index]) {
         continue;
       }
-      adjacency_lists_[i][packed_size++] = index;
+      adjacency_list[packed_size++] = index;
     }
-    adjacency_lists_[i].resize(packed_size);
+    adjacency_list.resize(packed_size);
   }
 }
 
@@ -401,90 +396,120 @@ inline void QuotientGraph::UnflagPivotElementList() {
 #endif
 }
 
-inline Int QuotientGraph::ExactEmptyExternalDegree(Int principal_variable)
-    const {
-  // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
-  // variable.
+inline std::pair<Int, std::size_t> QuotientGraph::PackCountAndHashAdjacencies(
+    Int principal_variable) {
   Int degree = 0;
-  for (const Int& index : adjacency_lists_[principal_variable]) {
-    degree += supernode_sizes_[index];
-  }
+  std::size_t hash = 0;
 
+  Int num_packed = 0;
+  std::vector<Int>& adjacency_list = adjacency_lists_[principal_variable];
+  const Int num_adjacencies = adjacency_list.size();
+  for (Int index = 0; index < num_adjacencies; ++index) {
+    const Int j = adjacency_list[index];
+    const Int supernode_size = supernode_sizes_[j];
+    QUOTIENT_ASSERT(supernode_size >= 0,
+        "Encountered an element in an adjacency list.");
+    if (supernode_size > 0) {
+      degree += supernode_size;
+      hash += j;
+      adjacency_list[num_packed++] = j;
+    }
+  }
+  adjacency_list.resize(num_packed);
+
+  return std::make_pair(degree, hash);
+}
+
+inline std::pair<Int, std::size_t>
+QuotientGraph::ExactEmptyExternalDegreeAndHash(Int principal_variable) {
   QUOTIENT_ASSERT(element_lists_[principal_variable].empty(),
       "The element list was falsely assumed empty.");
 
-  return degree;
-}
-
-inline Int QuotientGraph::ExactSingleExternalDegree(Int principal_variable)
-    const {
   // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
   // variable.
-  Int degree = 0;
-  for (const Int& index : adjacency_lists_[principal_variable]) {
-    degree += supernode_sizes_[index];
-  }
+  std::pair<Int, std::size_t> degree_and_hash =
+      PackCountAndHashAdjacencies(principal_variable);
 
+  return degree_and_hash;
+}
+
+inline std::pair<Int, std::size_t>
+QuotientGraph::ExactSingleExternalDegreeAndHash(Int principal_variable) {
   // We should only have one member of the element list, 'pivot'.
   QUOTIENT_ASSERT(element_lists_[principal_variable].size() == 1,
       "The element list was falsely assumed to have a single entry.");
   QUOTIENT_ASSERT(element_lists_[principal_variable][0] == pivot_,
       "The element list should have only contained the pivot.");
-  // Add |L_p \ supernode(i)|.
 
-  degree += element_sizes_[pivot_] - supernode_sizes_[principal_variable];
-
-  return degree;
-}
-
-inline Int QuotientGraph::ExactDoubleExternalDegree(Int principal_variable)
-    const {
   // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
   // variable.
-  Int degree = 0;
-  for (const Int& index : adjacency_lists_[principal_variable]) {
-    degree += supernode_sizes_[index];
-  }
+  std::pair<Int, std::size_t> degree_and_hash =
+      PackCountAndHashAdjacencies(principal_variable);
 
-  // There should be exactly two members in the element list, and one of them
+  // Add |L_p \ supernode(i)|.
+  degree_and_hash.first +=
+      element_sizes_[pivot_] - supernode_sizes_[principal_variable];
+  degree_and_hash.second += pivot_;
+
+  return degree_and_hash;
+}
+
+inline std::pair<Int, std::size_t>
+QuotientGraph::ExactDoubleExternalDegreeAndHash(Int principal_variable) {
+  const std::vector<Int>& element_list = element_lists_[principal_variable];
+
+  // There should be exactly two members in the element list, and the second
   // should be the pivot.
-  QUOTIENT_ASSERT(element_lists_[principal_variable].size() == 2,
+  QUOTIENT_ASSERT(element_list.size() == 2,
       "The element list should have had exactly two members.");
-  QUOTIENT_ASSERT(
-      element_lists_[principal_variable][0] == pivot_ ||
-      element_lists_[principal_variable][1] == pivot_,
-      "The element list should have contained the pivot.");
+  QUOTIENT_ASSERT(element_list[1] == pivot_,
+      "The element list should have contained the pivot as its 2nd member.");
 
-  // Add |L_p \ supernode(i)|.
-  degree += element_sizes_[pivot_] - supernode_sizes_[principal_variable];
-
-  // Add |L_e \ L_p|.
-  const Int element = element_lists_[principal_variable][0] == pivot_ ?
-      element_lists_[principal_variable][1] :
-      element_lists_[principal_variable][0];
-  degree += external_element_sizes_[element];
-
-  return degree;
-}
-
-inline Int QuotientGraph::ExactGenericExternalDegree(Int principal_variable)
-    const {
   // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
   // variable.
-  Int degree = 0;
-  for (const Int& index : adjacency_lists_[principal_variable]) {
-    degree += supernode_sizes_[index];
+  std::pair<Int, std::size_t> degree_and_hash =
+      PackCountAndHashAdjacencies(principal_variable);
+
+  // Add |L_p \ supernode(i)|.
+  degree_and_hash.first +=
+      element_sizes_[pivot_] - supernode_sizes_[principal_variable];
+  degree_and_hash.second += pivot_;
+
+  const Int element = element_list[0];
+  if (!control_.aggressive_absorption || parents_[element] == -1) {
+    // Add |L_e \ L_p|.
+    degree_and_hash.first += external_element_sizes_[element];
+    degree_and_hash.second += element;
   }
+
+  return degree_and_hash;
+}
+
+inline std::pair<Int, std::size_t>
+QuotientGraph::ExactGenericExternalDegreeAndHash(Int principal_variable) {
+  const bool aggressive_absorption = control_.aggressive_absorption;
+
+  // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
+  // variable.
+  std::pair<Int, std::size_t> degree_and_hash =
+      PackCountAndHashAdjacencies(principal_variable);
 
   // Add on the number of unique entries in the structures of the element lists
   // that are outside supernode(i).
   for (const Int& element : element_lists_[principal_variable]) {
+    if (aggressive_absorption && parents_[element] != -1) {
+      // Skip absorbed elements. This should only be possible with
+      // aggressive absorption.
+      continue;
+    }
+    degree_and_hash.second += element;
+
     for (const Int& j : elements_[element]) {
       if (exact_degree_mask_[j] || principal_variable == j ||
           supernode_sizes_[j] < 0) {
         continue;
       }
-      degree += supernode_sizes_[j];
+      degree_and_hash.first += supernode_sizes_[j];
       exact_degree_mask_[j] = 1;
     }
   }
@@ -497,87 +522,90 @@ inline Int QuotientGraph::ExactGenericExternalDegree(Int principal_variable)
     }
   }
 
-  return degree;
+  return degree_and_hash;
 }
 
-inline Int QuotientGraph::ExactExternalDegree(Int principal_variable) const {
+inline std::pair<Int, std::size_t>
+QuotientGraph::ExactExternalDegreeAndHash(Int principal_variable) {
   const Int num_elements = element_lists_[principal_variable].size();
   if (num_elements == 0) {
-    return ExactEmptyExternalDegree(principal_variable);
+    return ExactEmptyExternalDegreeAndHash(principal_variable);
   } else if (num_elements == 1) {
-    return ExactSingleExternalDegree(principal_variable);
+    return ExactSingleExternalDegreeAndHash(principal_variable);
   } else if (num_elements == 2) {
-    return ExactDoubleExternalDegree(principal_variable);
+    return ExactDoubleExternalDegreeAndHash(principal_variable);
   } else {
-    return ExactGenericExternalDegree(principal_variable);
+    return ExactGenericExternalDegreeAndHash(principal_variable);
   }
 }
 
-inline Int QuotientGraph::AmestoyExternalDegree(Int principal_variable) const {
+inline std::pair<Int, std::size_t>
+QuotientGraph::AmestoyExternalDegreeAndHash(Int principal_variable) {
+  const bool aggressive_absorption = control_.aggressive_absorption;
   const Int num_vertices_left =
       num_original_vertices_ - num_eliminated_vertices_;
+  const Int supernode_size = supernode_sizes_[principal_variable];
   const Int old_degree = degree_lists_.degrees[principal_variable];
+  const std::vector<Int>& element_list = element_lists_[principal_variable];
 
   // Note that this usage of 'external' refers to |L_p \ supernode(i)| and not
   // |L_e \ L_p|, as is the case for 'external_element_sizes', where 'i'
   // is 'principal_variable'.
-  Int external_pivot_structure_size =
-      element_sizes_[pivot_] - supernode_sizes_[principal_variable];
+  const Int external_pivot_structure_size =
+      element_sizes_[pivot_] - supernode_size;
   QUOTIENT_ASSERT(external_pivot_structure_size >= 0,
       "Encountered a negative external_pivot_structure_size");
 
-  const Int bound0 = num_vertices_left - supernode_sizes_[principal_variable];
+  const Int bound0 = num_vertices_left - supernode_size;
   const Int bound1 = old_degree + external_pivot_structure_size;
 
   // bound_2 = |A_i \ supernode(i)| + |L_p \ supernode(i)| +
   //           \sum_{e in E_i \ {p}} |L_e \ L_p|.
-  Int bound2 = 0;
-  for (const Int& index : adjacency_lists_[principal_variable]) {
-    QUOTIENT_ASSERT(supernode_sizes_[index] >= 0,
-        "Encountered an element in an adjacency list.");
-    bound2 += supernode_sizes_[index];
-  }
-  bound2 += external_pivot_structure_size;
-  for (const Int& element : element_lists_[principal_variable]) {
-    if (element == pivot_) {
-      continue;
-    }
-    if (control_.aggressive_absorption && parents_[element] != -1) {
+  std::pair<Int, std::size_t> degree_and_hash =
+      PackCountAndHashAdjacencies(principal_variable);
+  degree_and_hash.first += external_pivot_structure_size;
+  QUOTIENT_ASSERT(element_list.back() == pivot_,
+      "Pivot was not at the back of the element list.");
+  const Int num_elements = element_list.size();
+  for (Int elem_index = 0; elem_index < num_elements - 1; ++elem_index) {
+    const Int element = element_list[elem_index];
+    QUOTIENT_ASSERT(element != pivot_, "Iterated over element.");
+    if (aggressive_absorption && parents_[element] != -1) {
       // Skip absorbed elements. This should only be possible with
       // aggressive absorption.
       continue;
     }
-    if (external_element_sizes_[element] >= 0) {
-      bound2 += external_element_sizes_[element];
-    } else {
-      QUOTIENT_ASSERT(element_sizes_[element] >= 0,
-          "Encountered a negative element size.");
-      bound2 += element_sizes_[element];
-    }
+    QUOTIENT_ASSERT(external_element_sizes_[element] >= 0,
+        "Ran into a missing entry in external_element_sizes_");
+    degree_and_hash.first += external_element_sizes_[element];
+    degree_and_hash.second += element;
   }
+  degree_and_hash.second += pivot_;
 
-  const Int degree = std::min(bound0, std::min(bound1, bound2));
-  return degree;
+  degree_and_hash.first = std::min(degree_and_hash.first, bound0);
+  degree_and_hash.first = std::min(degree_and_hash.first, bound1);
+ 
+  return degree_and_hash;
 }
 
-inline Int QuotientGraph::AshcraftExternalDegree(Int principal_variable) const {
+inline std::pair<Int, std::size_t>
+QuotientGraph::AshcraftExternalDegreeAndHash(Int principal_variable) {
   if (element_lists_[principal_variable].size() == 2) {
-    return ExactDoubleExternalDegree(principal_variable);
+    return ExactDoubleExternalDegreeAndHash(principal_variable);
   }
-  return GilbertExternalDegree(principal_variable);
+  return GilbertExternalDegreeAndHash(principal_variable);
 }
 
-inline Int QuotientGraph::GilbertExternalDegree(Int principal_variable) const {
-  Int degree = 0;
-  for (const Int& index : adjacency_lists_[principal_variable]) {
-    QUOTIENT_ASSERT(supernode_sizes_[index] >= 0,
-        "Negative supernode size in Gilbert degree update.");
-    degree += supernode_sizes_[index];
-  }
+inline std::pair<Int, std::size_t>
+QuotientGraph::GilbertExternalDegreeAndHash(Int principal_variable) {
+  const bool aggressive_absorption = control_.aggressive_absorption;
+
+  std::pair<Int, std::size_t> degree_and_hash =
+      PackCountAndHashAdjacencies(principal_variable);
 
   const Int supernode_size = supernode_sizes_[principal_variable];
   for (const Int& element : element_lists_[principal_variable]) {
-    if (control_.aggressive_absorption && parents_[element] != -1) {
+    if (aggressive_absorption && parents_[element] != -1) {
       // Skip absorbed elements. This should only be possible with
       // aggressive absorption.
       continue;
@@ -586,74 +614,85 @@ inline Int QuotientGraph::GilbertExternalDegree(Int principal_variable) const {
         "Used absorbed element in Gilbert degree update.");
     QUOTIENT_ASSERT(element_sizes_[element] - supernode_size >= 0,
         "Negative Gilbert degree update.");
-    degree += element_sizes_[element] - supernode_size;
+    degree_and_hash.first += element_sizes_[element] - supernode_size;
+    degree_and_hash.second += element;
   }
   const Int num_vertices_left =
       num_original_vertices_ - num_eliminated_vertices_;
-  return std::min(degree,
-      num_vertices_left - supernode_sizes_[principal_variable]);
+  degree_and_hash.first =
+      std::min(degree_and_hash.first, num_vertices_left - supernode_size);
+
+  return degree_and_hash;
 }
 
-inline Int QuotientGraph::ExternalDegree(Int principal_variable) const {
-  Int degree = -1;
+inline std::pair<Int, std::size_t>
+QuotientGraph::ExternalDegreeAndHash(Int principal_variable) {
+  std::pair<Int, std::size_t> degree_and_hash;
   switch(control_.degree_type) {
     case kExactExternalDegree: {
-      degree = ExactExternalDegree(principal_variable);
+      degree_and_hash = ExactExternalDegreeAndHash(principal_variable);
       break;
     }
     case kAmestoyExternalDegree: {
-      degree = AmestoyExternalDegree(principal_variable);
+      degree_and_hash = AmestoyExternalDegreeAndHash(principal_variable);
       break;
     }
     case kAshcraftExternalDegree: {
-      degree = AshcraftExternalDegree(principal_variable);
+      degree_and_hash = AshcraftExternalDegreeAndHash(principal_variable);
       break;
     }
     case kGilbertExternalDegree: {
-      degree = GilbertExternalDegree(principal_variable);
+      degree_and_hash = GilbertExternalDegreeAndHash(principal_variable);
       break;
     }
   }
-  return degree;
+  return degree_and_hash;
 }
 
-inline void QuotientGraph::ComputeExternalDegrees(
-    std::vector<Int>* external_degrees) {
-  const std::size_t supernodal_struct_size = elements_[pivot_].size();
+inline void QuotientGraph::ComputeExternalDegreesAndHashes(
+    std::vector<Int>* external_degrees, std::vector<std::size_t>* bucket_keys) {
+  const std::vector<Int>& pivot_element = elements_[pivot_];
+  const std::size_t supernodal_struct_size = pivot_element.size();
   external_degrees->resize(supernodal_struct_size);
+  bucket_keys->resize(supernodal_struct_size);
   // TODO(Jack Poulson): Consider how to parallelize using different masks
   // for each thread.
   for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
-    const Int i = elements_[pivot_][index];
+    const Int i = pivot_element[index];
 #ifdef QUOTIENT_DEBUG
-    std::vector<Int> degrees(4);
+    std::vector<std::pair<Int, std::size_t>> degrees_and_hashes(4);
     ExternalDegreeType degree_type = control_.degree_type;
     for (Int type = 0; type < 4; ++type) {
       control_.degree_type = static_cast<ExternalDegreeType>(type);
-      degrees[type] = ExternalDegree(i);
+      degrees_and_hashes[type] = ExternalDegreeAndHash(i);
     }
     control_.degree_type = degree_type;
     QUOTIENT_ASSERT(
-        degrees[1] >= degrees[0] &&
-        degrees[2] >= degrees[1] &&
-        degrees[3] >= degrees[2],
-        "Degrees: " +
-        std::to_string(degrees[0]) + ", " +
-        std::to_string(degrees[1]) + ", " +
-        std::to_string(degrees[2]) + ", " +
-        std::to_string(degrees[3]));
-    (*external_degrees)[index] = degrees[degree_type];
+        degrees_and_hashes[1].first >= degrees_and_hashes[0].first &&
+        degrees_and_hashes[2].first >= degrees_and_hashes[1].first &&
+        degrees_and_hashes[3].first >= degrees_and_hashes[2].first,
+        "Degrees (" + std::to_string(element_lists_[i].size()) + "): " +
+        std::to_string(degrees_and_hashes[0].first) + ", " +
+        std::to_string(degrees_and_hashes[1].first) + ", " +
+        std::to_string(degrees_and_hashes[2].first) + ", " +
+        std::to_string(degrees_and_hashes[3].first));
+    (*external_degrees)[index] = degrees_and_hashes[degree_type].first;
+    (*bucket_keys)[index] = degrees_and_hashes[degree_type].second;
 #else
-    (*external_degrees)[index] = ExternalDegree(i);
+    const std::pair<Int, std::size_t> degree_and_hash =
+        ExternalDegreeAndHash(i);
+    (*external_degrees)[index] = degree_and_hash.first;
+    (*bucket_keys)[index] = degree_and_hash.second;
 #endif
   }
 }
 
 inline void QuotientGraph::UpdateExternalDegrees(
     const std::vector<Int>& external_degrees) {
-  const Int supernodal_struct_size = elements_[pivot_].size();
+  const std::vector<Int>& pivot_element = elements_[pivot_];
+  const Int supernodal_struct_size = pivot_element.size();
   for (Int index = 0; index < supernodal_struct_size; ++index) {
-    const Int i = elements_[pivot_][index];
+    const Int i = pivot_element[index];
     const Int degree = external_degrees[index];
     degree_lists_.UpdateDegree(i, degree);
   }
@@ -913,25 +952,22 @@ inline void QuotientGraph::RecomputeExternalElementSizes(
 
   for (const Int& i : elements_[pivot_]) {
     const Int supernode_i_size = supernode_sizes_[i];
+    const std::vector<Int>& element_list = element_lists_[i];
     QUOTIENT_ASSERT(supernode_i_size > 0,
         "supernode " + std::to_string(i) +
         " had non-positive signed size when computing external element sizes");
-    for (const Int& element : element_lists_[i]) {
-      if (element == pivot_) {
-        continue;
-      }
-      if (aggressive_absorption && parents_[element] != -1) {
-        // Skip absorbed elements. This should only be possible with
-        // aggressive absorption.
-        continue;
-      }
+    QUOTIENT_ASSERT(element_list.back() == pivot_,
+        "Pivot was not the last entry of the element list.");
+    const Int num_elements = element_list.size();
+    for (Int elem_index = 0; elem_index < num_elements - 1; ++elem_index) {
+      const Int element = element_list[elem_index];
       QUOTIENT_ASSERT(parents_[element] == -1,
           "Used absorbed element when computing external element sizes.");
+
       Int& external_element_size = external_element_sizes_[element];
       if (external_element_size < 0) {
         external_element_size = element_sizes_[element];
       }
-
       external_element_size -= supernode_i_size;
       QUOTIENT_ASSERT(external_element_size >= 0,
           "Computed negative external element size.");

@@ -72,10 +72,6 @@ struct MinimumDegreeResult {
   // factorization using this ordering.
   double num_cholesky_flops = 0;
 
-  // The number of processed members of the elements in the pivot element lists
-  // that were no longer active.
-  Int num_stale_element_members = 0;
-
   // A trivial constructor.
   MinimumDegreeResult();
 

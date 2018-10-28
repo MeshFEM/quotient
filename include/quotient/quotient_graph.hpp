@@ -80,10 +80,7 @@ class QuotientGraph {
   //
   // It is assumed that the mask is of length 'num_orig_vertices' and set to all
   // zeros on input.
-  //
-  // The return value is the number of traversed members of the elements in the
-  // element list of the pivot that are no longer variables.
-  Int ComputePivotStructure();
+  void ComputePivotStructure();
 
   // Returns the number of members of the element list of the pivot.
   Int NumPivotElements() const;
@@ -121,11 +118,13 @@ class QuotientGraph {
   void UnflagPivotElementList();
 
   // Returns (an approximation of) the external degree of a given supervariable.
-  Int ExternalDegree(Int principal_variable) const;
+  std::pair<Int, std::size_t> ExternalDegreeAndHash(Int principal_variable);
 
   // Compute the external degree approximations of the supernodes adjacent to
   // the current pivot.
-  void ComputeExternalDegrees(std::vector<Int>* external_degrees);
+  void ComputeExternalDegreesAndHashes(
+      std::vector<Int>* external_degrees,
+      std::vector<std::size_t>* bucket_keys);
 
   // Insert the new external degrees in to the degree lists.
   void UpdateExternalDegrees(const std::vector<Int>& external_degrees);
@@ -135,6 +134,7 @@ class QuotientGraph {
       Int principal_variable, VariableHashType hash_type) const;
 
   // Compute hashes of the supervariables in the pivot structure.
+  // This routine is now [deprecated].
   void ComputeVariableHashes(std::vector<std::size_t>* bucket_keys);
 
   // Returns true if supernodes 'i' and 'j' are considered indistinguishable
@@ -367,11 +367,17 @@ class QuotientGraph {
   // element list (with the hope of decreasing collisions).
   std::size_t BasicVariableHash(Int principal_variable) const;
 
+  // Returns the sum of the supernode sizes in the adjacency list and the hash
+  // of their indices. While doing so, the non-principal members are removed.
+  std::pair<Int, std::size_t> PackCountAndHashAdjacencies(
+      Int principal_variable);
+
   // Computes the exact external degree of supernode, say, i, using a short-cut 
   // of Eq. (2) of [ADD-96] meant for the case where there are no members in the
   // element list.
   //   d_i = |A_i \ supernode(i)|.
-  Int ExactEmptyExternalDegree(Int principal_variable) const;
+  std::pair<Int, std::size_t> ExactEmptyExternalDegreeAndHash(
+      Int principal_variable);
 
   // Computes the exact external degree of supernode, say, i, using a short-cut
   // of Eq. (2) of [ADD-96] meant for the case where there is only one member of
@@ -379,7 +385,8 @@ class QuotientGraph {
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  Int ExactSingleExternalDegree(Int principal_variable) const;
+  std::pair<Int, std::size_t> ExactSingleExternalDegreeAndHash(
+      Int principal_variable);
 
   // Computes the exact external degree of supernode i using a short-cut of
   // Eq. (2) of [ADD-96] meant for the case where there are two members of the
@@ -387,21 +394,24 @@ class QuotientGraph {
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)| + |L_e \ L_p|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  Int ExactDoubleExternalDegree(Int principal_variable) const;
+  std::pair<Int, std::size_t> ExactDoubleExternalDegreeAndHash(
+      Int principal_variable);
 
   // Computes the exact external degree of supernode i using Eq. (2) of
   // [ADD-96] in the case of arbitrary members in element_lists[i].
   //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  Int ExactGenericExternalDegree(Int principal_variable) const;
+  std::pair<Int, std::size_t> ExactGenericExternalDegreeAndHash(
+      Int principal_variable);
 
   // Computes the exact external degree of supernode i using Eq. (2) of
   // [ADD-96].
   //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  Int ExactExternalDegree(Int principal_variable) const;
+  std::pair<Int, std::size_t> ExactExternalDegreeAndHash(
+      Int principal_variable);
 
   // Computes an approximation of the external degree of supernode i using
   // Eq. (4) of [ADD-96].
@@ -410,7 +420,8 @@ class QuotientGraph {
   // supernode(i) from bound0.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  Int AmestoyExternalDegree(Int principal_variable) const;
+  std::pair<Int, std::size_t> AmestoyExternalDegreeAndHash(
+      Int principal_variable);
 
   // Returns the external degree approximation of Gilbert, Moler, and Schreiber,
   //   \hat{d_i} = |A_i \ supernode(i)|  + \sum_{e in E_i} |L_e \ supernode(i)|.
@@ -420,14 +431,16 @@ class QuotientGraph {
   //   (num_original_vertices - num_eliminated_vertices) - size(supernode(i)).
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  Int GilbertExternalDegree(Int principal_variable) const;
+  std::pair<Int, std::size_t> GilbertExternalDegreeAndHash(
+      Int principal_variable);
 
   // Returns the external degree approximation of Ashcraft, Eisenstat, and
   // Lucas:
   //   \tilde{d_i} = d_i if |E_i| = 2, \hat{d_i} otherwise.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  Int AshcraftExternalDegree(Int principal_variable) const;
+  std::pair<Int, std::size_t> AshcraftExternalDegreeAndHash(
+      Int principal_variable);
 };
 
 // Pretty-prints an std::vector<T>.

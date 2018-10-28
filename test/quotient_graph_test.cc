@@ -77,14 +77,13 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   const std::vector<Int> first_supernode =
       quotient_graph.FormSupernode(first_pivot);
   const std::vector<Int>& first_element = quotient_graph.Element(first_pivot);
-  Int num_stale_element_members = quotient_graph.ComputePivotStructure();
+  quotient_graph.ComputePivotStructure();
   const Int first_cholesky_nonzeros = quotient_graph.NumPivotCholeskyNonzeros();
   const double first_cholesky_flops = quotient_graph.NumPivotCholeskyFlops();
 
   const Int kExpectedFirstPivot = 0;
   const std::vector<Int> kExpectedFirstSupernode{0};
   const std::vector<Int> kExpectedFirstElement{3, 5};
-  const Int kExpectedFirstStaleElementMembers = 0;
   const Int kExpectedFirstCholeskyNonzeros = 3;
   const double kExpectedFirstCholeskyFlops = 1. / 3. + 4.;
 
@@ -93,5 +92,4 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   REQUIRE(first_element == kExpectedFirstElement);
   REQUIRE(first_cholesky_nonzeros == kExpectedFirstCholeskyNonzeros);
   REQUIRE(first_cholesky_flops == kExpectedFirstCholeskyFlops);
-  REQUIRE(num_stale_element_members == kExpectedFirstStaleElementMembers);
 }

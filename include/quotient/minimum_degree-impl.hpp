@@ -128,7 +128,6 @@ inline MinimumDegreeResult MinimumDegree(
   constexpr char kNaturalAbsorption[] = "NaturalAbsorption";
   constexpr char kComputeExternalDegrees[] = "ComputeExternalDegrees";
   constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
-  constexpr char kComputeVariableHashes[] = "ComputeVariableHashes";
   constexpr char kMergeVariables[] = "MergeVariables";
 
   // Eliminate the variables.
@@ -143,10 +142,8 @@ inline MinimumDegreeResult MinimumDegree(
 
     // Compute the structure of this pivot block.
     if (control.time_stages) timers[kComputePivotStructure].Start();
-    const Int num_stale_element_members =
-        quotient_graph.ComputePivotStructure();
+    quotient_graph.ComputePivotStructure();
     if (control.time_stages) timers[kComputePivotStructure].Stop();
-    analysis.num_stale_element_members += num_stale_element_members;
     analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
     analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
 
@@ -176,7 +173,8 @@ inline MinimumDegreeResult MinimumDegree(
 
     // Store the external degrees of all supervariables in the pivot structure.
     if (control.time_stages) timers[kComputeExternalDegrees].Start();
-    quotient_graph.ComputeExternalDegrees(&external_degrees);
+    quotient_graph.ComputeExternalDegreesAndHashes(
+        &external_degrees, &bucket_keys);
     if (control.time_stages) timers[kComputeExternalDegrees].Stop();
 
     // Update the degree lists using the computed degrees.
@@ -195,11 +193,6 @@ inline MinimumDegreeResult MinimumDegree(
     quotient_graph.UnflagPivotStructure();
 
     if (control.allow_supernodes) {
-      // Compute the hashes of all of the supervariables in the pivot structure.
-      if (control.time_stages) timers[kComputeVariableHashes].Start();
-      quotient_graph.ComputeVariableHashes(&bucket_keys);
-      if (control.time_stages) timers[kComputeVariableHashes].Stop();
-
       // Merge any equivalent supernodes by explicitly checking for equality
       // between pairs that are in the same hash bucket.
       if (control.time_stages) timers[kMergeVariables].Start();
