@@ -70,7 +70,6 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   control.degree_type = quotient::kExactExternalDegree;
   control.force_minimal_pivot_indices = true;
   control.store_structures = true;
-  control.store_aggressive_absorptions = true;
   control.store_variable_merges = true;
   const quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
@@ -107,7 +106,7 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
       {},
   };
 
-  const std::vector<std::pair<Int, Int>> kExpectedAggressiveAbsorptions;
+  const Int kExpectedNumAggressiveAbsorptions = 0;
 
   const std::vector<std::pair<Int, Int>> kExpectedVariableMerges{
       {6, 7},
@@ -134,7 +133,8 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
   REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 #endif
-  REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
+  REQUIRE(
+      analysis.num_aggressive_absorptions == kExpectedNumAggressiveAbsorptions);
   REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
 }
 
@@ -159,7 +159,6 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   control.force_minimal_pivot_indices = true;
   control.aggressive_absorption = true;
   control.store_structures = true;
-  control.store_aggressive_absorptions = true;
   control.store_variable_merges = true;
   const quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
@@ -187,15 +186,14 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   };
 
   // [ADD-96] discusses the aggressive absorption, 0 into 1.
-  const std::vector<std::pair<Int, Int>> kExpectedAggressiveAbsorptions{
-      {1, 0},
-  };
+  const Int kExpectedNumAggressiveAbsorptions = 1;
 
   const std::vector<std::pair<Int, Int>> kExpectedVariableMerges;
 
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
-  REQUIRE(analysis.aggressive_absorptions == kExpectedAggressiveAbsorptions);
+  REQUIRE(
+      analysis.num_aggressive_absorptions == kExpectedNumAggressiveAbsorptions);
   REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
   REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 }

@@ -12,7 +12,8 @@
 #include <vector>
 
 #include "quotient/config.hpp"
-#include "quotient/set_utils-impl.hpp"
+#include "quotient/macros.hpp"
+#include "quotient/set_utils.hpp"
 
 namespace quotient {
 
@@ -117,9 +118,8 @@ void FilterSet(
       vec.begin(), vec.end(),
       blacklist.begin(), blacklist.end(),
       filtered_vec->begin());
-  if (filtered_size != std::distance(filtered_vec->begin(), iter)) {
-    std::cerr << "Filtered sizes did not match in FilterSet." << std::endl;
-  }
+  QUOTIENT_ASSERT(filtered_size == std::distance(filtered_vec->begin(), iter),
+      "Filtered sizes did not match in FilterSet.");
 #else
   std::set_difference(
       vec.begin(), vec.end(),
@@ -185,9 +185,8 @@ void MergeSets(
       vec0.begin(), vec0.end(),
       vec1.begin(), vec1.end(),
       sorted_union->begin());
-  if (union_size != std::distance(sorted_union->begin(), iter)) {
-    std::cerr << "Union sizes did not match in MergeSets." << std::endl;
-  }
+  QUOTIENT_ASSERT(union_size == std::distance(sorted_union->begin(), iter),
+      "Union sizes did not match in MergeSets.");
 #else
   std::set_union(
       vec0.begin(), vec0.end(),
@@ -199,12 +198,8 @@ void MergeSets(
 template<typename T>
 void InsertNewEntryIntoSet(const T& value, std::vector<T>* vec) {
   auto iter = std::lower_bound(vec->begin(), vec->end(), value);
-#ifdef QUOTIENT_DEBUG
-  if (iter != vec->end() && *iter == value) {
-    std::cerr << value << " was already in set in InsertEntryIntoSet."
-              << std::endl;
-  }
-#endif
+  QUOTIENT_ASSERT(iter == vec->end() || *iter != value,
+      std::to_string(value) + " was already in set in InsertEntryIntoSet.");
   vec->insert(iter, value);
 }
 

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "quotient/config.hpp"
+#include "quotient/macros.hpp"
 #include "quotient/random_access_heap.hpp"
 
 namespace quotient {
@@ -30,12 +31,8 @@ Int RandomAccessHeap<T>::LevelOffset(Int level) const {
 
 template<typename T>
 Int RandomAccessHeap<T>::LevelSize(Int level) const {
-#ifdef QUOTIENT_DEBUG
-  if (level < 0 || level >= num_comparison_levels_) {
-    std::cerr << "Requested level size of invalid level." << std::endl;
-    return 0;
-  }
-#endif
+  QUOTIENT_ASSERT(level >= 0 && level < num_comparison_levels_,
+      "Requested level size of invalid level.");
   if (level == num_comparison_levels_ - 1) {
     return values_.size() - PowerOfTwo(num_comparison_levels_ - 1);
   }
@@ -45,27 +42,18 @@ Int RandomAccessHeap<T>::LevelSize(Int level) const {
 template<typename T>
 Int RandomAccessHeap<T>::ChildMinimalIndex(
     Int level, Int level_index, bool right_child) const {
-#ifdef QUOTIENT_DEBUG
-  if (level < 0 || level >= num_comparison_levels_) {
-    std::cerr << "Requested level size of invalid level." << std::endl;
-    return -1;
-  }
-  if (level_index < 0 || level_index >= LevelSize(level)) {
-    std::cerr << "Requested invalid index of level." << std::endl;
-    return -1;
-  }
-#endif
+  QUOTIENT_ASSERT(level >= 0 && level < num_comparison_levels_,
+      "Requested level size of invalid level.");
+  QUOTIENT_ASSERT(level_index >= 0 && level_index < LevelSize(level),
+      "Requested invalid index of level.");
   const Int child_index = right_child ? 2 * level_index + 1 : 2 * level_index;
   if (level == num_comparison_levels_ - 1) {
     return child_index;
   }
   if (child_index >= LevelSize(level + 1)) {
     // This should only be possible when level is num_comparison_levels_ - 2.
-#ifdef QUOTIENT_DEBUG
-    if (level != num_comparison_levels_ - 2) {
-      std::cerr << "Impossible level comparison." << std::endl;
-    }
-#endif
+    QUOTIENT_ASSERT(level == num_comparison_levels_ - 2,
+        "Impossible level comparison.");
     const Int last_level_size = LevelSize(level + 1);
     return 2 * last_level_size + (child_index - last_level_size);
   }
@@ -123,10 +111,6 @@ bool RandomAccessHeap<T>::TreeIsValid() const {
     const Int level_size = LevelSize(level);
     for (Int level_index = 0; level_index < level_size; ++level_index) {
       if (!ComparisonIsValid(level, level_index)) {
-#ifdef QUOTIENT_DEBUG
-        std::cerr << "Comparison at position (" << level << ", "
-                  << level_index << ") was invalid." << std::endl;
-#endif
         return false;
       }
     }

@@ -9,6 +9,7 @@
 #define QUOTIENT_DEGREE_LISTS_IMPL_H_
 
 #include "quotient/config.hpp"
+#include "quotient/macros.hpp"
 #include "quotient/degree_lists.hpp"
 
 namespace quotient {
@@ -18,12 +19,8 @@ inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index) {
       degree_heads[degree_lower_bound] == -1) {
     ++degree_lower_bound;
   }
-#ifdef QUOTIENT_DEBUG
-  if (degree_lower_bound == Int(degree_heads.size())) {
-    std::cerr << "Could not find a minimal degree." << std::endl;
-    return -1;
-  }
-#endif
+  QUOTIENT_ASSERT(degree_lower_bound != Int(degree_heads.size()),
+      "Could not find a minimal degree.");
 
   Int index = degree_heads[degree_lower_bound];
   if (demand_smallest_index) {
@@ -40,10 +37,8 @@ inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index) {
   while (degree_heads[degree] == -1) {
     ++degree;
   }
-  if (degree != degree_lower_bound) {
-    std::cerr << "Minimal degree was " << degree << ", chose "
-              << degree_lower_bound << std::endl;
-  }
+  QUOTIENT_ASSERT(degree == degree_lower_bound,
+      "True minimal degree was different from result from FindMinimalIndex.");
 #endif
 
   return index;

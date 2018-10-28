@@ -305,21 +305,7 @@ AMDExperiment RunMatrixMarketAMDTest(
     }
 
     if (write_permuted_graphs) {
-      // TODO(Jack Poulson): Package this functionality.
-      Int offset = 0;
-      std::vector<Int> inverse_permutation(graph->NumSources());
-      for (const Int& i : analysis.elimination_order) {
-        for (const Int& j : analysis.supernodes[i]) {
-          inverse_permutation[offset++] = j;
-        }
-      }
-      if (offset != graph->NumSources()) {
-        std::cerr << "Invalid permutation formation!" << std::endl;
-      }
-      std::vector<Int> permutation(graph->NumSources());
-      for (Int index = 0; index < graph->NumSources(); ++index) {
-        permutation[inverse_permutation[index]] = index;
-      }
+      const std::vector<Int> permutation = analysis.Permutation();
 
       quotient::CoordinateGraph permuted_graph;
       permuted_graph.Resize(graph->NumSources());
@@ -473,10 +459,6 @@ int main(int argc, char** argv) {
       "aggressive_absorption",
       "Eliminate elements with aggressive absorption?",
       false);
-  const bool store_aggressive_absorptions = parser.OptionalInput<bool>(
-      "store_aggressive_absorptions",
-      "Store the aggressive absorption list?",
-      false);
   const bool store_variable_merges = parser.OptionalInput<bool>(
       "store_variable_merges",
       "Store the variable merge list?",
@@ -562,7 +544,6 @@ int main(int argc, char** argv) {
   control.hash_type = static_cast<quotient::VariableHashType>(hash_type_int);
   control.allow_supernodes = allow_supernodes;
   control.aggressive_absorption = aggressive_absorption;
-  control.store_aggressive_absorptions = store_aggressive_absorptions;
   control.store_variable_merges = store_variable_merges;
   control.store_pivot_element_list_sizes = store_pivot_element_list_sizes;
   control.store_num_degree_updates_with_multiple_elements =

@@ -35,11 +35,11 @@ struct MinimumDegreeResult {
   // formed if 'MinimumDegreeControl.store_structures' was true.
   std::vector<std::vector<Int>> eliminated_structures;
 
-  // An optional list (based on the value of
-  // 'MinimumDegreeControl.store_aggressive_absorptions') of aggressive element
-  // absorption pairs: each pair (e, f) consists of the absorbing element, e,
-  // and the absorbed element, f.
-  std::vector<std::pair<Int, Int>> aggressive_absorptions;
+  // The preordering of the assembly tree.
+  std::vector<Int> preorder;
+
+  // The number of aggressive absorptions that occurred.
+  Int num_aggressive_absorptions;
 
   // An optional list (based on the value of
   // 'MinimumDegreeControl.store_variable_merges') of supervariable merge
@@ -76,11 +76,8 @@ struct MinimumDegreeResult {
   // that were no longer active.
   Int num_stale_element_members = 0;
 
-  // We will push to elimination order as the reordering algorithm progresses,
-  // so we will allocate an upper bound for the amount of required space.
-  // The 'supernodes' and 'structures' variables will be copied over from
-  // the quotient graph just before the analysis completes.
-  MinimumDegreeResult(Int num_vertices);
+  // A trivial constructor.
+  MinimumDegreeResult();
 
   // Returns the principal member of the largest supernode.
   Int LargestSupernode() const;
@@ -99,6 +96,9 @@ struct MinimumDegreeResult {
   // Returns the fraction of degree updates whose corresponding variable had an
   // element list had more than two members.
   double FractionOfDegreeUpdatesWithMultipleElements() const;
+
+  // Returns the permutation implied by the postordering of the assembly tree.
+  std::vector<Int> Permutation() const;
 
   // An optional (based upon the value of 'MinimumDegreeControl.time_stages')
   // map from the stage names to the corresponding elapsed seconds.

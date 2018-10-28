@@ -52,6 +52,9 @@ class QuotientGraph {
   // Returns the ordered list of eliminated principal variables.
   const std::vector<Int>& EliminationOrder() const;
 
+  // Fills 'preorder' with the preorder of the assembly tree.
+  void ComputePreorder(std::vector<Int>* preorder) const;
+
   // Returns the number of times that supervariables have been falsely hashed
   // into the same bucket.
   Int NumHashCollisions() const;
@@ -101,24 +104,21 @@ class QuotientGraph {
   double NumPivotCholeskyFlops() const;
 
   // Update the adjacency lists after computing the supernodal pivot structure.
-  void UpdateAdjacencyListsAfterSelectingPivot();
+  void RemoveRedundantAdjacencies();
 
   // Update the element lists after computing the supernodal pivot structure.
-  void UpdateElementListsAfterSelectingPivot();
+  void NaturalAbsorption();
 
   // Sets the entry mask[i] to zero for each i in indices.
   void UnflagPivotStructure();
 
   // Mark the pivot elements in the mask.
+  // TODO(Jack Poulson): See if this can be removed.
   void FlagPivotElementList();
 
   // Unmark the pivot elements in the mask.
+  // TODO(Jack Poulson): See if this can be removed.
   void UnflagPivotElementList();
-
-  // Perform any aggressive absorptions and clear the members of the element
-  // lists of the absorbed elements from the pivot mask.
-  void AggressiveAbsorption(
-      const std::vector<Int>& aggressive_absorption_elements);
 
   // Returns (an approximation of) the external degree of a given supervariable.
   Int ExternalDegree(Int principal_variable) const;
@@ -174,7 +174,8 @@ class QuotientGraph {
   void MergeVariables(const std::vector<std::size_t>& bucket_keys);
 
   // Converts the 'pivot' (super)variable into an element.
-  void ConvertPivotIntoElement();
+  void ConvertPivotIntoElement(
+      const std::vector<Int>& aggressive_absorption_elements);
 
   // An implementation of Algorithm 2 from [ADD-96].
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
@@ -205,11 +206,8 @@ class QuotientGraph {
   // the absorbing supervariable, i, and the absorbed supervariable, j.
   const std::vector<std::pair<Int, Int>>& VariableMerges() const;
 
-  // Returns an optional list of aggressive element absorption pairs: each
-  // pair (e, f) consists of the absorbing element, e, and the absorbed
-  // element, f. This will only return a non-empty list if
-  // control.store_aggressive_absorptions was true.
-  const std::vector<std::pair<Int, Int>>& AggressiveAbsorptions() const;
+  // Returns the number of aggressive absorptions that occurred.
+  Int NumAggressiveAbsorptions() const;
 
  private:
   // A data structure for representing the relevant information of a merge of
@@ -258,6 +256,11 @@ class QuotientGraph {
 
   // The ordered list of principal members of eliminated supernodes.
   std::vector<Int> elimination_order_;
+
+  // A list of length 'num_original_vertices' where index 'e' contains the
+  // index of the parent of element 'e' in the elimination forest (if it
+  // exists). If element 'e' has no parent, then the value is equal to -1.
+  std::vector<Int> parents_;
 
   // A list of length 'num_original_vertices' such that each supernode is
   // traversed from the principal member to the final member in a continuous
@@ -347,9 +350,14 @@ class QuotientGraph {
   // the absorbing supervariable, i, and the absorbed supervariable, j.
   std::vector<std::pair<Int, Int>> variable_merges_;
 
-  // An optional list of aggressive element absorption pairs: each pair (e, f)
-  // consists of the absorbing element, e, and the absorbed element, f.
-  std::vector<std::pair<Int, Int>> aggressive_absorptions_;
+  // The number of aggressive absorptions that have occurred.
+  Int num_aggressive_absorptions_;
+
+  // Uses the parents_ and (absorbed) element_lists_ bidirectional links for
+  // the assembly tree to contiguously fill a subtree of the post-order
+  // rooted at 'index' into postorder[offset:].
+  std::vector<Int>::iterator PreorderTree(
+      Int index, std::vector<Int>::iterator iter) const;
 
   // A definition of Ashcraft's hash function (as described in [ADD-96]).
   std::size_t AshcraftVariableHash(Int principal_variable) const;

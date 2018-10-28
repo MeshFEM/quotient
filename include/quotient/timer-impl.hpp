@@ -11,6 +11,7 @@
 #include <chrono>
 #include <string>
 
+#include "quotient/macros.hpp"
 #include "quotient/timer.hpp"
 
 namespace quotient {
@@ -26,11 +27,7 @@ inline void Timer::Start() {
 }
 
 inline double Timer::Stop() {
-#ifdef QUOTIENT_DEBUG
-  if (!running_) {
-    std::cerr << "The Timer was stopped when it was not running." << std::endl;
-  }
-#endif
+  QUOTIENT_ASSERT(running_, "The Timer was stopped when it was not running.");
   last_interval_seconds_ = SecondsSinceLastStart();
   total_seconds_ += last_interval_seconds_;
   running_ = false;

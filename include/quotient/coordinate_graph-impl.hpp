@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "quotient/config.hpp"
+#include "quotient/macros.hpp"
 #include "quotient/coordinate_graph.hpp"
 
 namespace quotient {
@@ -439,20 +440,12 @@ inline void CoordinateGraph::ReserveEdgeAdditions(Int max_edge_additions) {
 }
 
 inline void CoordinateGraph::QueueEdgeAddition(Int source, Int target) {
-#ifdef QUOTIENT_DEBUG
-  if (edges_to_add_.size() == edges_to_add_.capacity()) {  
-    std::cerr << "WARNING: Pushing back without first reserving space."
-	      << std::endl;
-  }
-  if (source < 0 || source >= num_sources_) {
-    std::cerr << "ERROR: Source index was out of bounds." << std::endl;
-    return;
-  }
-  if (target < 0 || target >= num_targets_) {
-    std::cerr << "ERROR: Target index was out of bounds." << std::endl;
-    return;
-  }
-#endif // ifdef QUOTIENT_DEBUG
+  QUOTIENT_ASSERT(edges_to_add_.size() != edges_to_add_.capacity(),
+      "WARNING: Pushing back without first reserving space.");
+  QUOTIENT_ASSERT(source >= 0 && source < num_sources_,
+      "ERROR: Source index was out of bounds.");
+  QUOTIENT_ASSERT(target >= 0 && target < num_targets_,
+      "ERROR: Target index was out of bounds.");
   edges_to_add_.emplace_back(source, target);
 }
 
@@ -487,16 +480,10 @@ inline void CoordinateGraph::ReserveEdgeRemovals(Int max_edge_removals) {
 }
 
 inline void CoordinateGraph::QueueEdgeRemoval(Int source, Int target) {
-#ifdef QUOTIENT_DEBUG
-  if (source < 0 || source >= num_sources_) {
-    std::cerr << "ERROR: Source index was out of bounds." << std::endl;
-    return;
-  }
-  if (target < 0 || target >= num_targets_) {
-    std::cerr << "ERROR: Target index was out of bounds." << std::endl;
-    return;
-  }
-#endif
+  QUOTIENT_ASSERT(source >= 0 && source < num_sources_,
+      "ERROR: Source index was out of bounds.");
+  QUOTIENT_ASSERT(target >= 0 && target < num_targets_,
+      "ERROR: Target index was out of bounds.");
   edges_to_remove_.emplace_back(source, target);
 }
 
@@ -567,12 +554,9 @@ inline const std::vector<GraphEdge>& CoordinateGraph::Edges() const noexcept {
 }
 
 inline Int CoordinateGraph::SourceEdgeOffset(Int source) const noexcept {
+  QUOTIENT_ASSERT(EdgeQueuesAreEmpty(),
+      "Tried to retrieve a source edge offset when edge queues weren't empty");
 #ifdef QUOTIENT_DEBUG
-  if (!EdgeQueuesAreEmpty()) {
-    std::cerr << "Tried to retrieve a source edge offset when edge queues "
-                 "were not empty." << std::endl;
-    return -1;
-  }
   return source_edge_offsets_.at(source);
 #else
   return source_edge_offsets_[source];
@@ -606,12 +590,7 @@ inline void CoordinateGraph::UpdateSourceEdgeOffsets() {
   Int prev_source = -1;
   for (Int edge_index = 0; edge_index < num_edges; ++edge_index) {
     const Int source = edges_[edge_index].first;
-#ifdef QUOTIENT_DEBUG
-    if (source < prev_source) {
-      std::cerr << "Sources were not properly sorted." << std::endl;
-      return;
-    }
-#endif
+    QUOTIENT_ASSERT(source >= prev_source, "Sources were not properly sorted.");
 
     // Fill in the source offsets from prev_source to source - 1.
     for (; prev_source < source; ++prev_source) {

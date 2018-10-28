@@ -70,7 +70,6 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   control.degree_type = quotient::kExactExternalDegree;
   control.force_minimal_pivot_indices = true;
   control.store_structures = true;
-  control.store_aggressive_absorptions = true;
   control.store_variable_merges = true;
 
   quotient::QuotientGraph quotient_graph(graph, control);

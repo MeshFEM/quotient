@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "quotient/config.hpp"
+#include "quotient/macros.hpp"
 #include "quotient/coordinate_graph.hpp"
 #include "quotient/minimum_degree.hpp"
 #include "quotient/quotient_graph.hpp"
@@ -24,7 +25,7 @@
 
 namespace quotient {
 
-inline MinimumDegreeResult::MinimumDegreeResult(Int num_vertices) { }
+inline MinimumDegreeResult::MinimumDegreeResult() { }
 
 inline Int MinimumDegreeResult::NumStrictlyLowerCholeskyNonzeros() const {
   return num_cholesky_nonzeros - supernodes.size();
@@ -63,20 +64,40 @@ MinimumDegreeResult::FractionOfDegreeUpdatesWithMultipleElements() const {
   return num_degree_updates_with_multiple_elements / (1. * num_degree_updates);
 }
 
-inline MinimumDegreeResult MinimumDegree(
-  const CoordinateGraph& graph, const MinimumDegreeControl& control) {
+inline std::vector<Int>
+MinimumDegreeResult::Permutation() const {
+  const Int num_vertices = preorder.size();
 #ifdef QUOTIENT_DEBUG
-  if (graph.NumSources() != graph.NumTargets()) {
-    std::cerr << "ERROR: MinimumDegree requires a symmetric input graph."
-              << std::endl;
-    return MinimumDegreeResult(0);
+  std::vector<Int> permutation(num_vertices, -1);
+#else
+  std::vector<Int> permutation(num_vertices);
+#endif
+
+  // Fill the permutation with the inverse of the postordering, which is the
+  // reverse of the preordering.
+  for (Int index = 0; index < num_vertices; ++index) {
+    permutation[preorder[num_vertices - 1 - index]] = index;
+  }
+
+#ifdef QUOTIENT_DEBUG
+  for (Int index = 0; index < num_vertices; ++index) {
+    QUOTIENT_ASSERT(permutation[index] != -1,
+        "Permutation was only partially filled.");
   }
 #endif
+
+  return permutation;
+}
+
+inline MinimumDegreeResult MinimumDegree(
+  const CoordinateGraph& graph, const MinimumDegreeControl& control) {
+  QUOTIENT_ASSERT(graph.NumSources() == graph.NumTargets(),
+      "MinimumDegree requires a symmetric input graph.");
   const Int num_orig_vertices = graph.NumSources();
 
   // Initialize a data structure that will eventually contain the results of
   // the (approximae) minimum degree analysis.
-  MinimumDegreeResult analysis(num_orig_vertices);
+  MinimumDegreeResult analysis;
   if (control.store_pivot_element_list_sizes) {
     analysis.pivot_element_list_sizes.reserve(num_orig_vertices);
   }
@@ -101,10 +122,10 @@ inline MinimumDegreeResult MinimumDegree(
   // Set up a set of timers for the components of the analysis.
   std::unordered_map<std::string, Timer> timers;
   constexpr char kComputePivotStructure[] = "ComputePivotStructure";
-  constexpr char kUpdateAdjacencyLists[] = "UpdateAdjacencyLists";
+  constexpr char kRemoveRedundantAdjacencies[] = "RemoveRedundantAdjacencies";
   constexpr char kExternalElementSizes[] = "ExternalElementSizes";
   constexpr char kResetExternalElementSizes[] = "ResetExternalElementSizes";
-  constexpr char kUpdateElementLists[] = "UpdateElementLists";
+  constexpr char kNaturalAbsorption[] = "NaturalAbsorption";
   constexpr char kComputeExternalDegrees[] = "ComputeExternalDegrees";
   constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
   constexpr char kComputeVariableHashes[] = "ComputeVariableHashes";
@@ -130,15 +151,15 @@ inline MinimumDegreeResult MinimumDegree(
     analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
 
     // Update the adjacency lists.
-    if (control.time_stages) timers[kUpdateAdjacencyLists].Start();
-    quotient_graph.UpdateAdjacencyListsAfterSelectingPivot();
-    if (control.time_stages) timers[kUpdateAdjacencyLists].Stop();
+    if (control.time_stages) timers[kRemoveRedundantAdjacencies].Start();
+    quotient_graph.RemoveRedundantAdjacencies();
+    if (control.time_stages) timers[kRemoveRedundantAdjacencies].Stop();
 
     // Update the element lists.
-    if (control.time_stages) timers[kUpdateElementLists].Start();
+    if (control.time_stages) timers[kNaturalAbsorption].Start();
     quotient_graph.FlagPivotElementList();
-    quotient_graph.UpdateElementListsAfterSelectingPivot();
-    if (control.time_stages) timers[kUpdateElementLists].Stop();
+    quotient_graph.NaturalAbsorption();
+    if (control.time_stages) timers[kNaturalAbsorption].Stop();
 
     if (quotient_graph.UsingExternalElementSizes()) {
       // Compute the external structure cardinalities, |L_e \ L_p|, of all
@@ -149,11 +170,6 @@ inline MinimumDegreeResult MinimumDegree(
           &aggressive_absorption_elements);
       if (control.time_stages) timers[kExternalElementSizes].Stop();
     }
-
-    // Perform any aggressive absorption.
-    if (control.time_stages) timers[kUpdateElementLists].Start();
-    quotient_graph.AggressiveAbsorption(aggressive_absorption_elements);
-    if (control.time_stages) timers[kUpdateElementLists].Stop();
 
     // Clear the pivot element list mask.
     quotient_graph.UnflagPivotElementList();
@@ -199,7 +215,7 @@ inline MinimumDegreeResult MinimumDegree(
     }
 
     // Formally convert the pivot from a supervariable into an element.
-    quotient_graph.ConvertPivotIntoElement();
+    quotient_graph.ConvertPivotIntoElement(aggressive_absorption_elements);
   }
 
   // Extract the relevant information from the QuotientGraph.
@@ -208,11 +224,13 @@ inline MinimumDegreeResult MinimumDegree(
     analysis.supernodes[i] = quotient_graph.FormSupernode(i);
   }
   analysis.elimination_order = quotient_graph.EliminationOrder();
+  quotient_graph.ComputePreorder(&analysis.preorder);
   if (control.store_structures) {
     quotient_graph.FormEliminatedStructures(&analysis.eliminated_structures);
   }
   analysis.num_hash_collisions = quotient_graph.NumHashCollisions();
-  analysis.aggressive_absorptions = quotient_graph.AggressiveAbsorptions();
+  analysis.num_aggressive_absorptions =
+      quotient_graph.NumAggressiveAbsorptions();
   analysis.variable_merges = quotient_graph.VariableMerges();
   for (const std::pair<std::string, Timer>& pairing : timers) {
     analysis.elapsed_seconds[pairing.first] = pairing.second.TotalSeconds();
