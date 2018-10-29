@@ -24,14 +24,6 @@ else
   openmp_dep = dependency('openmp', version : '>=3.0', required : false)
 endif
 
-# Unit tests for the set utilities.
-set_utils_test_exe = executable(
-    'set_utils_test',
-    ['test/set_utils_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir,
-    dependencies : openmp_dep)
-test('Set utils tests', set_utils_test_exe)
-
 # Unit tests for the CoordinateGraph class.
 coordinate_graph_test_exe = executable(
     'coordinate_graph_test',
@@ -47,14 +39,6 @@ quotient_graph_test_exe = executable(
     include_directories : include_dir,
     dependencies : openmp_dep)
 test('QuotientGraph tests', quotient_graph_test_exe)
-
-# Unit tests for the RandomAccessHeap class.
-random_access_heap_test_exe = executable(
-    'random_access_heap_test',
-    ['test/random_access_heap_test.cc', 'include/quotient.hpp'],
-    include_directories : include_dir,
-    dependencies : openmp_dep)
-test('RandomAccessHeap tests', random_access_heap_test_exe)
 
 # Unit tests for the MinimumDegree function.
 minimum_degree_test_exe = executable(
