@@ -114,10 +114,12 @@ inline MinimumDegreeResult MinimumDegree(
 
   // A vector for storing the list of new external degree updates.
   std::vector<Int> external_degrees;
+  external_degrees.reserve(num_orig_vertices - 1);
 
   // A vector for storing the hashes of the supervariables in the current
   // pivot's structure.
   std::vector<std::size_t> bucket_keys;
+  bucket_keys.reserve(num_orig_vertices - 1);
 
   // Set up a set of timers for the components of the analysis.
   std::unordered_map<std::string, Timer> timers;
@@ -170,9 +172,6 @@ inline MinimumDegreeResult MinimumDegree(
       analysis.num_degree_updates_with_multiple_elements +=
           quotient_graph.NumPivotDegreeUpdatesWithMultipleElements();
     }
-
-    // Clear the supernodes in the pivot structure from the pivot mask.
-    quotient_graph.UnflagPivotStructure();
 
     if (control.allow_supernodes) {
       // Merge any equivalent supernodes by explicitly checking for equality

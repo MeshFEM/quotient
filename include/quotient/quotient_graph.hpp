@@ -100,9 +100,6 @@ class QuotientGraph {
   // Cholesky factorization to eliminate the current pivot.
   double NumPivotCholeskyFlops() const;
 
-  // Sets the entry mask[i] to zero for each i in indices.
-  void UnflagPivotStructure();
-
   // Returns (an approximation of) the external degree of a given supervariable.
   std::pair<Int, std::size_t> ExternalDegreeAndHash(Int principal_variable);
 
@@ -114,14 +111,6 @@ class QuotientGraph {
 
   // Insert the new external degrees in to the degree lists.
   void UpdateExternalDegrees(const std::vector<Int>& external_degrees);
-
-  // Returns a hash of a particular variable.
-  std::size_t VariableHash(
-      Int principal_variable, VariableHashType hash_type) const;
-
-  // Compute hashes of the supervariables in the pivot structure.
-  // This routine is now [deprecated].
-  void ComputeVariableHashes(std::vector<std::size_t>* bucket_keys);
 
   // Returns true if supernodes 'i' and 'j' are considered indistinguishable
   // with respect to their quotient graph representation. It is assumed that
@@ -272,13 +261,6 @@ class QuotientGraph {
   // The element lists only contain the principal member of any supernode.
   std::vector<std::vector<Int>> element_lists_;
 
-  // A copy of the pivot element list that can be used to update 'element_sizes'
-  // when the pivot is converted to an element. This is only needed when
-  // aggressive absorption is activated, as the element list will no longer
-  // correspond to the set that needs to be decremented by the pivot supernode
-  // size.
-  std::vector<Int> original_pivot_element_list_;
-
   // A set of linked lists for keeping track of supervariables of each degree
   // (and, also, a way to provide fast access to a supervariable with
   // minimal degree).
@@ -321,11 +303,6 @@ class QuotientGraph {
   // the cardinalities of |L_e \ L_p| for each element e in an element list of
   // a supervariable in the current pivot structure, L_p.
   std::vector<Int> shifted_external_element_sizes_;
-
-  // A mask of length 'num_original_vertices' that is 1 in index 'i' if and only
-  // if 'i' is a member of the current pivot's structure. All other entries
-  // will be zero.
-  std::vector<int> pivot_mask_;
 
   // A mask of length 'num_original_vertices' that used within exact external
   // degree computations to perform set unions. It is only created if exact
