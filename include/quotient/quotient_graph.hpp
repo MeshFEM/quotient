@@ -364,6 +364,11 @@ class QuotientGraph {
   // The number of aggressive absorptions that have occurred.
   Int num_aggressive_absorptions_;
 
+  // Appends the supernode with the given principal member and length into
+  // a given vector.
+  void AppendSupernode(
+      Int principal_variable, Int supernode_size, std::vector<Int>* vec) const;
+
   // Uses the parents_ and (absorbed) element_lists_ bidirectional links for
   // the assembly tree to contiguously fill a subtree of the post-order
   // rooted at 'index' into postorder[offset:].

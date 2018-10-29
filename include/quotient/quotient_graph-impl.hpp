@@ -173,18 +173,8 @@ inline void QuotientGraph::Print() const {
 inline std::vector<Int> QuotientGraph::FormSupernode(
     Int principal_member) const {
   std::vector<Int> supernode;
-  if (supernode_sizes_[principal_member] == 0) {
-    return supernode;
-  }
-
-  supernode.reserve(std::abs(supernode_sizes_[principal_member]));
-  Int index = principal_member;
-  supernode.push_back(index);
-  while (index != tail_index_[principal_member]) {
-    index = next_index_[index];
-    supernode.push_back(index);
-  }
-
+  const Int supernode_size = std::abs(supernode_sizes_[principal_member]);
+  AppendSupernode(principal_member, supernode_size, &supernode);
   return supernode;
 }
 
@@ -221,18 +211,13 @@ inline void QuotientGraph::ComputePivotStructure() {
     if (!supernode_size) {
       continue;
     }
+
     pivot_mask_[index] = 1;
     elements_[pivot_].push_back(index);
     element_sizes_[pivot_] += supernode_size;
 
     if (control_.store_structures) {
-      // Fill in the supernode.
-      Int k = index;
-      structures_[pivot_].push_back(k);
-      while (k != tail_index_[index]) {
-        k = next_index_[k];
-        structures_[pivot_].push_back(k);
-      }
+      AppendSupernode(index, supernode_size, &structures_[pivot_]);
     }
   }
 
@@ -268,13 +253,7 @@ inline void QuotientGraph::ComputePivotStructure() {
       element_sizes_[pivot_] += supernode_size;
 
       if (control_.store_structures) {
-        // Fill in the supernode.
-        Int k = index;
-        structures_[pivot_].push_back(k);
-        while (k != tail_index_[index]) {
-          k = next_index_[k];
-          structures_[pivot_].push_back(k);
-        }
+        AppendSupernode(index, supernode_size, &structures_[pivot_]);
       }
     }
   }
@@ -897,6 +876,20 @@ inline void QuotientGraph::ConvertPivotIntoElement(
 
   elimination_order_.push_back(pivot_);
   num_eliminated_vertices_ += supernode_size;
+}
+
+inline void QuotientGraph::AppendSupernode(
+    Int principal_member, Int supernode_size, std::vector<Int>* vec) const {
+  if (!supernode_size) {
+    return;
+  }
+  vec->reserve(vec->size() + supernode_size);
+  Int index = principal_member;
+  vec->push_back(index);
+  while (index != tail_index_[principal_member]) {
+    index = next_index_[index];
+    vec->push_back(index);
+  }
 }
 
 inline void QuotientGraph::ComputePreorder(std::vector<Int>* preorder) const {
