@@ -316,26 +316,6 @@ inline void QuotientGraph::UnflagPivotStructure() {
 #endif
 }
 
-inline void QuotientGraph::FlagPivotElementList() {
-  for (const Int& element : element_lists_[pivot_]) {
-    pivot_mask_[element] = -1;
-  }
-}
-
-inline void QuotientGraph::UnflagPivotElementList() {
-  for (const Int& element : element_lists_[pivot_]) {
-    pivot_mask_[element] = 0;
-  }
-#ifdef QUOTIENT_DEBUG
-  // At this point, only the principal members of the structure of the
-  // current pivot should be flagged (with +1's).
-  for (std::size_t index = 0; index < pivot_mask_.size(); ++index) {
-    QUOTIENT_ASSERT(pivot_mask_[index] >= 0,
-        "Pivot mask had negative entry after unflagging pivot element list.");
-  }
-#endif
-}
-
 inline std::pair<Int, std::size_t> QuotientGraph::PackCountAndHashAdjacencies(
     Int principal_variable) {
   Int degree = 0;
@@ -950,7 +930,7 @@ inline void QuotientGraph::NaturalAbsorptionAndExternalElementSizes(
       // enabled.
       if (aggressive_absorption &&
           shifted_external_size == shift &&
-          !pivot_mask_[element]) {
+          parents_[element] != pivot_) {
         ++num_aggressive_absorptions_;
         parents_[element] = pivot_;
         aggressive_absorption_elements->push_back(element);

@@ -145,8 +145,6 @@ inline MinimumDegreeResult MinimumDegree(
     analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
     analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
 
-    quotient_graph.FlagPivotElementList();
-
     // Compute the external structure cardinalities, |L_e \ L_p|, of all
     // elements e in an element list of a supernode in L_p. Any elements to
     // be aggressively absorbed are also returned.
@@ -154,9 +152,6 @@ inline MinimumDegreeResult MinimumDegree(
     quotient_graph.NaturalAbsorptionAndExternalElementSizes(
         &aggressive_absorption_elements);
     if (control.time_stages) timers[kNaturalAbsorption].Stop();
-
-    // Clear the pivot element list mask.
-    quotient_graph.UnflagPivotElementList();
 
     // Store the external degrees of all supervariables in the pivot structure.
     if (control.time_stages) timers[kComputeExternalDegrees].Start();

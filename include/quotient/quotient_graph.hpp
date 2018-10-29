@@ -103,14 +103,6 @@ class QuotientGraph {
   // Sets the entry mask[i] to zero for each i in indices.
   void UnflagPivotStructure();
 
-  // Mark the pivot elements in the mask.
-  // TODO(Jack Poulson): See if this can be removed.
-  void FlagPivotElementList();
-
-  // Unmark the pivot elements in the mask.
-  // TODO(Jack Poulson): See if this can be removed.
-  void UnflagPivotElementList();
-
   // Returns (an approximation of) the external degree of a given supervariable.
   std::pair<Int, std::size_t> ExternalDegreeAndHash(Int principal_variable);
 
