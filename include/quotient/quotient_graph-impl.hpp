@@ -36,6 +36,9 @@ inline QuotientGraph::QuotientGraph(
 : num_original_vertices_(graph.NumSources()),
   num_eliminated_vertices_(0),
   control_(control),
+  external_element_size_shift_(0),
+  max_shifted_external_element_size_(0),
+  max_shift_value_(std::numeric_limits<Int>::max() - graph.NumSources()),
   num_hash_collisions_(0),
   num_aggressive_absorptions_(0) {
   // Initialize the supernodes as simple.
@@ -99,7 +102,7 @@ inline QuotientGraph::QuotientGraph(
       control_.degree_type == kAshcraftExternalDegree;
 #endif
   if (using_external_element_sizes_) {
-    external_element_sizes_.resize(num_original_vertices_, -1);
+    shifted_external_element_sizes_.resize(num_original_vertices_, -1);
   }
 
   pivot_mask_.resize(num_original_vertices_, 0);
@@ -478,7 +481,9 @@ QuotientGraph::ExactDoubleExternalDegreeAndHash(Int principal_variable) {
   const Int element = element_list[0];
   if (!control_.aggressive_absorption || parents_[element] == -1) {
     // Add |L_e \ L_p|.
-    degree_and_hash.first += external_element_sizes_[element];
+    const Int external_element_size =
+        shifted_external_element_sizes_[element] - external_element_size_shift_;
+    degree_and_hash.first += external_element_size;
     degree_and_hash.second += element;
   }
 
@@ -575,9 +580,11 @@ QuotientGraph::AmestoyExternalDegreeAndHash(Int principal_variable) {
       // aggressive absorption.
       continue;
     }
-    QUOTIENT_ASSERT(external_element_sizes_[element] >= 0,
+    const Int external_element_size =
+        shifted_external_element_sizes_[element] - external_element_size_shift_;
+    QUOTIENT_ASSERT(external_element_size >= 0,
         "Ran into a missing entry in external_element_sizes_");
-    degree_and_hash.first += external_element_sizes_[element];
+    degree_and_hash.first += external_element_size;
     degree_and_hash.second += element;
   }
   degree_and_hash.second += pivot_;
@@ -964,19 +971,25 @@ inline void QuotientGraph::RecomputeExternalElementSizes(
       QUOTIENT_ASSERT(parents_[element] == -1,
           "Used absorbed element when computing external element sizes.");
 
-      Int& external_element_size = external_element_sizes_[element];
-      if (external_element_size < 0) {
-        external_element_size = element_sizes_[element];
+      Int& shifted_external_element_size =
+          shifted_external_element_sizes_[element];
+      if (shifted_external_element_size < external_element_size_shift_) {
+        shifted_external_element_size =
+            element_sizes_[element] + external_element_size_shift_;
       }
-      external_element_size -= supernode_i_size;
-      QUOTIENT_ASSERT(external_element_size >= 0,
+      shifted_external_element_size -= supernode_i_size;
+      max_shifted_external_element_size_ =
+          std::max(max_shifted_external_element_size_,
+              shifted_external_element_size);
+      QUOTIENT_ASSERT(
+          shifted_external_element_size - external_element_size_shift_>= 0,
           "Computed negative external element size.");
 
       // Mark any element with no exterior element size that is not a member
       // of the pivot element list for absorption if aggressive absorption is
       // enabled.
       if (aggressive_absorption &&
-          external_element_size == 0 &&
+          shifted_external_element_size == external_element_size_shift_ &&
           !pivot_mask_[element]) {
         ++num_aggressive_absorptions_;
         parents_[element] = pivot_;
@@ -987,19 +1000,16 @@ inline void QuotientGraph::RecomputeExternalElementSizes(
 }
 
 inline void QuotientGraph::ResetExternalElementSizes() {
-  for (const Int& i : elements_[pivot_]) {
-    for (const Int& element : element_lists_[i]) {
-      external_element_sizes_[element] = -1;
-    }
+  if (max_shifted_external_element_size_ < max_shift_value_) {
+    external_element_size_shift_ = max_shifted_external_element_size_ + 1;
+    return; 
   }
 
-#ifdef QUOTIENT_DEBUG
-  for (std::size_t index = 0; index < external_element_sizes_.size(); ++index) {
-    QUOTIENT_ASSERT(external_element_sizes_[index] == -1,
-      "external_element_sizes_[" + std::to_string(index) + "] was " +
-      std::to_string(external_element_sizes_[index]) + " after reset.");
+  for (std::size_t i = 0; i < shifted_external_element_sizes_.size(); ++i) {
+    shifted_external_element_sizes_[i] = -1;
   }
-#endif
+  max_shifted_external_element_size_ = 0;
+  external_element_size_shift_ = 0;
 }
 
 } // namespace quotient

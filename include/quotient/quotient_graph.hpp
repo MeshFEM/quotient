@@ -241,10 +241,6 @@ class QuotientGraph {
   // The control structure used to configure the MinimumDegree analysis.
   MinimumDegreeControl control_; 
 
-  // Whether or not external element sizes will be maintained throughout the
-  // minimum degree analysis.
-  bool using_external_element_sizes_;
-
   // The principal member of the current pivot.
   Int pivot_;
 
@@ -322,10 +318,25 @@ class QuotientGraph {
   // The total number of variables (including nonprincipal) in each element.
   std::vector<Int> element_sizes_;
 
+  // Whether or not external element sizes will be maintained throughout the
+  // minimum degree analysis.
+  bool using_external_element_sizes_;
+
+  // The current datum value for the external_element_sizes. All values should
+  // be interpreted relative to the datum value.
+  Int external_element_size_shift_;
+
+  // The maximum value that has been seen so far in the element size array.
+  Int max_shifted_external_element_size_;
+
+  // The maximum allowable value of the datum until an explicit reset is
+  // required.
+  Int max_shift_value_;
+
   // A mask of length 'num_orig_vertices' that can be used to quickly compute
   // the cardinalities of |L_e \ L_p| for each element e in an element list of
   // a supervariable in the current pivot structure, L_p.
-  std::vector<Int> external_element_sizes_;
+  std::vector<Int> shifted_external_element_sizes_;
 
   // A mask of length 'num_original_vertices' that is 1 in index 'i' if and only
   // if 'i' is a member of the current pivot's structure. All other entries

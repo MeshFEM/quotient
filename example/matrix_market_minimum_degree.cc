@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <vector>
 #include "quotient.hpp"
@@ -24,20 +25,22 @@ using quotient::Int;
 // of a random variable.
 struct SufficientStatistics {
   // The median of the set of samples.
-  double median = -1;
+  double median = std::numeric_limits<double>::infinity();
 
   // The mean of the set of samples.
-  double mean = -1;
+  double mean = std::numeric_limits<double>::infinity();
 
   // The standard deviation of the set of samples.
-  double standard_deviation = -1;
+  double standard_deviation = std::numeric_limits<double>::infinity();
 };
 
 // Pretty prints the SufficientStatistics structure.
 void PrintSufficientStatistics(
     const SufficientStatistics& stats, const std::string& label) {
-  std::cout << label << ": median=" << stats.median << ", mean=" << stats.mean
-            << ", stddev=" << stats.standard_deviation << std::endl;
+  if (stats.mean != std::numeric_limits<double>::infinity()) {
+    std::cout << label << ": median=" << stats.median << ", mean=" << stats.mean
+              << ", stddev=" << stats.standard_deviation << std::endl;
+  }
 }
 
 // A list of properties to measure from an AMD reordering.
@@ -58,6 +61,9 @@ struct AMDExperiment {
 
   // The number of degree updates performed during the AMD analysis.
   SufficientStatistics num_degree_updates;
+
+  // The number of aggressive absorptions during the AMD analysis.
+  SufficientStatistics num_aggressive_absorptions;
 
   // The number of times supervariables were falsely hashed into the same
   // bucket.
@@ -86,6 +92,8 @@ void PrintAMDExperiment(
   PrintSufficientStatistics(
       experiment.num_degree_updates, "  num_degree_updates");
   PrintSufficientStatistics(
+      experiment.num_aggressive_absorptions, "  num_aggressive_absorptions");
+  PrintSufficientStatistics(
       experiment.num_hash_collisions, "  num_hash_collisions");
   PrintSufficientStatistics(
       experiment.elapsed_seconds, "  elapsed_seconds");
@@ -102,8 +110,7 @@ template<typename T>
 double Median(const std::vector<T>& vec) {
   const std::size_t num_entries = vec.size();
   if (num_entries == 0) {
-    std::cerr << "Invalid median request of empty list." << std::endl;
-    return 0.;
+    return std::numeric_limits<double>::infinity();
   }
 
   std::vector<T> vec_copy(vec);
@@ -120,8 +127,7 @@ template<typename T>
 double Mean(const std::vector<T>& vec) {
   const std::size_t num_entries = vec.size();
   if (num_entries == 0) {
-    std::cerr << "Invalid mean request of empty list." << std::endl;
-    return 0.;
+    return std::numeric_limits<double>::infinity();
   }
 
   double mean = 0.; 
@@ -155,8 +161,7 @@ template<typename T>
 double StandardDeviation(const std::vector<T>& vec, double mean) {
   const std::size_t num_entries = vec.size();
   if (num_entries == 0) {
-    std::cerr << "Invalid standard dev. request of empty list." << std::endl;
-    return 0.;
+    return std::numeric_limits<double>::infinity();
   }
 
   double scale = 0;
@@ -231,25 +236,17 @@ AMDExperiment RunMatrixMarketAMDTest(
               << densest_row_size << " connections." << std::endl;
   }
 
-  std::vector<Int> largest_supernode_sizes;
-  std::vector<Int> num_nonzeros;
-  std::vector<Int> num_strictly_lower_nonzeros;
-  std::vector<double> num_flops;
-  std::vector<Int> num_degree_updates;
-  std::vector<Int> num_hash_collisions;
-  std::vector<double> elapsed_seconds;
+  const int num_experiments = num_random_permutations + 1;
+  std::vector<Int> largest_supernode_sizes(num_experiments);
+  std::vector<Int> num_nonzeros(num_experiments);
+  std::vector<Int> num_strictly_lower_nonzeros(num_experiments);
+  std::vector<double> num_flops(num_experiments);
+  std::vector<Int> num_degree_updates(num_experiments);
+  std::vector<Int> num_aggressive_absorptions(num_experiments);
+  std::vector<Int> num_hash_collisions(num_experiments);
+  std::vector<double> elapsed_seconds(num_experiments);
   std::vector<double> fraction_of_pivots_with_multiple_elements;
   std::vector<double> fraction_of_degree_updates_with_multiple_elements;
-  const int num_experiments = num_random_permutations + 1;
-  largest_supernode_sizes.reserve(num_experiments);
-  num_nonzeros.reserve(num_experiments);
-  num_strictly_lower_nonzeros.reserve(num_experiments);
-  num_flops.reserve(num_experiments);
-  num_degree_updates.reserve(num_experiments);
-  num_hash_collisions.reserve(num_experiments);
-  elapsed_seconds.reserve(num_experiments); 
-  fraction_of_pivots_with_multiple_elements.reserve(num_experiments);
-  fraction_of_degree_updates_with_multiple_elements.reserve(num_experiments);
   for (int instance = 0; instance < num_experiments; ++instance) {
     if (print_progress) {
       std::cout << "  Running analysis " << instance << " of "
@@ -257,21 +254,24 @@ AMDExperiment RunMatrixMarketAMDTest(
     }
     quotient::Timer timer;
     timer.Start();
-    const quotient::MinimumDegreeResult analysis = quotient::MinimumDegree(
-      *graph, control);
-    elapsed_seconds.push_back(timer.Stop());
-    largest_supernode_sizes.push_back(analysis.LargestSupernodeSize());
-    num_nonzeros.push_back(analysis.num_cholesky_nonzeros);
-    num_strictly_lower_nonzeros.push_back(
-        analysis.NumStrictlyLowerCholeskyNonzeros());
-    num_flops.push_back(analysis.num_cholesky_flops);
-    num_degree_updates.push_back(analysis.num_degree_updates);
-    num_hash_collisions.push_back(analysis.num_hash_collisions);
+    const quotient::MinimumDegreeResult analysis =
+        quotient::MinimumDegree(*graph, control);
+    elapsed_seconds[instance] = timer.Stop();
+    largest_supernode_sizes[instance] = analysis.LargestSupernodeSize();
+    num_nonzeros[instance] = analysis.num_cholesky_nonzeros;
+    num_strictly_lower_nonzeros[instance] =
+        analysis.NumStrictlyLowerCholeskyNonzeros();
+    num_flops[instance] = analysis.num_cholesky_flops;
+    num_degree_updates[instance] = analysis.num_degree_updates;
+    num_aggressive_absorptions[instance] = analysis.num_aggressive_absorptions;
+    num_hash_collisions[instance] = analysis.num_hash_collisions;
     if (print_progress) {
-      std::cout << "  Finished analysis in " << elapsed_seconds.back()
-                << " seconds. There were " << num_strictly_lower_nonzeros.back()
+      std::cout << "  Finished analysis in " << elapsed_seconds[instance]
+                << " seconds. There were "
+                << num_strictly_lower_nonzeros[instance]
                 << " subdiagonal nonzeros and the largest supernode had "
-                << largest_supernode_sizes.back() << " members." << std::endl;
+                << largest_supernode_sizes[instance] << " members."
+                << std::endl;
     }
     if (control.store_pivot_element_list_sizes) {
       fraction_of_pivots_with_multiple_elements.push_back(
@@ -341,6 +341,8 @@ AMDExperiment RunMatrixMarketAMDTest(
   experiment.largest_supernode_size = GetSufficientStatistics(
       largest_supernode_sizes);
   experiment.num_degree_updates = GetSufficientStatistics(num_degree_updates);
+  experiment.num_aggressive_absorptions =
+      GetSufficientStatistics(num_aggressive_absorptions);
   experiment.num_hash_collisions = GetSufficientStatistics(num_hash_collisions);
   experiment.elapsed_seconds = GetSufficientStatistics(elapsed_seconds);
   experiment.fraction_of_pivots_with_multiple_elements =
