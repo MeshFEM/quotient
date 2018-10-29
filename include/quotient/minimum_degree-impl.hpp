@@ -124,7 +124,7 @@ inline MinimumDegreeResult MinimumDegree(
   // Set up a set of timers for the components of the analysis.
   std::unordered_map<std::string, Timer> timers;
   constexpr char kComputePivotStructure[] = "ComputePivotStructure";
-  constexpr char kNaturalAbsorption[] = "NaturalAbsorption";
+  constexpr char kAbsorption[] = "Absorption";
   constexpr char kResetExternalElementSizes[] = "ResetExternalElementSizes";
   constexpr char kComputeExternalDegrees[] = "ComputeExternalDegrees";
   constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
@@ -150,10 +150,10 @@ inline MinimumDegreeResult MinimumDegree(
     // Compute the external structure cardinalities, |L_e \ L_p|, of all
     // elements e in an element list of a supernode in L_p. Any elements to
     // be aggressively absorbed are also returned.
-    if (control.time_stages) timers[kNaturalAbsorption].Start();
-    quotient_graph.NaturalAbsorptionAndExternalElementSizes(
+    if (control.time_stages) timers[kAbsorption].Start();
+    quotient_graph.AbsorptionAndExternalElementSizes(
         &aggressive_absorption_elements);
-    if (control.time_stages) timers[kNaturalAbsorption].Stop();
+    if (control.time_stages) timers[kAbsorption].Stop();
 
     // Store the external degrees of all supervariables in the pivot structure.
     if (control.time_stages) timers[kComputeExternalDegrees].Start();

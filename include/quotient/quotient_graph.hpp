@@ -100,7 +100,10 @@ class QuotientGraph {
   // Cholesky factorization to eliminate the current pivot.
   double NumPivotCholeskyFlops() const;
 
-  // Returns (an approximation of) the external degree of a given supervariable.
+  // Returns (an approximation of) the external degree of a given supervariable
+  // and its hash. Further, redundant and non-principal members of the adjacency
+  // list are removed, as are any lingering aggressively-absorbed elements
+  // in an element list of a structural variable.
   std::pair<Int, std::size_t> ExternalDegreeAndHash(Int principal_variable);
 
   // Compute the external degree approximations of the supernodes adjacent to
@@ -167,7 +170,7 @@ class QuotientGraph {
   // If the 'aggressive_absorption' boolean is true, then
   // 'aggressive_absorption_elements' is filled with the elements which should
   // be absorbed.
-  void NaturalAbsorptionAndExternalElementSizes(
+  void AbsorptionAndExternalElementSizes(
     std::vector<Int>* aggressive_absorption_elements);
 
   // Sets all entries of 'external_element_sizes' that correspond to an
@@ -213,7 +216,11 @@ class QuotientGraph {
   Int num_eliminated_vertices_;
 
   // The control structure used to configure the MinimumDegree analysis.
+#ifdef QUOTIENT_DEBUG
   MinimumDegreeControl control_; 
+#else
+  const MinimumDegreeControl control_;
+#endif
 
   // The principal member of the current pivot.
   Int pivot_;
