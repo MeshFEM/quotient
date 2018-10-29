@@ -100,12 +100,6 @@ class QuotientGraph {
   // Cholesky factorization to eliminate the current pivot.
   double NumPivotCholeskyFlops() const;
 
-  // Update the adjacency lists after computing the supernodal pivot structure.
-  void RemoveRedundantAdjacencies();
-
-  // Update the element lists after computing the supernodal pivot structure.
-  void NaturalAbsorption();
-
   // Sets the entry mask[i] to zero for each i in indices.
   void UnflagPivotStructure();
 
@@ -179,27 +173,26 @@ class QuotientGraph {
 
   // An implementation of Algorithm 2 from [ADD-96].
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
-  // of a supernode in the structure, L_p.
+  // of a supernode in the structure, L_p. During the computation, natural
+  // absorption (E_i := (E_i \ E_p) \cup {p}) is performed.
   //
-  // On entry all entries of external_element_sizes should be less than zero.
-  // On exit, all entries of 'external_element_sizes' corresponding to element
-  // indices in the element list of a supernode in the structure L_p should be
-  // non-negative and equal to |L_e \ L_p|.
+  // On entry all entries of external_element_sizes should be less than the
+  // external element size shift.
+  //
+  // On exit, all entries of 'shifted_external_element_sizes' corresponding to
+  // element indices in the element list of a supernode in the structure L_p
+  // should be, after removing the shift, non-negative and equal to |L_e \ L_p|.
   //
   // If the 'aggressive_absorption' boolean is true, then
   // 'aggressive_absorption_elements' is filled with the elements which should
   // be absorbed.
-  void RecomputeExternalElementSizes(
+  void NaturalAbsorptionAndExternalElementSizes(
     std::vector<Int>* aggressive_absorption_elements);
 
   // Sets all entries of 'external_element_sizes' that correspond to an
   // element index in the element list of a supernode in the structure L_p to
   // -1.
   void ResetExternalElementSizes();
-
-  // Whether or not external element sizes are used for external degree
-  // computations.
-  bool UsingExternalElementSizes() const;
 
   // Returns the list of supervariable merge pairs
   // (if control.store_variable_merges was true): each pair (i, j) consists of
@@ -318,16 +311,15 @@ class QuotientGraph {
   // The total number of variables (including nonprincipal) in each element.
   std::vector<Int> element_sizes_;
 
-  // Whether or not external element sizes will be maintained throughout the
-  // minimum degree analysis.
-  bool using_external_element_sizes_;
-
   // The current datum value for the external_element_sizes. All values should
   // be interpreted relative to the datum value.
   Int external_element_size_shift_;
 
-  // The maximum value that has been seen so far in the element size array.
-  Int max_shifted_external_element_size_;
+  // The maximum element size that has been constructed so far. Since the
+  // external degree updates in each stage will be less than this value, it is
+  // used as the amount to increase external_element_size_shift_ by at each
+  // iteration.
+  Int max_element_size_;
 
   // The maximum allowable value of the datum until an explicit reset is
   // required.
@@ -384,7 +376,8 @@ class QuotientGraph {
   std::size_t BasicVariableHash(Int principal_variable) const;
 
   // Returns the sum of the supernode sizes in the adjacency list and the hash
-  // of their indices. While doing so, the non-principal members are removed.
+  // of their indices. While doing so, the non-principal and redundant members
+  // are removed.
   std::pair<Int, std::size_t> PackCountAndHashAdjacencies(
       Int principal_variable);
 

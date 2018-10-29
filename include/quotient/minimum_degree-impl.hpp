@@ -122,10 +122,8 @@ inline MinimumDegreeResult MinimumDegree(
   // Set up a set of timers for the components of the analysis.
   std::unordered_map<std::string, Timer> timers;
   constexpr char kComputePivotStructure[] = "ComputePivotStructure";
-  constexpr char kRemoveRedundantAdjacencies[] = "RemoveRedundantAdjacencies";
-  constexpr char kExternalElementSizes[] = "ExternalElementSizes";
-  constexpr char kResetExternalElementSizes[] = "ResetExternalElementSizes";
   constexpr char kNaturalAbsorption[] = "NaturalAbsorption";
+  constexpr char kResetExternalElementSizes[] = "ResetExternalElementSizes";
   constexpr char kComputeExternalDegrees[] = "ComputeExternalDegrees";
   constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
   constexpr char kMergeVariables[] = "MergeVariables";
@@ -147,26 +145,15 @@ inline MinimumDegreeResult MinimumDegree(
     analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
     analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
 
-    // Update the adjacency lists.
-    if (control.time_stages) timers[kRemoveRedundantAdjacencies].Start();
-    quotient_graph.RemoveRedundantAdjacencies();
-    if (control.time_stages) timers[kRemoveRedundantAdjacencies].Stop();
-
-    // Update the element lists.
-    if (control.time_stages) timers[kNaturalAbsorption].Start();
     quotient_graph.FlagPivotElementList();
-    quotient_graph.NaturalAbsorption();
-    if (control.time_stages) timers[kNaturalAbsorption].Stop();
 
-    if (quotient_graph.UsingExternalElementSizes()) {
-      // Compute the external structure cardinalities, |L_e \ L_p|, of all
-      // elements e in an element list of a supernode in L_p. Any elements to
-      // be aggressively absorbed are also returned.
-      if (control.time_stages) timers[kExternalElementSizes].Start();
-      quotient_graph.RecomputeExternalElementSizes(
-          &aggressive_absorption_elements);
-      if (control.time_stages) timers[kExternalElementSizes].Stop();
-    }
+    // Compute the external structure cardinalities, |L_e \ L_p|, of all
+    // elements e in an element list of a supernode in L_p. Any elements to
+    // be aggressively absorbed are also returned.
+    if (control.time_stages) timers[kNaturalAbsorption].Start();
+    quotient_graph.NaturalAbsorptionAndExternalElementSizes(
+        &aggressive_absorption_elements);
+    if (control.time_stages) timers[kNaturalAbsorption].Stop();
 
     // Clear the pivot element list mask.
     quotient_graph.UnflagPivotElementList();
@@ -200,12 +187,10 @@ inline MinimumDegreeResult MinimumDegree(
       if (control.time_stages) timers[kMergeVariables].Stop();
     }
 
-    if (quotient_graph.UsingExternalElementSizes()) {
-      // Clear the external element size array.
-      if (control.time_stages) timers[kResetExternalElementSizes].Start();
-      quotient_graph.ResetExternalElementSizes(); 
-      if (control.time_stages) timers[kResetExternalElementSizes].Stop();
-    }
+    // Clear the external element size array.
+    if (control.time_stages) timers[kResetExternalElementSizes].Start();
+    quotient_graph.ResetExternalElementSizes(); 
+    if (control.time_stages) timers[kResetExternalElementSizes].Stop();
 
     // Formally convert the pivot from a supervariable into an element.
     quotient_graph.ConvertPivotIntoElement(aggressive_absorption_elements);
