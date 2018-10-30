@@ -21,6 +21,16 @@
 
 namespace quotient {
 
+// In most scenarios, it seems that the cost of the stronger hash is not
+// worth the increased cost of maintaining the hash.
+#ifdef QUOTIENT_STRONG_HASHES
+#  define HASH_COMBINE(hash, update) \
+       hash ^= (update) + 0x9e3779b9 + (hash << 6) + (hash >> 2)
+#else
+#  define HASH_COMBINE(hash, update) \
+       hash += update
+#endif
+
 template<typename T>
 void PrintVector(const std::vector<T>& vec, const std::string& msg) {
   std::cout << msg << ": ";
@@ -39,6 +49,7 @@ inline QuotientGraph::QuotientGraph(
   external_element_size_shift_(0),
   max_element_size_(0),
   max_shift_value_(std::numeric_limits<Int>::max() - graph.NumSources()),
+  num_hash_bucket_collisions_(0),
   num_hash_collisions_(0),
   num_aggressive_absorptions_(0) {
   // Initialize the supernodes as simple.
@@ -70,13 +81,19 @@ inline QuotientGraph::QuotientGraph(
 
   // Initialize the degree lists.
   degree_lists_.degrees.resize(num_original_vertices_);
-  degree_lists_.degree_heads.resize(num_original_vertices_ - 1, -1);
-  degree_lists_.next_degree_member.resize(num_original_vertices_, -1);
-  degree_lists_.last_degree_member.resize(num_original_vertices_, -1);
+  degree_lists_.heads.resize(num_original_vertices_ - 1, -1);
+  degree_lists_.next_member.resize(num_original_vertices_, -1);
+  degree_lists_.last_member.resize(num_original_vertices_, -1);
   for (Int source = 0; source < num_original_vertices_; ++source) {
     const Int degree = adjacency_lists_[source].size();
     degree_lists_.AddDegree(source, degree);
   }
+
+  // Initialize the hash lists.
+  hash_lists_.buckets.resize(num_original_vertices_);
+  hash_lists_.hashes.resize(num_original_vertices_);
+  hash_lists_.heads.resize(num_original_vertices_, -1);
+  hash_lists_.next_member.resize(num_original_vertices_, -1);
 
   // Trivially initialize the element lists.
   element_lists_.resize(num_original_vertices_);
@@ -87,8 +104,6 @@ inline QuotientGraph::QuotientGraph(
   }
   elements_.resize(num_original_vertices_);
   element_sizes_.resize(num_original_vertices_, 0);
-
-  buckets_.resize(num_original_vertices_);
 
   shifted_external_element_sizes_.resize(num_original_vertices_, -1);
 
@@ -112,11 +127,6 @@ inline Int QuotientGraph::GetNextPivot() {
   return pivot_;
 }
 
-inline const std::vector<std::pair<Int, Int>>&
-QuotientGraph::VariableMerges() const {
-  return variable_merges_;
-}
-
 inline Int QuotientGraph::NumAggressiveAbsorptions() const {
   return num_aggressive_absorptions_;
 }
@@ -127,6 +137,10 @@ inline Int QuotientGraph::NumOriginalVertices() const {
 
 inline Int QuotientGraph::NumEliminatedVertices() const {
   return num_eliminated_vertices_;
+}
+
+inline Int QuotientGraph::NumHashBucketCollisions() const {
+  return num_hash_bucket_collisions_;
 }
 
 inline Int QuotientGraph::NumHashCollisions() const {
@@ -167,7 +181,6 @@ inline void QuotientGraph::FormEliminatedStructures(
   for (std::size_t index = 0; index < elimination_order_.size(); ++index) {
     std::vector<Int>& eliminated_structure = (*eliminated_structures)[index];
     eliminated_structure = structures_[elimination_order_[index]];
-    std::sort(eliminated_structure.begin(), eliminated_structure.end());
   }
 }
 
@@ -306,7 +319,7 @@ inline std::pair<Int, std::size_t> QuotientGraph::PackCountAndHashAdjacencies(
     const Int supernode_size = supernode_sizes_[j];
     if (supernode_size > 0) {
       degree += supernode_size;
-      hash += j;
+      HASH_COMBINE(hash, j);
       adjacency_list[num_packed++] = j;
     }
   }
@@ -346,7 +359,7 @@ QuotientGraph::ExactSingleExternalDegreeAndHash(Int principal_variable) {
   QUOTIENT_ASSERT(supernode_size > 0,
       "The flipped supernode size should have been positive.");
   degree_and_hash.first += element_sizes_[pivot_] - supernode_size;
-  degree_and_hash.second += pivot_;
+  HASH_COMBINE(degree_and_hash.second, pivot_);
 
   return degree_and_hash;
 }
@@ -373,7 +386,7 @@ QuotientGraph::ExactDoubleExternalDegreeAndHash(Int principal_variable) {
   QUOTIENT_ASSERT(supernode_size > 0,
       "The flipped supernode size should have been positive.");
   degree_and_hash.first += element_sizes_[pivot_] - supernode_size;
-  degree_and_hash.second += pivot_;
+  HASH_COMBINE(degree_and_hash.second, pivot_);
 
   const Int element = element_list[0];
   const Int external_element_size =
@@ -381,7 +394,7 @@ QuotientGraph::ExactDoubleExternalDegreeAndHash(Int principal_variable) {
   if (!aggressive_absorption || external_element_size != 0) {
     // Add |L_e \ L_p|.
     degree_and_hash.first += external_element_size;
-    degree_and_hash.second += element;
+    HASH_COMBINE(degree_and_hash.second, element);
   } else {
     element_list[0] = pivot_;
     element_list.pop_back();
@@ -412,7 +425,7 @@ QuotientGraph::ExactGenericExternalDegreeAndHash(Int principal_variable) {
       }
       element_list[num_packed++] = element;
     }
-    degree_and_hash.second += element;
+    HASH_COMBINE(degree_and_hash.second, element);
 
     for (const Int& j : elements_[element]) {
       // Unabsorbed elements should not have any eliminated members of
@@ -504,13 +517,13 @@ QuotientGraph::AmestoyExternalDegreeAndHash(Int principal_variable) {
     QUOTIENT_ASSERT(external_element_size >= 0,
         "Ran into a missing entry in external_element_sizes_");
     degree_and_hash.first += external_element_size;
-    degree_and_hash.second += element;
+    HASH_COMBINE(degree_and_hash.second, element);
   }
   if (aggressive_absorption) {
     element_list.resize(num_packed);
     element_list.push_back(pivot_);
   }
-  degree_and_hash.second += pivot_;
+  HASH_COMBINE(degree_and_hash.second, pivot_);
 
   if (bound0 < degree_and_hash.first) {
     degree_and_hash.first = bound0;
@@ -557,7 +570,7 @@ QuotientGraph::GilbertExternalDegreeAndHash(Int principal_variable) {
     QUOTIENT_ASSERT(element_sizes_[element] - supernode_size >= 0,
         "Negative Gilbert degree update.");
     degree_and_hash.first += element_sizes_[element] - supernode_size;
-    degree_and_hash.second += element;
+    HASH_COMBINE(degree_and_hash.second, element);
   }
   if (aggressive_absorption) {
     element_list.resize(num_packed);
@@ -712,48 +725,56 @@ inline bool QuotientGraph::StructuralSupervariablesAreQuotientIndistinguishable(
 inline void QuotientGraph::MergeVariables(
     const std::vector<std::size_t>& bucket_keys) {
   const std::vector<Int>& pivot_element = elements_[pivot_];
+  const Int supernodal_struct_size = pivot_element.size();
 
-  // Fill a set of buckets for the hashes of the supernodes adjacent to
-  // the current pivot.
-  const Int supernodal_struct_size = bucket_keys.size();
-  std::vector<Int> bucket_indices;
+  // Add the hashes into the hash lists.
   for (Int i_index = 0; i_index < supernodal_struct_size; ++i_index) {
-    const std::size_t bucket_key = bucket_keys[i_index];
-    const Int bucket_index = bucket_key % num_original_vertices_;
-    buckets_[bucket_index].push_back(i_index);
-    if (buckets_[bucket_index].size() == 2) {
-      bucket_indices.push_back(bucket_index);
-    }
+    const std::size_t hash = bucket_keys[i_index];
+    const Int bucket = hash % num_original_vertices_;
+    const Int i = pivot_element[i_index];
+    hash_lists_.AddHash(i, hash, bucket);
   }
 
-  std::vector<VariableMergeInfo> variable_merges;
-  //#pragma omp parallel for schedule(dynamic)
-  for (std::size_t index = 0; index < bucket_indices.size(); ++index) {
-    const Int bucket_index = bucket_indices[index];
-    const std::vector<Int>& bucket = buckets_[bucket_index];
-    const Int bucket_size = bucket.size();
-    Int num_merges = 0;
-    std::vector<bool> merged_supernode(bucket_size, false);
-    for (Int i_bucket  = 0; i_bucket < bucket_size; ++i_bucket) {
-      if (merged_supernode[i_bucket]) {
+  const std::vector<Int>& next_member = hash_lists_.next_member;
+  for (Int i_index = 0; i_index < supernodal_struct_size; ++i_index) {
+    Int i = pivot_element[i_index];
+    const Int bucket = hash_lists_.buckets[i];
+    const Int head = hash_lists_.heads[bucket];
+    // We are not the head of the bucket.
+    if (i != head) {
+      continue;
+    }
+
+    // Test the unique pairs in the bucket.
+    for (; next_member[i] != -1; i = next_member[i]) {
+      if (!supernode_sizes_[i]) {
         continue;
       }
-      const Int i_index = bucket[i_bucket];
-      const Int i = pivot_element[i_index];
       QUOTIENT_ASSERT(supernode_sizes_[i] < 0,
           "Supernode size should have been temporarily negative.");
-      for (Int j_bucket = i_bucket + 1; j_bucket < bucket_size; ++j_bucket) {
-        if (merged_supernode[j_bucket]) {
+      const std::size_t i_hash = hash_lists_.hashes[i];
+      for (Int j = next_member[i]; j != -1; j = next_member[j]) {
+        if (!supernode_sizes_[j]) { 
           continue;
         }
-        const Int j_index = bucket[j_bucket];
-        const Int j = pivot_element[j_index];
+        QUOTIENT_ASSERT(supernode_sizes_[j] < 0,
+            "Supernode size should have been temporarily negative.");
+        const std::size_t j_hash = hash_lists_.hashes[j];
+        if (i_hash != j_hash) {
+          ++num_hash_bucket_collisions_;
+          continue;
+        }
+
         if (StructuralSupervariablesAreQuotientIndistinguishable(i, j)) {
           const Int absorbed_size = -supernode_sizes_[j];
           QUOTIENT_ASSERT(absorbed_size > 0,
               "Absorbed size should have been positive.");
+ 
           //#pragma omp critical
-          variable_merges.emplace_back(i, j, absorbed_size);
+          const Int old_degree = degree_lists_.degrees[i];
+          const Int degree = old_degree - absorbed_size;
+          degree_lists_.UpdateDegree(i, degree);
+          degree_lists_.RemoveDegree(j);
 
           // Merge [i] -> [j] (and i becomes the principal member).
           next_index_[tail_index_[i]] = j;
@@ -763,36 +784,22 @@ inline void QuotientGraph::MergeVariables(
 
           SwapClearVector(&adjacency_lists_[j]);
           SwapClearVector(&element_lists_[j]);
-
-          ++num_merges;
-          merged_supernode[j_bucket] = true;
+        } else {
+          ++num_hash_bucket_collisions_;
+          ++num_hash_collisions_;
         }
       }
     }
-    num_hash_collisions_ += bucket_size - (num_merges + 1);
+    hash_lists_.ClearBucket(bucket);
   }
 
-  // Update the external degrees in a batched manner.
-  for (const VariableMergeInfo& merge : variable_merges) {
-    const Int old_degree = degree_lists_.degrees[merge.primary_index];
-    const Int degree = old_degree - merge.absorbed_size;
-    degree_lists_.UpdateDegree(merge.primary_index, degree);
-    degree_lists_.RemoveDegree(merge.absorbed_index);
-  }
-
-  // If requested, keep track of the variable merges.
-  if (control_.store_variable_merges) {
-    for (const VariableMergeInfo& merge : variable_merges) {
-      variable_merges_.emplace_back(merge.primary_index, merge.absorbed_index);
+#ifdef QUOTIENT_DEBUG
+  for (Int index = 0; index < num_original_vertices_; ++index) {
+    if (hash_lists_.heads[index] != -1) {
+      std::cerr << "Did not clear head for bucket " << index << std::endl;
     }
   }
-
-  // Clear the buckets.
-  for (Int i_index = 0; i_index < supernodal_struct_size; ++i_index) {
-    const std::size_t bucket_key = bucket_keys[i_index];
-    const Int bucket_index = bucket_key % num_original_vertices_;
-    buckets_[bucket_index].clear();
-  }
+#endif
 }
 
 inline void QuotientGraph::ConvertPivotIntoElement(

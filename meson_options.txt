@@ -6,12 +6,22 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
+option('strong-hashes',
+    type : 'boolean',
+    value : false,
+    description : 'use a more expensive, but better supervariable hash?')
+
 option('enable-debug',
     type : 'boolean',
     value : false,
-    description : 'enable extra debugging assertions')
+    description : 'enable extra debugging assertions?')
 
 option('enable-openmp',
     type : 'boolean',
     value : false,
-    description : 'enable OpenMP support')
+    description : 'demand OpenMP support?')
+
+option('disable-openmp',
+    type : 'boolean',
+    value : true,
+    description : 'disable OpenMP support?')

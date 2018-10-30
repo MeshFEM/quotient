@@ -123,15 +123,19 @@ inline MinimumDegreeResult MinimumDegree(
 
   // Set up a set of timers for the components of the analysis.
   std::unordered_map<std::string, Timer> timers;
+  constexpr char kSetup[] = "Setup";
   constexpr char kComputePivotStructure[] = "ComputePivotStructure";
   constexpr char kAbsorption[] = "Absorption";
   constexpr char kResetExternalElementSizes[] = "ResetExternalElementSizes";
   constexpr char kComputeExternalDegrees[] = "ComputeExternalDegrees";
   constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
   constexpr char kMergeVariables[] = "MergeVariables";
+  constexpr char kFinalize[] = "Finalize";
 
   // Eliminate the variables.
+  if (control.time_stages) timers[kSetup].Start();
   QuotientGraph quotient_graph(graph, control);
+  if (control.time_stages) timers[kSetup].Stop();
   while (quotient_graph.NumEliminatedVertices() < num_orig_vertices) {
     // Get the next pivot.
     quotient_graph.GetNextPivot();
@@ -191,6 +195,7 @@ inline MinimumDegreeResult MinimumDegree(
   }
 
   // Extract the relevant information from the QuotientGraph.
+  if (control.time_stages) timers[kFinalize].Start();
   analysis.supernodes.resize(num_orig_vertices);
   for (Int i = 0; i < num_orig_vertices; ++i) {
     analysis.supernodes[i] = quotient_graph.FormSupernode(i);
@@ -201,12 +206,14 @@ inline MinimumDegreeResult MinimumDegree(
     quotient_graph.FormEliminatedStructures(&analysis.eliminated_structures);
   }
   analysis.num_hash_collisions = quotient_graph.NumHashCollisions();
+  analysis.num_hash_bucket_collisions =
+      quotient_graph.NumHashBucketCollisions();
   analysis.num_aggressive_absorptions =
       quotient_graph.NumAggressiveAbsorptions();
-  analysis.variable_merges = quotient_graph.VariableMerges();
   for (const std::pair<std::string, Timer>& pairing : timers) {
     analysis.elapsed_seconds[pairing.first] = pairing.second.TotalSeconds();
   }
+  if (control.time_stages) timers[kFinalize].Stop();
 
   return analysis;
 }

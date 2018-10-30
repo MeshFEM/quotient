@@ -14,14 +14,28 @@ project(
   default_options : ['cpp_std=c++14'])
 include_dir = include_directories('include')
 
+# For controlling the tradeoff between quality and speed for the supervariable
+# hash function. It seems to typically be preferable to prefer the cheapest-
+# possible hash.
+if get_option('strong-hashes')
+  add_global_arguments('-DQUOTIENT_STRONG_HASHES', language : 'cpp')
+endif
+
 if get_option('enable-debug')
   add_global_arguments('-DQUOTIENT_DEBUG', language : 'cpp')
 endif
 
 if get_option('enable-openmp')
   openmp_dep = dependency('openmp', version : '>=3.0')
+elif get_option('disable-openmp')
+  openmp_dep = false
 else
   openmp_dep = dependency('openmp', version : '>=3.0', required : false)
+endif
+
+deps = []
+if openmp_dep != false
+  deps.append(openmp_dep)
 endif
 
 # Unit tests for the CoordinateGraph class.
@@ -29,7 +43,7 @@ coordinate_graph_test_exe = executable(
     'coordinate_graph_test',
     ['test/coordinate_graph_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : openmp_dep)
+    dependencies : deps)
 test('CoordinateGraph tests', coordinate_graph_test_exe)
 
 # Unit tests for the QuotientGraph class.
@@ -37,7 +51,7 @@ quotient_graph_test_exe = executable(
     'quotient_graph_test',
     ['test/quotient_graph_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : openmp_dep)
+    dependencies : deps)
 test('QuotientGraph tests', quotient_graph_test_exe)
 
 # Unit tests for the MinimumDegree function.
@@ -45,7 +59,7 @@ minimum_degree_test_exe = executable(
     'minimum_degree_test',
     ['test/minimum_degree_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : openmp_dep)
+    dependencies : deps)
 test('MinimumDegree tests', minimum_degree_test_exe)
 
 # A utility for running the MinimumDegree analysis on a Matrix Market graph.
@@ -53,4 +67,4 @@ matrix_market_minimum_degree_exe = executable(
     'matrix_market_minimum_degree',
     ['example/matrix_market_minimum_degree.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : openmp_dep)
+    dependencies : deps)

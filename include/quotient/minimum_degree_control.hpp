@@ -44,10 +44,6 @@ struct MinimumDegreeControl {
   // the member of the minimal degree list with smallest index is chosen.
   bool force_minimal_pivot_indices = false;
 
-  // Whether the list of pairs of variable merges should be returned in the
-  // MinimumDegreeResult result of MinimumDegree.
-  bool store_variable_merges = false;
-
   // Whether a list should be stored of the lengths of the element lists of
   // the pivots.
   bool store_pivot_element_list_sizes = false;

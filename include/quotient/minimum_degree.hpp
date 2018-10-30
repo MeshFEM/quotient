@@ -42,12 +42,6 @@ struct MinimumDegreeResult {
   Int num_aggressive_absorptions;
 
   // An optional list (based on the value of
-  // 'MinimumDegreeControl.store_variable_merges') of supervariable merge
-  // pairs: each pair (i, j) consists of the absorbing supervariable, i, and
-  // the absorbed supervariable, j.
-  std::vector<std::pair<Int, Int>> variable_merges;
-
-  // An optional list (based on the value of
   // 'MinimumDegreeControl.store_pivot_element_list_sizes') of the lengths of
   // the element lists of each pivot.
   std::vector<Int> pivot_element_list_sizes;
@@ -63,6 +57,9 @@ struct MinimumDegreeResult {
 
   // The number of times that supervariables were falsely placed into the
   // same bucket.
+  Int num_hash_bucket_collisions;
+
+  // The number of times that supervariables falsely had the same hash value.
   Int num_hash_collisions;
 
   // The number of structural nonzeros in the Cholesky factor.

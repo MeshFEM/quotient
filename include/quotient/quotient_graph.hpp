@@ -13,6 +13,7 @@
 #include "quotient/config.hpp"
 #include "quotient/coordinate_graph.hpp"
 #include "quotient/degree_lists.hpp"
+#include "quotient/hash_lists.hpp"
 #include "quotient/minimum_degree_control.hpp"
 
 namespace quotient {
@@ -57,6 +58,10 @@ class QuotientGraph {
 
   // Returns the number of times that supervariables have been falsely hashed
   // into the same bucket.
+  Int NumHashBucketCollisions() const;
+
+  // Returns the number of times that supervariables falsely had the same hash
+  // value. This is much more rare than hash bucket collision.
   Int NumHashCollisions() const;
 
   // Forms the set of members of the supernode with the given principal member.
@@ -178,37 +183,10 @@ class QuotientGraph {
   // -1.
   void ResetExternalElementSizes();
 
-  // Returns the list of supervariable merge pairs
-  // (if control.store_variable_merges was true): each pair (i, j) consists of
-  // the absorbing supervariable, i, and the absorbed supervariable, j.
-  const std::vector<std::pair<Int, Int>>& VariableMerges() const;
-
   // Returns the number of aggressive absorptions that occurred.
   Int NumAggressiveAbsorptions() const;
 
  private:
-  // A data structure for representing the relevant information of a merge of
-  // one supervariable (the 'absorbed_index') into another
-  // (the 'primary_index').
-  struct VariableMergeInfo {
-    // The principal index of the supervariable that is increasing in size.
-    Int primary_index;
-
-    // The principal index of the supervariable being absorbed.
-    Int absorbed_index;
-
-    // The number of members of the absorbed supervarible.
-    Int absorbed_size;
-
-    VariableMergeInfo(
-        Int primary_index_value,
-        Int absorbed_index_value,
-        Int absorbed_size_value) :
-    primary_index(primary_index_value),
-    absorbed_index(absorbed_index_value),
-    absorbed_size(absorbed_size_value) {}
-  };
-
   // The number of vertices in the original graph.
   Int num_original_vertices_;
 
@@ -317,17 +295,15 @@ class QuotientGraph {
   // and after each call to ExternalDegree.
   mutable std::vector<int> exact_degree_mask_;
 
-  // A set of buckets for each hash value (modulo num_original_vertices) of the
-  // supervariables.
-  std::vector<std::vector<Int>> buckets_;
+  // An array of single-linked lists for hash buckets for the supervariables.
+  HashLists hash_lists_;
 
   // The number of times that supervariables were falsely placed within the
   // same bucket.
-  Int num_hash_collisions_;
+  Int num_hash_bucket_collisions_;
 
-  // An optional list of supervariable merge pairs: each pair (i, j) consists of
-  // the absorbing supervariable, i, and the absorbed supervariable, j.
-  std::vector<std::pair<Int, Int>> variable_merges_;
+  // The number of times that supervariables falsely had the same hash value.
+  Int num_hash_collisions_;
 
   // The number of aggressive absorptions that have occurred.
   Int num_aggressive_absorptions_;

@@ -70,12 +70,23 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   control.degree_type = quotient::kExactExternalDegree;
   control.force_minimal_pivot_indices = true;
   control.store_structures = true;
-  control.store_variable_merges = true;
-  const quotient::MinimumDegreeResult analysis =
+  quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
+  for (std::size_t i = 0; i < analysis.supernodes.size(); ++i) {
+    std::sort(analysis.supernodes[i].begin(), analysis.supernodes[i].end());
+  }
+  for (std::size_t i = 0; i < analysis.eliminated_structures.size(); ++i) {
+    std::sort(
+        analysis.eliminated_structures[i].begin(),
+        analysis.eliminated_structures[i].end());
+  }
 
+  // Because of the ordering of the hash bucket, we will prefer the last member
+  // as the key. But there are several equally-valid solutions (the
+  // only nontrivial supervariable should be {6, 7, 8}, but the principal
+  // member can vary).
   const std::vector<Int> kExpectedEliminationOrder{
-      0, 1, 2, 3, 4, 5, 6, 9,
+      0, 1, 2, 3, 4, 5, 8, 9,
   };
 
   // See the comment at the top of this test for why we do not expect any
@@ -87,9 +98,9 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
       {3},
       {4},
       {5},
+      {},
+      {},
       {6, 7, 8},
-      {},
-      {},
       {9},
   };
 
@@ -108,31 +119,8 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
 
   const Int kExpectedNumAggressiveAbsorptions = 0;
 
-  const std::vector<std::pair<Int, Int>> kExpectedVariableMerges{
-      {6, 7},
-      {6, 8},
-  };
-
-#ifdef _OPENMP
-  REQUIRE(
-      analysis.elimination_order.size() == kExpectedEliminationOrder.size());
-  REQUIRE(
-      analysis.supernodes.size() == kExpectedSupernodes.size());
-  for (Int index = 0; index < 8; ++index) {
-    if (index == 6) {
-      // The variable merging could have picked 6, 7, or 8 as the head.
-      continue;
-    }
-    REQUIRE(
-        analysis.elimination_order[index] == kExpectedEliminationOrder[index]);
-    REQUIRE(analysis.supernodes[index] == kExpectedSupernodes[index]);
-  }
-  REQUIRE(analysis.variable_merges.size() == kExpectedVariableMerges.size());
-#else
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
-  REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
-#endif
   REQUIRE(
       analysis.num_aggressive_absorptions == kExpectedNumAggressiveAbsorptions);
   REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
@@ -159,9 +147,16 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   control.force_minimal_pivot_indices = true;
   control.aggressive_absorption = true;
   control.store_structures = true;
-  control.store_variable_merges = true;
-  const quotient::MinimumDegreeResult analysis =
+  quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
+  for (std::size_t i = 0; i < analysis.supernodes.size(); ++i) {
+    std::sort(analysis.supernodes[i].begin(), analysis.supernodes[i].end());
+  }
+  for (std::size_t i = 0; i < analysis.eliminated_structures.size(); ++i) {
+    std::sort(
+        analysis.eliminated_structures[i].begin(),
+        analysis.eliminated_structures[i].end());
+  }
 
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3,
@@ -188,12 +183,9 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   // [ADD-96] discusses the aggressive absorption, 0 into 1.
   const Int kExpectedNumAggressiveAbsorptions = 1;
 
-  const std::vector<std::pair<Int, Int>> kExpectedVariableMerges;
-
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
   REQUIRE(
       analysis.num_aggressive_absorptions == kExpectedNumAggressiveAbsorptions);
   REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
-  REQUIRE(analysis.variable_merges == kExpectedVariableMerges);
 }

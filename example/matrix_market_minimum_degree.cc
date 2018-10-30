@@ -67,6 +67,9 @@ struct AMDExperiment {
 
   // The number of times supervariables were falsely hashed into the same
   // bucket.
+  SufficientStatistics num_hash_bucket_collisions;
+
+  // The number of times supervariables were falsely had the same hash value.
   SufficientStatistics num_hash_collisions;
 
   // The number of seconds that elapsed during the AMD analysis.
@@ -93,6 +96,8 @@ void PrintAMDExperiment(
       experiment.num_degree_updates, "  num_degree_updates");
   PrintSufficientStatistics(
       experiment.num_aggressive_absorptions, "  num_aggressive_absorptions");
+  PrintSufficientStatistics(
+      experiment.num_hash_bucket_collisions, "  num_hash_bucket_collisions");
   PrintSufficientStatistics(
       experiment.num_hash_collisions, "  num_hash_collisions");
   PrintSufficientStatistics(
@@ -244,6 +249,7 @@ AMDExperiment RunMatrixMarketAMDTest(
   std::vector<Int> num_degree_updates(num_experiments);
   std::vector<Int> num_aggressive_absorptions(num_experiments);
   std::vector<Int> num_hash_collisions(num_experiments);
+  std::vector<Int> num_hash_bucket_collisions(num_experiments);
   std::vector<double> elapsed_seconds(num_experiments);
   std::vector<double> fraction_of_pivots_with_multiple_elements;
   std::vector<double> fraction_of_degree_updates_with_multiple_elements;
@@ -265,6 +271,7 @@ AMDExperiment RunMatrixMarketAMDTest(
     num_degree_updates[instance] = analysis.num_degree_updates;
     num_aggressive_absorptions[instance] = analysis.num_aggressive_absorptions;
     num_hash_collisions[instance] = analysis.num_hash_collisions;
+    num_hash_bucket_collisions[instance] = analysis.num_hash_bucket_collisions;
     if (print_progress) {
       std::cout << "  Finished analysis in " << elapsed_seconds[instance]
                 << " seconds. There were "
@@ -344,6 +351,8 @@ AMDExperiment RunMatrixMarketAMDTest(
   experiment.num_aggressive_absorptions =
       GetSufficientStatistics(num_aggressive_absorptions);
   experiment.num_hash_collisions = GetSufficientStatistics(num_hash_collisions);
+  experiment.num_hash_bucket_collisions =
+      GetSufficientStatistics(num_hash_bucket_collisions);
   experiment.elapsed_seconds = GetSufficientStatistics(elapsed_seconds);
   experiment.fraction_of_pivots_with_multiple_elements =
       GetSufficientStatistics(fraction_of_pivots_with_multiple_elements);
@@ -450,10 +459,6 @@ int main(int argc, char** argv) {
       "aggressive_absorption",
       "Eliminate elements with aggressive absorption?",
       false);
-  const bool store_variable_merges = parser.OptionalInput<bool>(
-      "store_variable_merges",
-      "Store the variable merge list?",
-      false);
   const bool store_pivot_element_list_sizes =
       parser.OptionalInput<bool>(
           "store_pivot_element_list_sizes",
@@ -535,7 +540,6 @@ int main(int argc, char** argv) {
   control.hash_type = static_cast<quotient::VariableHashType>(hash_type_int);
   control.allow_supernodes = allow_supernodes;
   control.aggressive_absorption = aggressive_absorption;
-  control.store_variable_merges = store_variable_merges;
   control.store_pivot_element_list_sizes = store_pivot_element_list_sizes;
   control.store_num_degree_updates_with_multiple_elements =
       store_num_degree_updates_with_multiple_elements;
