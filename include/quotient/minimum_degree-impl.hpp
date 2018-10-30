@@ -121,21 +121,8 @@ inline MinimumDegreeResult MinimumDegree(
   std::vector<std::size_t> bucket_keys;
   bucket_keys.reserve(num_orig_vertices - 1);
 
-  // Set up a set of timers for the components of the analysis.
-  std::unordered_map<std::string, Timer> timers;
-  constexpr char kSetup[] = "Setup";
-  constexpr char kComputePivotStructure[] = "ComputePivotStructure";
-  constexpr char kAbsorption[] = "Absorption";
-  constexpr char kResetExternalElementSizes[] = "ResetExternalElementSizes";
-  constexpr char kComputeExternalDegrees[] = "ComputeExternalDegrees";
-  constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
-  constexpr char kMergeVariables[] = "MergeVariables";
-  constexpr char kFinalize[] = "Finalize";
-
   // Eliminate the variables.
-  if (control.time_stages) timers[kSetup].Start();
   QuotientGraph quotient_graph(graph, control);
-  if (control.time_stages) timers[kSetup].Stop();
   while (quotient_graph.NumEliminatedVertices() < num_orig_vertices) {
     // Get the next pivot.
     quotient_graph.GetNextPivot();
@@ -145,30 +132,22 @@ inline MinimumDegreeResult MinimumDegree(
     }
 
     // Compute the structure of this pivot block.
-    if (control.time_stages) timers[kComputePivotStructure].Start();
     quotient_graph.ComputePivotStructure();
-    if (control.time_stages) timers[kComputePivotStructure].Stop();
     analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
     analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
 
     // Compute the external structure cardinalities, |L_e \ L_p|, of all
     // elements e in an element list of a supernode in L_p. Any elements to
     // be aggressively absorbed are also returned.
-    if (control.time_stages) timers[kAbsorption].Start();
     quotient_graph.AbsorptionAndExternalElementSizes(
         &aggressive_absorption_elements);
-    if (control.time_stages) timers[kAbsorption].Stop();
 
     // Store the external degrees of all supervariables in the pivot structure.
-    if (control.time_stages) timers[kComputeExternalDegrees].Start();
     quotient_graph.ComputeExternalDegreesAndHashes(
         &external_degrees, &bucket_keys);
-    if (control.time_stages) timers[kComputeExternalDegrees].Stop();
 
     // Update the degree lists using the computed degrees.
-    if (control.time_stages) timers[kUpdateExternalDegrees].Start();
     quotient_graph.UpdateExternalDegrees(external_degrees);
-    if (control.time_stages) timers[kUpdateExternalDegrees].Stop();
 
     // Update/store metadata associated with the degree computations.
     analysis.num_degree_updates += quotient_graph.NumPivotDegreeUpdates();
@@ -180,22 +159,17 @@ inline MinimumDegreeResult MinimumDegree(
     if (control.allow_supernodes) {
       // Merge any equivalent supernodes by explicitly checking for equality
       // between pairs that are in the same hash bucket.
-      if (control.time_stages) timers[kMergeVariables].Start();
       quotient_graph.MergeVariables(bucket_keys);
-      if (control.time_stages) timers[kMergeVariables].Stop();
     }
 
     // Clear the external element size array.
-    if (control.time_stages) timers[kResetExternalElementSizes].Start();
     quotient_graph.ResetExternalElementSizes(); 
-    if (control.time_stages) timers[kResetExternalElementSizes].Stop();
 
     // Formally convert the pivot from a supervariable into an element.
     quotient_graph.ConvertPivotIntoElement(aggressive_absorption_elements);
   }
 
   // Extract the relevant information from the QuotientGraph.
-  if (control.time_stages) timers[kFinalize].Start();
   analysis.supernodes.resize(num_orig_vertices);
   for (Int i = 0; i < num_orig_vertices; ++i) {
     analysis.supernodes[i] = quotient_graph.FormSupernode(i);
@@ -210,10 +184,11 @@ inline MinimumDegreeResult MinimumDegree(
       quotient_graph.NumHashBucketCollisions();
   analysis.num_aggressive_absorptions =
       quotient_graph.NumAggressiveAbsorptions();
-  for (const std::pair<std::string, Timer>& pairing : timers) {
-    analysis.elapsed_seconds[pairing.first] = pairing.second.TotalSeconds();
+  const std::vector<std::pair<std::string, double>>& timings =
+      quotient_graph.ComponentTimes();
+  for (const std::pair<std::string, double>& pairing : timings) {
+    analysis.elapsed_seconds[pairing.first] = pairing.second;
   }
-  if (control.time_stages) timers[kFinalize].Stop();
 
   return analysis;
 }

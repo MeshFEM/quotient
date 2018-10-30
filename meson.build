@@ -14,6 +14,8 @@ project(
   default_options : ['cpp_std=c++14'])
 include_dir = include_directories('include')
 
+deps = []
+
 # For controlling the tradeoff between quality and speed for the supervariable
 # hash function. It seems to typically be preferable to prefer the cheapest-
 # possible hash.
@@ -21,20 +23,25 @@ if get_option('strong-hashes')
   add_global_arguments('-DQUOTIENT_STRONG_HASHES', language : 'cpp')
 endif
 
+# For controlling whether QuotientGraph includes timers for the various stages
+# of minimum-degree analysis.
+if get_option('enable-timers')
+  add_global_arguments('-DQUOTIENT_ENABLE_TIMERS', language : 'cpp')
+endif
+
+# For controlling whether (expensive) debugging checks are performed.
 if get_option('enable-debug')
   add_global_arguments('-DQUOTIENT_DEBUG', language : 'cpp')
 endif
 
+# For controlling whether (still not implemented) OpenMP support is enabled.
 if get_option('enable-openmp')
   openmp_dep = dependency('openmp', version : '>=3.0')
+  deps.append(openmp_dep)
 elif get_option('disable-openmp')
   openmp_dep = false
 else
   openmp_dep = dependency('openmp', version : '>=3.0', required : false)
-endif
-
-deps = []
-if openmp_dep != false
   deps.append(openmp_dep)
 endif
 

@@ -21,6 +21,16 @@
 
 namespace quotient {
 
+static constexpr char kSetup[] = "Setup";
+static constexpr char kComputePivotStructure[] = "ComputePivotStructure";
+static constexpr char kAbsorption[] = "Absorption";
+static constexpr char kResetExternalElementSizes[] =
+    "ResetExternalElementSizes";
+static constexpr char kComputeExternalDegrees[] = "ComputeExternalDegrees";
+static constexpr char kUpdateExternalDegrees[] = "UpdateExternalDegrees";
+static constexpr char kMergeVariables[] = "MergeVariables";
+
+
 template<typename T>
 void PrintVector(const std::vector<T>& vec, const std::string& msg) {
   std::cout << msg << ": ";
@@ -29,6 +39,7 @@ void PrintVector(const std::vector<T>& vec, const std::string& msg) {
   }
   std::cout << "\n";
 }
+
 
 inline QuotientGraph::QuotientGraph(
     const CoordinateGraph& graph,
@@ -42,6 +53,9 @@ inline QuotientGraph::QuotientGraph(
   num_hash_bucket_collisions_(0),
   num_hash_collisions_(0),
   num_aggressive_absorptions_(0) {
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kSetup].Start();
+#endif
   // Initialize the supernodes as simple.
   supernode_sizes_.resize(num_original_vertices_, 1);
   elimination_order_.reserve(num_original_vertices_);
@@ -106,6 +120,9 @@ inline QuotientGraph::QuotientGraph(
   if (using_exact_degree_mask) {
     exact_degree_mask_.resize(num_original_vertices_, 0);
   }
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kSetup].Stop();
+#endif
 }
 
 inline const std::vector<Int>& QuotientGraph::EliminationOrder() const {
@@ -175,6 +192,9 @@ inline void QuotientGraph::FormEliminatedStructures(
 }
 
 inline void QuotientGraph::ComputePivotStructure() {
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kComputePivotStructure].Start();
+#endif
   QUOTIENT_ASSERT(elements_[pivot_].empty(), "Chose a pivot more than once.");
   supernode_sizes_[pivot_] *= -1;
 
@@ -252,6 +272,9 @@ inline void QuotientGraph::ComputePivotStructure() {
     QUOTIENT_ASSERT(element_size == element_sizes_[element],
       "Element size did not match its cached value.");
   }
+#endif
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kComputePivotStructure].Stop();
 #endif
 }
 
@@ -602,6 +625,9 @@ QuotientGraph::ExternalDegreeAndHash(Int principal_variable) {
 
 inline void QuotientGraph::ComputeExternalDegreesAndHashes(
     std::vector<Int>* external_degrees, std::vector<std::size_t>* bucket_keys) {
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kComputeExternalDegrees].Start();
+#endif
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const std::size_t supernodal_struct_size = pivot_element.size();
   external_degrees->resize(supernodal_struct_size);
@@ -636,10 +662,16 @@ inline void QuotientGraph::ComputeExternalDegreesAndHashes(
     (*bucket_keys)[index] = degree_and_hash.second;
 #endif
   }
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kComputeExternalDegrees].Stop();
+#endif
 }
 
 inline void QuotientGraph::UpdateExternalDegrees(
     const std::vector<Int>& external_degrees) {
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kUpdateExternalDegrees].Start();
+#endif
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int supernodal_struct_size = pivot_element.size();
   for (Int index = 0; index < supernodal_struct_size; ++index) {
@@ -649,6 +681,9 @@ inline void QuotientGraph::UpdateExternalDegrees(
     QUOTIENT_ASSERT(degree_lists_.degrees[i] == degree,
         "Degree was not updated.");
   }
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kUpdateExternalDegrees].Stop();
+#endif
 }
 
 inline bool QuotientGraph::StructuralSupervariablesAreQuotientIndistinguishable(
@@ -714,6 +749,9 @@ inline bool QuotientGraph::StructuralSupervariablesAreQuotientIndistinguishable(
 
 inline void QuotientGraph::MergeVariables(
     const std::vector<std::size_t>& bucket_keys) {
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kMergeVariables].Start();
+#endif
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int supernodal_struct_size = pivot_element.size();
 
@@ -789,6 +827,9 @@ inline void QuotientGraph::MergeVariables(
       std::cerr << "Did not clear head for bucket " << index << std::endl;
     }
   }
+#endif
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kMergeVariables].Stop();
 #endif
 }
 
@@ -906,6 +947,9 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
 
 inline void QuotientGraph::AbsorptionAndExternalElementSizes(
     std::vector<Int>* aggressive_absorption_elements) {
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kAbsorption].Start();
+#endif
   const Int shift = external_element_size_shift_;
   const bool aggressive_absorption = control_.aggressive_absorption;
   if (aggressive_absorption) {
@@ -954,11 +998,20 @@ inline void QuotientGraph::AbsorptionAndExternalElementSizes(
     element_list.resize(num_packed);
     element_list.push_back(pivot_);
   }
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kAbsorption].Stop();
+#endif
 }
 
 inline void QuotientGraph::ResetExternalElementSizes() {
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kResetExternalElementSizes].Start();
+#endif
   if (external_element_size_shift_ + max_element_size_ < max_shift_value_) {
     external_element_size_shift_ += max_element_size_ + 1;
+#ifdef QUOTIENT_ENABLE_TIMERS
+    timers_[kResetExternalElementSizes].Stop();
+#endif
     return; 
   }
 
@@ -966,6 +1019,20 @@ inline void QuotientGraph::ResetExternalElementSizes() {
     shifted_external_element_sizes_[i] = -1;
   }
   external_element_size_shift_ = 0;
+#ifdef QUOTIENT_ENABLE_TIMERS
+  timers_[kResetExternalElementSizes].Stop();
+#endif
+}
+
+inline std::vector<std::pair<std::string, double>>
+QuotientGraph::ComponentTimes() const {
+  std::vector<std::pair<std::string, double>> times;
+#ifdef QUOTIENT_ENABLE_TIMERS
+  for (const std::pair<std::string, Timer>& pairing : timers_) {
+    times.emplace_back(pairing.first, pairing.second.TotalSeconds());
+  }
+#endif
+  return times;
 }
 
 } // namespace quotient

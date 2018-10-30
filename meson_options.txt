@@ -11,6 +11,11 @@ option('strong-hashes',
     value : false,
     description : 'use a more expensive, but better supervariable hash?')
 
+option('enable-timers',
+    type : 'boolean',
+    value : false,
+    description : 'enable code for timing the components of QuotientGraph?')
+
 option('enable-debug',
     type : 'boolean',
     value : false,

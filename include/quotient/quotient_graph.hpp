@@ -186,6 +186,10 @@ class QuotientGraph {
   // Returns the number of aggressive absorptions that occurred.
   Int NumAggressiveAbsorptions() const;
 
+  // Prints the current breakdown of the stage timings. The result will be
+  // trivial unless QUOTIENT_ENABLE_TIMERS is defined.
+  std::vector<std::pair<std::string, double>> ComponentTimes() const;
+
  private:
   // The number of vertices in the original graph.
   Int num_original_vertices_;
@@ -307,6 +311,11 @@ class QuotientGraph {
 
   // The number of aggressive absorptions that have occurred.
   Int num_aggressive_absorptions_;
+
+#ifdef QUOTIENT_ENABLE_TIMERS
+  // A map from the stage name to the associated timer.
+  mutable std::unordered_map<std::string, Timer> timers;
+#endif
 
   // Appends the supernode with the given principal member and length into
   // a given vector.
