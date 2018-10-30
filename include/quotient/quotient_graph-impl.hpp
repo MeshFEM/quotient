@@ -111,6 +111,10 @@ inline QuotientGraph::QuotientGraph(
 
   shifted_external_element_sizes_.resize(num_original_vertices_, -1);
 
+  if (control.aggressive_absorption) {
+    aggressive_absorption_elements_.reserve(num_original_vertices_ - 1);
+  }
+
 #ifdef QUOTIENT_DEBUG
   const bool using_exact_degree_mask = true;
 #else
@@ -120,6 +124,11 @@ inline QuotientGraph::QuotientGraph(
   if (using_exact_degree_mask) {
     exact_degree_mask_.resize(num_original_vertices_, 0);
   }
+
+  external_degrees_.reserve(num_original_vertices_ - 1);
+
+  bucket_keys_.reserve(num_original_vertices_ - 1);
+
 #ifdef QUOTIENT_ENABLE_TIMERS
   timers_[kSetup].Stop();
 #endif
@@ -127,6 +136,39 @@ inline QuotientGraph::QuotientGraph(
 
 inline const std::vector<Int>& QuotientGraph::EliminationOrder() const {
   return elimination_order_;
+}
+
+inline Int QuotientGraph::FindAndProcessPivot() {
+  // Get the next pivot.
+  GetNextPivot();
+
+  // Compute the structure of this pivot block.
+  ComputePivotStructure();
+
+  // Compute the external structure cardinalities, |L_e \ L_p|, of all
+  // elements e in an element list of a supernode in L_p. Any elements to
+  // be aggressively absorbed are also returned.
+  AbsorptionAndExternalElementSizes(&aggressive_absorption_elements_);
+
+  // Store the external degrees of all supervariables in the pivot structure.
+  ComputeExternalDegreesAndHashes(&external_degrees_, &bucket_keys_);
+
+  // Update the degree lists using the computed degrees.
+  UpdateExternalDegrees(external_degrees_);
+
+  if (control_.allow_supernodes) {
+    // Merge any equivalent supernodes by explicitly checking for equality
+    // between pairs that are in the same hash bucket.
+    MergeVariables(bucket_keys_);
+  }
+
+  // Clear the external element size array.
+  ResetExternalElementSizes();
+
+  // Formally convert the pivot from a supervariable into an element.
+  ConvertPivotIntoElement(aggressive_absorption_elements_);
+
+  return pivot_;
 }
 
 inline Int QuotientGraph::GetNextPivot() {

@@ -105,68 +105,22 @@ inline MinimumDegreeResult MinimumDegree(
     analysis.num_degree_updates_with_multiple_elements = 0;
   }
 
-  // A vector that will be used to store the list of elements that should be
-  // aggressively absorbed in a particular stage.
-  std::vector<Int> aggressive_absorption_elements;
-  if (control.aggressive_absorption) {
-    aggressive_absorption_elements.reserve(num_orig_vertices - 1);
-  }
-
-  // A vector for storing the list of new external degree updates.
-  std::vector<Int> external_degrees;
-  external_degrees.reserve(num_orig_vertices - 1);
-
-  // A vector for storing the hashes of the supervariables in the current
-  // pivot's structure.
-  std::vector<std::size_t> bucket_keys;
-  bucket_keys.reserve(num_orig_vertices - 1);
-
   // Eliminate the variables.
   QuotientGraph quotient_graph(graph, control);
   while (quotient_graph.NumEliminatedVertices() < num_orig_vertices) {
-    // Get the next pivot.
-    quotient_graph.GetNextPivot();
+    quotient_graph.FindAndProcessPivot();
+
     if (control.store_pivot_element_list_sizes) {
       analysis.pivot_element_list_sizes.push_back(
           quotient_graph.NumPivotElements());
     }
-
-    // Compute the structure of this pivot block.
-    quotient_graph.ComputePivotStructure();
     analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
     analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
-
-    // Compute the external structure cardinalities, |L_e \ L_p|, of all
-    // elements e in an element list of a supernode in L_p. Any elements to
-    // be aggressively absorbed are also returned.
-    quotient_graph.AbsorptionAndExternalElementSizes(
-        &aggressive_absorption_elements);
-
-    // Store the external degrees of all supervariables in the pivot structure.
-    quotient_graph.ComputeExternalDegreesAndHashes(
-        &external_degrees, &bucket_keys);
-
-    // Update the degree lists using the computed degrees.
-    quotient_graph.UpdateExternalDegrees(external_degrees);
-
-    // Update/store metadata associated with the degree computations.
     analysis.num_degree_updates += quotient_graph.NumPivotDegreeUpdates();
     if (control.store_num_degree_updates_with_multiple_elements) {
       analysis.num_degree_updates_with_multiple_elements +=
           quotient_graph.NumPivotDegreeUpdatesWithMultipleElements();
     }
-
-    if (control.allow_supernodes) {
-      // Merge any equivalent supernodes by explicitly checking for equality
-      // between pairs that are in the same hash bucket.
-      quotient_graph.MergeVariables(bucket_keys);
-    }
-
-    // Clear the external element size array.
-    quotient_graph.ResetExternalElementSizes(); 
-
-    // Formally convert the pivot from a supervariable into an element.
-    quotient_graph.ConvertPivotIntoElement(aggressive_absorption_elements);
   }
 
   // Extract the relevant information from the QuotientGraph.

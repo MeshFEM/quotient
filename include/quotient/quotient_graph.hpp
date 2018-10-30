@@ -75,6 +75,11 @@ class QuotientGraph {
   void FormEliminatedStructures(
       std::vector<std::vector<Int>>* eliminated_structures) const;
 
+  // Finds the next pivot supervariable, forms the corresponding element, and
+  // updates the quotient graph. The return value is the principal member of
+  // the selected pivot.
+  Int FindAndProcessPivot();
+
   // Retrieve a variable with minimal (approximate) external degree and set it
   // as the active pivot.
   Int GetNextPivot();
@@ -293,11 +298,22 @@ class QuotientGraph {
   // a supervariable in the current pivot structure, L_p.
   std::vector<Int> shifted_external_element_sizes_;
 
+  // A vector that will be used to store the list of elements that should be
+  // aggressively absorbed in a particular stage.
+  std::vector<Int> aggressive_absorption_elements_;
+
   // A mask of length 'num_original_vertices' that used within exact external
   // degree computations to perform set unions. It is only created if exact
   // degree computations were requested, and it must be set to all zeros before
   // and after each call to ExternalDegree.
   mutable std::vector<int> exact_degree_mask_;
+
+  // A vector for storing the list of new external degree updates.
+  std::vector<Int> external_degrees_;
+
+  // A vector for storing the hashes of the supervariables in the current
+  // pivot's structure.
+  std::vector<std::size_t> bucket_keys_;
 
   // An array of single-linked lists for hash buckets for the supervariables.
   HashLists hash_lists_;
