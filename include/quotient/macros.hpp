@@ -8,24 +8,26 @@
 #ifndef QUOTIENT_MACROS_H_
 #define QUOTIENT_MACROS_H_
 
-#include <cstdint>
-
 namespace quotient {
 
 #ifdef QUOTIENT_DEBUG
-# define QUOTIENT_ASSERT(assertion, message) { \
-  if (!(assertion)) { \
-    std::cerr << (message) << std::endl; \
-  } }
+#  define QUOTIENT_ASSERT(assertion, message) { \
+       if (!(assertion)) { \
+         std::cerr << (message) << std::endl; \
+       } }
 #else
-# define QUOTIENT_ASSERT(condition, message)
+#  define QUOTIENT_ASSERT(condition, message)
 #endif
 
-// The datatype for signed indices.
-typedef int64_t Int;
-
-// The datatype used for unsigned indices.
-typedef uint64_t UInt;
+// In most scenarios, it seems that the cost of the stronger hash is not
+// worth the increased cost of maintaining the hash.
+#ifdef QUOTIENT_STRONG_HASHES
+#  define QUOTIENT_HASH_COMBINE(hash, update) \
+       hash ^= (update) + 0x9e3779b9 + (hash << 6) + (hash >> 2)
+#else
+#  define QUOTIENT_HASH_COMBINE(hash, update) \
+       hash += update
+#endif
 
 } // namespace quotient
 

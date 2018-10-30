@@ -21,16 +21,6 @@
 
 namespace quotient {
 
-// In most scenarios, it seems that the cost of the stronger hash is not
-// worth the increased cost of maintaining the hash.
-#ifdef QUOTIENT_STRONG_HASHES
-#  define HASH_COMBINE(hash, update) \
-       hash ^= (update) + 0x9e3779b9 + (hash << 6) + (hash >> 2)
-#else
-#  define HASH_COMBINE(hash, update) \
-       hash += update
-#endif
-
 template<typename T>
 void PrintVector(const std::vector<T>& vec, const std::string& msg) {
   std::cout << msg << ": ";
@@ -319,7 +309,7 @@ inline std::pair<Int, std::size_t> QuotientGraph::PackCountAndHashAdjacencies(
     const Int supernode_size = supernode_sizes_[j];
     if (supernode_size > 0) {
       degree += supernode_size;
-      HASH_COMBINE(hash, j);
+      QUOTIENT_HASH_COMBINE(hash, j);
       adjacency_list[num_packed++] = j;
     }
   }
@@ -359,7 +349,7 @@ QuotientGraph::ExactSingleExternalDegreeAndHash(Int principal_variable) {
   QUOTIENT_ASSERT(supernode_size > 0,
       "The flipped supernode size should have been positive.");
   degree_and_hash.first += element_sizes_[pivot_] - supernode_size;
-  HASH_COMBINE(degree_and_hash.second, pivot_);
+  QUOTIENT_HASH_COMBINE(degree_and_hash.second, pivot_);
 
   return degree_and_hash;
 }
@@ -386,7 +376,7 @@ QuotientGraph::ExactDoubleExternalDegreeAndHash(Int principal_variable) {
   QUOTIENT_ASSERT(supernode_size > 0,
       "The flipped supernode size should have been positive.");
   degree_and_hash.first += element_sizes_[pivot_] - supernode_size;
-  HASH_COMBINE(degree_and_hash.second, pivot_);
+  QUOTIENT_HASH_COMBINE(degree_and_hash.second, pivot_);
 
   const Int element = element_list[0];
   const Int external_element_size =
@@ -394,7 +384,7 @@ QuotientGraph::ExactDoubleExternalDegreeAndHash(Int principal_variable) {
   if (!aggressive_absorption || external_element_size != 0) {
     // Add |L_e \ L_p|.
     degree_and_hash.first += external_element_size;
-    HASH_COMBINE(degree_and_hash.second, element);
+    QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
   } else {
     element_list[0] = pivot_;
     element_list.pop_back();
@@ -425,7 +415,7 @@ QuotientGraph::ExactGenericExternalDegreeAndHash(Int principal_variable) {
       }
       element_list[num_packed++] = element;
     }
-    HASH_COMBINE(degree_and_hash.second, element);
+    QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
 
     for (const Int& j : elements_[element]) {
       // Unabsorbed elements should not have any eliminated members of
@@ -517,13 +507,13 @@ QuotientGraph::AmestoyExternalDegreeAndHash(Int principal_variable) {
     QUOTIENT_ASSERT(external_element_size >= 0,
         "Ran into a missing entry in external_element_sizes_");
     degree_and_hash.first += external_element_size;
-    HASH_COMBINE(degree_and_hash.second, element);
+    QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
   }
   if (aggressive_absorption) {
     element_list.resize(num_packed);
     element_list.push_back(pivot_);
   }
-  HASH_COMBINE(degree_and_hash.second, pivot_);
+  QUOTIENT_HASH_COMBINE(degree_and_hash.second, pivot_);
 
   if (bound0 < degree_and_hash.first) {
     degree_and_hash.first = bound0;
@@ -570,7 +560,7 @@ QuotientGraph::GilbertExternalDegreeAndHash(Int principal_variable) {
     QUOTIENT_ASSERT(element_sizes_[element] - supernode_size >= 0,
         "Negative Gilbert degree update.");
     degree_and_hash.first += element_sizes_[element] - supernode_size;
-    HASH_COMBINE(degree_and_hash.second, element);
+    QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
   }
   if (aggressive_absorption) {
     element_list.resize(num_packed);
