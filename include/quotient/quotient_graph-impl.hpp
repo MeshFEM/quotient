@@ -861,13 +861,8 @@ inline void QuotientGraph::AppendSupernode(
 }
 
 inline void QuotientGraph::ComputePreorder(std::vector<Int>* preorder) const {
-#ifdef QUOTIENT_DEBUG
-  preorder->resize(num_original_vertices_, -1);
-#else
-  preorder->resize(num_original_vertices_);
-#endif
-
   // Scan for the roots and launch a pre-order traversal on each of them.
+  preorder->resize(num_original_vertices_);
   std::vector<Int>::iterator iter = preorder->begin();
   for (const Int& index : elimination_order_) {
     if (parents_[index] != -1) {
