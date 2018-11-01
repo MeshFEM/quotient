@@ -15,6 +15,7 @@
 #include "quotient/degree_lists.hpp"
 #include "quotient/hash_lists.hpp"
 #include "quotient/minimum_degree_control.hpp"
+#include "quotient/timer.hpp"
 
 namespace quotient {
 
@@ -124,9 +125,9 @@ class QuotientGraph {
 
   // A list of length 'num_original_vertices' of the (signed) sizes of each
   // supernode. If index 'i' is not principal, then it is set to zero; if
-  // 'i' is a principal variable, then 'supernode_sizes[i]' is the size of the
-  // supernode; if 'i' is a principal element, the value is negated.
-  std::vector<Int> supernode_sizes_;
+  // 'i' is a principal variable, then index 'i' is the size of the supernode:
+  // if 'i' is a principal element, the value is negated.
+  std::vector<Int> signed_supernode_sizes_;
 
   // The ordered list of principal members of eliminated supernodes.
   std::vector<Int> elimination_order_;
@@ -240,7 +241,7 @@ class QuotientGraph {
 
 #ifdef QUOTIENT_ENABLE_TIMERS
   // A map from the stage name to the associated timer.
-  mutable std::unordered_map<std::string, Timer> timers;
+  mutable std::unordered_map<std::string, Timer> timers_;
 #endif
 
   // Retrieve a variable with minimal (approximate) external degree and set it
