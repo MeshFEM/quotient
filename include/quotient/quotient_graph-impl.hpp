@@ -833,6 +833,7 @@ inline void QuotientGraph::MergeVariables(
     hash_lists_.AddHash(i, hash, bucket);
   }
 
+  Int num_merges = 0;
   const std::vector<Int>& next_member = hash_lists_.next_member;
   for (Int i_index = 0; i_index < supernodal_struct_size; ++i_index) {
     Int i = pivot_element[i_index];
@@ -864,6 +865,7 @@ inline void QuotientGraph::MergeVariables(
         }
 
         if (StructuralSupervariablesAreQuotientIndistinguishable(i, j)) {
+          ++num_merges;
           const Int absorbed_size = -signed_supernode_sizes_[j];
           QUOTIENT_ASSERT(absorbed_size > 0,
               "Absorbed size should have been positive.");
@@ -898,6 +900,19 @@ inline void QuotientGraph::MergeVariables(
     }
   }
 #endif
+
+  // Remove any non-principal variables from the element. 
+  if (num_merges) {
+    Int num_packed = 0;
+    for (const Int& i : elements_[pivot_]) {
+      const Int supernode_size = -signed_supernode_sizes_[i]; 
+      if (supernode_size > 0) {
+        elements_[pivot_][num_packed++] = i;
+      }
+    }
+    elements_[pivot_].resize(num_packed);
+  }
+
   QUOTIENT_STOP_TIMER(timers_, kMergeVariables);
 }
 
