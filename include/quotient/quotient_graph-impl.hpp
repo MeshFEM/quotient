@@ -116,7 +116,10 @@ inline QuotientGraph::QuotientGraph(
   elements_.resize(num_original_vertices_);
   element_sizes_.resize(num_original_vertices_, 0);
 
-  shifted_external_element_sizes_.resize(num_original_vertices_, -1);
+  // The absorbed elements will be maintained as 0, the unabsorbed will be
+  // initialized as 1, and the shift will be initialized as 2.
+  external_element_size_shift_ = 2;
+  shifted_external_element_sizes_.resize(num_original_vertices_, 1);
 
   if (control.aggressive_absorption) {
     aggressive_absorption_elements_.reserve(num_original_vertices_ - 1);
@@ -283,7 +286,9 @@ inline void QuotientGraph::ComputePivotStructure() {
     const Int element = pivot_elements[elem_index];
     QUOTIENT_ASSERT(parents_[element] == -1,
         "Used an absorbed element in pivot structure.");
+
     parents_[element] = pivot_;
+    shifted_external_element_sizes_[element] = 0;
     pivot_elements[num_kept_elements++] = element;
 
     for (const Int& index : elements_[element]) {
@@ -453,12 +458,13 @@ QuotientGraph::ExactDoubleExternalDegreeAndHash(Int principal_variable) {
   degree_and_hash.first += element_sizes_[pivot_] - supernode_size;
   QUOTIENT_HASH_COMBINE(degree_and_hash.second, pivot_);
 
-  const Int element = element_list[0];
-  const Int external_element_size =
-      shifted_external_element_sizes_[element] - external_element_size_shift_;
-  if (!aggressive_absorption || external_element_size != 0) {
+  const Int& element = element_list[0];
+  const Int& shifted_external_element_size =
+      shifted_external_element_sizes_[element];
+  if (!aggressive_absorption || shifted_external_element_size) {
     // Add |L_e \ L_p|.
-    degree_and_hash.first += external_element_size;
+    degree_and_hash.first +=
+        shifted_external_element_size - external_element_size_shift_;
     QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
   } else {
     element_list[0] = pivot_;
@@ -483,7 +489,7 @@ QuotientGraph::ExactGenericExternalDegreeAndHash(Int principal_variable) {
   Int num_packed = 0;
   for (const Int& element : element_list) {
     if (aggressive_absorption) {
-      if (parents_[element] != -1) {
+      if (!shifted_external_element_sizes_[element]) {
         // Skip absorbed elements. This should only be possible with
         // aggressive absorption (so the external element size should be 0).
         continue;
@@ -562,31 +568,46 @@ QuotientGraph::AmestoyExternalDegreeAndHash(Int principal_variable) {
       PackCountAndHashAdjacencies(principal_variable);
   degree_and_hash.first += external_pivot_element_size;
 
-  Int num_packed = 0;
   const Int num_elements = element_list.size();
   QUOTIENT_ASSERT(element_list.back() == pivot_,
       "Pivot was not at the back of the element list.");
-  for (Int elem_index = 0; elem_index < num_elements - 1; ++elem_index) {
-    const Int element = element_list[elem_index];
-    QUOTIENT_ASSERT(element != pivot_, "Iterated over pivot element.");
-    if (aggressive_absorption) {
-      if (parents_[element] != -1) {
+  if (aggressive_absorption) {
+    Int num_packed = 0;
+    for (Int elem_index = 0; elem_index < num_elements - 1; ++elem_index) {
+      const Int element = element_list[elem_index];
+      QUOTIENT_ASSERT(element != pivot_, "Iterated over pivot element.");
+      if (!shifted_external_element_sizes_[element]) {
         // Skip absorbed elements. This should only be possible with
         // aggressive absorption.
         continue;
       }
       element_list[num_packed++] = element;
+
+      QUOTIENT_ASSERT(shifted_external_element_sizes_[element],
+        "Ran into an absorbed element in the external degree calculation.");
+      const Int external_element_size =
+          shifted_external_element_sizes_[element] - shift;
+      QUOTIENT_ASSERT(external_element_size >= 0,
+          "Ran into a missing entry in external_element_sizes_");
+      degree_and_hash.first += external_element_size;
+      QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
     }
-    const Int external_element_size =
-        shifted_external_element_sizes_[element] - shift;
-    QUOTIENT_ASSERT(external_element_size >= 0,
-        "Ran into a missing entry in external_element_sizes_");
-    degree_and_hash.first += external_element_size;
-    QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
-  }
-  if (aggressive_absorption) {
     element_list.resize(num_packed);
     element_list.push_back(pivot_);
+  } else {
+    for (Int elem_index = 0; elem_index < num_elements - 1; ++elem_index) {
+      const Int element = element_list[elem_index];
+      QUOTIENT_ASSERT(element != pivot_, "Iterated over pivot element.");
+
+      QUOTIENT_ASSERT(shifted_external_element_sizes_[element],
+        "Ran into an absorbed element in the external degree calculation.");
+      const Int external_element_size =
+          shifted_external_element_sizes_[element] - shift;
+      QUOTIENT_ASSERT(external_element_size >= 0,
+          "Ran into a missing entry in external_element_sizes_");
+      degree_and_hash.first += external_element_size;
+      QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
+    }
   }
   QUOTIENT_HASH_COMBINE(degree_and_hash.second, pivot_);
 
@@ -620,25 +641,32 @@ QuotientGraph::GilbertExternalDegreeAndHash(Int principal_variable) {
   QUOTIENT_ASSERT(supernode_size > 0,
       "The negated supernode size was expected to be positive.");
 
-  Int num_packed = 0;
-  for (const Int& element : element_list) {
-    if (aggressive_absorption) {
-      if (parents_[element] != -1) {
+  if (aggressive_absorption) {
+    Int num_packed = 0;
+    for (const Int& element : element_list) {
+      if (!shifted_external_element_sizes_[element]) {
         // Skip absorbed elements. This should only be possible with
         // aggressive absorption.
         continue;
       }
       element_list[num_packed++] = element;
+      QUOTIENT_ASSERT(parents_[element] == -1,
+          "Used absorbed element in Gilbert degree update.");
+      QUOTIENT_ASSERT(element_sizes_[element] - supernode_size >= 0,
+          "Negative Gilbert degree update.");
+      degree_and_hash.first += element_sizes_[element] - supernode_size;
+      QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
     }
-    QUOTIENT_ASSERT(parents_[element] == -1,
-        "Used absorbed element in Gilbert degree update.");
-    QUOTIENT_ASSERT(element_sizes_[element] - supernode_size >= 0,
-        "Negative Gilbert degree update.");
-    degree_and_hash.first += element_sizes_[element] - supernode_size;
-    QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
-  }
-  if (aggressive_absorption) {
     element_list.resize(num_packed);
+  } else {
+    for (const Int& element : element_list) {
+      QUOTIENT_ASSERT(parents_[element] == -1,
+          "Used absorbed element in Gilbert degree update.");
+      QUOTIENT_ASSERT(element_sizes_[element] - supernode_size >= 0,
+          "Negative Gilbert degree update.");
+      degree_and_hash.first += element_sizes_[element] - supernode_size;
+      QUOTIENT_HASH_COMBINE(degree_and_hash.second, element);
+    }
   }
 
   const Int num_vertices_left =
@@ -946,7 +974,7 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
   postorder->resize(num_original_vertices_);
   std::vector<Int>::iterator iter = postorder->begin();
   for (const Int& index : elimination_order_) {
-    if (parents_[index] != -1) {
+    if (!shifted_external_element_sizes_[index]) {
       continue;
     }
     iter = PreorderTree(index, iter);
@@ -997,50 +1025,87 @@ inline void QuotientGraph::AbsorptionAndExternalElementSizes(
   QUOTIENT_START_TIMER(timers_, kAbsorption);
   const Int shift = external_element_size_shift_;
   const bool aggressive_absorption = control_.aggressive_absorption;
+
   if (aggressive_absorption) {
     // Follow the advice at the beginning of Section 5 of [AMD-96] and absorb
     // any element e that satisfies |L_e \ L_p| = 0.
     aggressive_absorption_elements->clear();
-  }
 
-  for (const Int& i : elements_[pivot_]) {
-    std::vector<Int>& element_list = element_lists_[i];
-    const Int supernode_size = -signed_supernode_sizes_[i];
-    QUOTIENT_ASSERT(supernode_size > 0,
-        "supernode " + std::to_string(i) +
-        " had non-positive signed size when computing external element sizes");
+    for (const Int& i : elements_[pivot_]) {
+      std::vector<Int>& element_list = element_lists_[i];
+      const Int supernode_size = -signed_supernode_sizes_[i];
+      QUOTIENT_ASSERT(supernode_size > 0,
+          "supernode " + std::to_string(i) + " had non-positive signed size "
+          "when computing external element sizes");
 
-    Int num_packed = 0;
-    const Int num_elements = element_list.size();
-    for (Int elem_index = 0; elem_index < num_elements; ++elem_index) {
-      const Int element = element_list[elem_index];
-      if (parents_[element] != -1) {
-        continue;
+      Int num_packed = 0;
+      const Int num_elements = element_list.size();
+      for (Int elem_index = 0; elem_index < num_elements; ++elem_index) {
+        const Int element = element_list[elem_index];
+        Int& shifted_external_size = shifted_external_element_sizes_[element];
+        if (!shifted_external_size) {
+          continue;
+        }
+        QUOTIENT_ASSERT(parents_[element] == -1,
+          "Tried to subtract from an absorbed element.");
+
+        if (shifted_external_size < shift) {
+          shifted_external_size = (element_sizes_[element] - supernode_size) +
+              shift;
+        } else {
+          shifted_external_size -= supernode_size;
+        }
+        QUOTIENT_ASSERT(shifted_external_size >= shift,
+            "Computed negative external element size.");
+
+        // Mark any element with no exterior element size that is not a member
+        // of the pivot element list for absorption if aggressive absorption is
+        // enabled.
+        if (shifted_external_size == shift) {
+          ++num_aggressive_absorptions_;
+          shifted_external_size = 0;
+          parents_[element] = pivot_;
+          aggressive_absorption_elements->push_back(element);
+        } else {
+          element_list[num_packed++] = element;
+        }
       }
+      element_list.resize(num_packed);
+      element_list.push_back(pivot_);
+    }
+  } else {
+    for (const Int& i : elements_[pivot_]) {
+      std::vector<Int>& element_list = element_lists_[i];
+      const Int supernode_size = -signed_supernode_sizes_[i];
+      QUOTIENT_ASSERT(supernode_size > 0,
+          "supernode " + std::to_string(i) + " had non-positive signed size "
+          "when computing external element sizes");
 
-      Int& shifted_external_size = shifted_external_element_sizes_[element];
-      if (shifted_external_size < shift) {
-        shifted_external_size = (element_sizes_[element] - supernode_size) +
-            shift;
-      } else {
-        shifted_external_size -= supernode_size;
-      }
-      QUOTIENT_ASSERT(shifted_external_size >= shift,
-          "Computed negative external element size.");
+      Int num_packed = 0;
+      const Int num_elements = element_list.size();
+      for (Int elem_index = 0; elem_index < num_elements; ++elem_index) {
+        const Int element = element_list[elem_index];
+        Int& shifted_external_size = shifted_external_element_sizes_[element];
+        if (!shifted_external_size) {
+          continue;
+        }
+        QUOTIENT_ASSERT(parents_[element] == -1,
+          "Tried to subtract from an absorbed element.");
 
-      // Mark any element with no exterior element size that is not a member
-      // of the pivot element list for absorption if aggressive absorption is
-      // enabled.
-      if (aggressive_absorption && shifted_external_size == shift) {
-        ++num_aggressive_absorptions_;
-        parents_[element] = pivot_;
-        aggressive_absorption_elements->push_back(element);
-      } else {
+        if (shifted_external_size < shift) {
+          shifted_external_size = (element_sizes_[element] - supernode_size) +
+              shift;
+        } else {
+          shifted_external_size -= supernode_size;
+        }
+        QUOTIENT_ASSERT(shifted_external_size >= shift,
+            "Computed negative external element size.");
+
         element_list[num_packed++] = element;
       }
+      element_list.resize(num_packed);
+      element_list.push_back(pivot_);
     }
-    element_list.resize(num_packed);
-    element_list.push_back(pivot_);
   }
   QUOTIENT_STOP_TIMER(timers_, kAbsorption);
 }
@@ -1053,10 +1118,16 @@ inline void QuotientGraph::ResetExternalElementSizes() {
     return; 
   }
 
+  // Reset all non-absorbed shifted element sizes to 1. Afterwards, the
+  // absorbed elements will be marked as 0, the unabsorbed as 1, and the shift
+  // will be 2.
+  external_element_size_shift_ = 2;
   for (std::size_t i = 0; i < shifted_external_element_sizes_.size(); ++i) {
-    shifted_external_element_sizes_[i] = -1;
+    if (shifted_external_element_sizes_[i]) {
+      shifted_external_element_sizes_[i] = 1;
+    }
   }
-  external_element_size_shift_ = 0;
+
   QUOTIENT_STOP_TIMER(timers_, kResetExternalElementSizes);
 }
 
