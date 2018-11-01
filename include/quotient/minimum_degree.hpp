@@ -101,7 +101,9 @@ struct MinimumDegreeResult {
   std::vector<Int> Permutation() const;
 
   // Writes a dot file (usually ".gv") for the assembly forest implied by the
-  // postordering.
+  // postordering. One can subsequently generate a PNG of the forest using:
+  //   dot -Tpng filename -o output.png
+  // But beware that the call to dot might take 15 minutes or more.
   void AssemblyForestToDot(const std::string& filename) const;
 };
 

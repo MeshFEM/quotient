@@ -16,6 +16,12 @@ include_dir = include_directories('include')
 
 deps = []
 
+# For controlling whether 32-bit or 64-bit integers are used. By default,
+# 64-bit integers are used.
+if get_option('use-64bit')
+  add_global_arguments('-DQUOTIENT_USE_64BIT', language : 'cpp')
+endif
+
 # For controlling the tradeoff between quality and speed for the supervariable
 # hash function. It seems to typically be preferable to prefer the cheapest-
 # possible hash.

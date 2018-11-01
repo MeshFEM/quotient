@@ -13,10 +13,18 @@
 namespace quotient {
 
 // The datatype for signed indices.
+#ifdef QUOTIENT_USE_64BIT
 typedef int64_t Int;
+#else
+typedef int Int;
+#endif
 
 // The datatype used for unsigned indices.
+#ifdef QUOTIENT_USE_64BIT
 typedef uint64_t UInt;
+#else
+typedef unsigned UInt;
+#endif
 
 } // namespace quotient
 
