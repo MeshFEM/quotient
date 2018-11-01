@@ -38,6 +38,9 @@ struct MinimumDegreeResult {
   // The postordering of the assembly forest.
   std::vector<Int> postorder;
 
+  // The parent of each supernode.
+  std::vector<Int> parents;
+
   // The number of aggressive absorptions that occurred.
   Int num_aggressive_absorptions;
 
@@ -96,6 +99,10 @@ struct MinimumDegreeResult {
 
   // Returns the permutation implied by the postordering of the assembly tree.
   std::vector<Int> Permutation() const;
+
+  // Writes a dot file (usually ".gv") for the assembly forest implied by the
+  // postordering.
+  void AssemblyForestToDot(const std::string& filename) const;
 };
 
 // Returns a supernodal reordering and the corresponding supernodal nonzero

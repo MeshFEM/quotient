@@ -12,6 +12,7 @@
 #include "omp.h"
 #endif
 
+#include <fstream>
 #include <iostream>
 #include <unordered_map>
 #include <vector>
@@ -88,6 +89,26 @@ MinimumDegreeResult::Permutation() const {
   return permutation;
 }
 
+inline void MinimumDegreeResult::AssemblyForestToDot(
+    const std::string& filename) const {
+  std::ofstream file(filename);
+  if (!file.is_open()) {
+    std::cerr << "Could not open " << filename << std::endl;
+    return;
+  }
+
+  file << "digraph g{\n";
+  for (const Int& i : postorder) {
+    if (supernodes[i].empty() || parents[i] == -1) {
+      continue;
+    }
+    std::ostringstream os;
+    os << "  " << parents[i] << " -> " << i << ";\n";
+    file << os.str();
+  }
+  file << "}\n";
+}
+
 inline MinimumDegreeResult MinimumDegree(
   const CoordinateGraph& graph, const MinimumDegreeControl& control) {
   QUOTIENT_ASSERT(graph.NumSources() == graph.NumTargets(),
@@ -129,6 +150,7 @@ inline MinimumDegreeResult MinimumDegree(
   }
   analysis.elimination_order = quotient_graph.EliminationOrder();
   quotient_graph.ComputePostorder(&analysis.postorder);
+  analysis.parents = quotient_graph.Parents();
   if (control.store_structures) {
     quotient_graph.FormEliminatedStructures(&analysis.eliminated_structures);
   }

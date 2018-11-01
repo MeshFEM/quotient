@@ -198,7 +198,8 @@ AMDExperiment RunMatrixMarketAMDTest(
     bool force_symmetry,
     int num_random_permutations,
     bool print_progress,
-    bool write_permuted_graphs) {
+    bool write_permuted_graphs,
+    bool write_assembly_forests) {
   if (print_progress) {
     std::cout << "Reading CoordinateGraph from " << filename << "..."
               << std::endl;
@@ -318,6 +319,11 @@ AMDExperiment RunMatrixMarketAMDTest(
       permuted_graph.ToMatrixMarket(new_filename);
     }
 
+    if (write_assembly_forests) {
+      const std::string new_filename = filename + ".gv";
+      analysis.AssemblyForestToDot(new_filename);
+    }
+
     if (instance == num_random_permutations) {
       break;
     }
@@ -381,7 +387,8 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
     const quotient::MinimumDegreeControl& control,
     int num_random_permutations,
     bool print_progress,
-    bool write_permuted_graphs) {
+    bool write_permuted_graphs,
+    bool write_assembly_forests) {
   const std::vector<std::string> kMatrixNames{
       "appu",
       "bbmat",
@@ -424,7 +431,8 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
         force_symmetry,
         num_random_permutations,
         print_progress,
-        write_permuted_graphs);
+        write_permuted_graphs,
+        write_assembly_forests);
   }
 
   return experiments;
@@ -490,6 +498,10 @@ int main(int argc, char** argv) {
   const bool write_permuted_graphs = parser.OptionalInput<bool>(
       "write_permuted_graphs",
       "Write the permuted graphs to file?",
+      false);
+  const bool write_assembly_forests = parser.OptionalInput<bool>(
+      "write_assembly_forests",
+      "Write out dot files for the assembly forests?",
       false);
   const std::string matrix_market_directory = parser.OptionalInput<std::string>(
       "matrix_market_directory",
@@ -562,7 +574,8 @@ int main(int argc, char** argv) {
             control,
             num_random_permutations,
             print_progress,
-            write_permuted_graphs);
+            write_permuted_graphs,
+            write_assembly_forests);
     for (const std::pair<std::string, AMDExperiment>& pairing : experiments) {
       PrintAMDExperiment(pairing.second, pairing.first);  
     }
@@ -575,7 +588,8 @@ int main(int argc, char** argv) {
         force_symmetry,
         num_random_permutations,
         print_progress,
-        write_permuted_graphs);
+        write_permuted_graphs,
+        write_assembly_forests);
     PrintAMDExperiment(experiment, filename);
   }
 

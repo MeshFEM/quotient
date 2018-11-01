@@ -57,6 +57,9 @@ class QuotientGraph {
   // Fills 'postorder' with the postorder of the assembly tree.
   void ComputePostorder(std::vector<Int>* postorder) const;
 
+  // Returns a reference to the list containing the parent of each supernode.
+  const std::vector<Int>& Parents() const;
+
   // Returns the number of times that supervariables have been falsely hashed
   // into the same bucket.
   Int NumHashBucketCollisions() const;

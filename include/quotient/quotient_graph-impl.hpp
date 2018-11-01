@@ -988,6 +988,10 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
   return iter;
 }
 
+inline const std::vector<Int>& QuotientGraph::Parents() const {
+  return parents_;
+}
+
 inline void QuotientGraph::AbsorptionAndExternalElementSizes(
     std::vector<Int>* aggressive_absorption_elements) {
   QUOTIENT_START_TIMER(timers_, kAbsorption);
