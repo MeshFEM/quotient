@@ -35,8 +35,8 @@ struct MinimumDegreeResult {
   // formed if 'MinimumDegreeControl.store_structures' was true.
   std::vector<std::vector<Int>> eliminated_structures;
 
-  // The preordering of the assembly tree.
-  std::vector<Int> preorder;
+  // The postordering of the assembly forest.
+  std::vector<Int> postorder;
 
   // The number of aggressive absorptions that occurred.
   Int num_aggressive_absorptions;
@@ -69,6 +69,10 @@ struct MinimumDegreeResult {
   // factorization using this ordering.
   double num_cholesky_flops = 0;
 
+  // An optional (based upon the value of 'MinimumDegreeControl.time_stages')
+  // map from the stage names to the corresponding elapsed seconds.
+  std::unordered_map<std::string, double> elapsed_seconds;
+
   // A trivial constructor.
   MinimumDegreeResult();
 
@@ -92,10 +96,6 @@ struct MinimumDegreeResult {
 
   // Returns the permutation implied by the postordering of the assembly tree.
   std::vector<Int> Permutation() const;
-
-  // An optional (based upon the value of 'MinimumDegreeControl.time_stages')
-  // map from the stage names to the corresponding elapsed seconds.
-  std::unordered_map<std::string, double> elapsed_seconds;
 };
 
 // Returns a supernodal reordering and the corresponding supernodal nonzero

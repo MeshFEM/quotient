@@ -66,17 +66,16 @@ MinimumDegreeResult::FractionOfDegreeUpdatesWithMultipleElements() const {
 
 inline std::vector<Int>
 MinimumDegreeResult::Permutation() const {
-  const Int num_vertices = preorder.size();
+  const Int num_vertices = postorder.size();
 #ifdef QUOTIENT_DEBUG
   std::vector<Int> permutation(num_vertices, -1);
 #else
   std::vector<Int> permutation(num_vertices);
 #endif
 
-  // Fill the permutation with the inverse of the postordering, which is the
-  // reverse of the preordering.
+  // Fill the permutation with the inverse of the postordering.
   for (Int index = 0; index < num_vertices; ++index) {
-    permutation[preorder[num_vertices - 1 - index]] = index;
+    permutation[postorder[index]] = index;
   }
 
 #ifdef QUOTIENT_DEBUG
@@ -129,7 +128,7 @@ inline MinimumDegreeResult MinimumDegree(
     analysis.supernodes[i] = quotient_graph.FormSupernode(i);
   }
   analysis.elimination_order = quotient_graph.EliminationOrder();
-  quotient_graph.ComputePreorder(&analysis.preorder);
+  quotient_graph.ComputePostorder(&analysis.postorder);
   if (control.store_structures) {
     quotient_graph.FormEliminatedStructures(&analysis.eliminated_structures);
   }

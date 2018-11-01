@@ -230,6 +230,11 @@ inline const std::vector<Int>& QuotientGraph::Element(
   return elements_[principal_member];
 }
 
+inline const std::vector<Int>& QuotientGraph::ElementList(
+    Int principal_member) const {
+  return element_lists_[principal_member];
+}
+
 inline void QuotientGraph::FormEliminatedStructures(
     std::vector<std::vector<Int>>* eliminated_structures) const {
   eliminated_structures->resize(elimination_order_.size());
@@ -936,18 +941,21 @@ inline void QuotientGraph::AppendSupernode(
   }
 }
 
-inline void QuotientGraph::ComputePreorder(std::vector<Int>* preorder) const {
-  // Scan for the roots and launch a pre-order traversal on each of them.
-  preorder->resize(num_original_vertices_);
-  std::vector<Int>::iterator iter = preorder->begin();
+inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
+  // Scan for the roots and launch a pe-order traversal on each of them.
+  postorder->resize(num_original_vertices_);
+  std::vector<Int>::iterator iter = postorder->begin();
   for (const Int& index : elimination_order_) {
     if (parents_[index] != -1) {
       continue;
     }
     iter = PreorderTree(index, iter);
   }
-  QUOTIENT_ASSERT(iter == preorder->end(),
+  QUOTIENT_ASSERT(iter == postorder->end(),
       "Preorder had incorrect final offset.");
+
+  // Reverse the preordering (to form a postordering) in-place.
+  std::reverse(postorder->begin(), postorder->end());
 }
 
 inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
@@ -993,8 +1001,8 @@ inline void QuotientGraph::AbsorptionAndExternalElementSizes(
 
   for (const Int& i : elements_[pivot_]) {
     std::vector<Int>& element_list = element_lists_[i];
-    const Int supernode_i_size = -signed_supernode_sizes_[i];
-    QUOTIENT_ASSERT(supernode_i_size > 0,
+    const Int supernode_size = -signed_supernode_sizes_[i];
+    QUOTIENT_ASSERT(supernode_size > 0,
         "supernode " + std::to_string(i) +
         " had non-positive signed size when computing external element sizes");
 
@@ -1008,13 +1016,12 @@ inline void QuotientGraph::AbsorptionAndExternalElementSizes(
 
       Int& shifted_external_size = shifted_external_element_sizes_[element];
       if (shifted_external_size < shift) {
-        shifted_external_size =
-            (element_sizes_[element] - supernode_i_size) + shift;
+        shifted_external_size = (element_sizes_[element] - supernode_size) +
+            shift;
       } else {
-        shifted_external_size -= supernode_i_size;
+        shifted_external_size -= supernode_size;
       }
-      QUOTIENT_ASSERT(
-          shifted_external_size >= shift,
+      QUOTIENT_ASSERT(shifted_external_size >= shift,
           "Computed negative external element size.");
 
       // Mark any element with no exterior element size that is not a member

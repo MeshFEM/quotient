@@ -54,8 +54,8 @@ class QuotientGraph {
   // Returns the ordered list of eliminated principal variables.
   const std::vector<Int>& EliminationOrder() const;
 
-  // Fills 'preorder' with the preorder of the assembly tree.
-  void ComputePreorder(std::vector<Int>* preorder) const;
+  // Fills 'postorder' with the postorder of the assembly tree.
+  void ComputePostorder(std::vector<Int>* postorder) const;
 
   // Returns the number of times that supervariables have been falsely hashed
   // into the same bucket.
@@ -68,7 +68,11 @@ class QuotientGraph {
   // Forms the set of members of the supernode with the given principal member.
   std::vector<Int> FormSupernode(Int principal_member) const;
 
+  // Returns a reference to the element for the given principal member.
   const std::vector<Int>& Element(Int principal_member) const;
+
+  // Returns a reference to the element list of the given principal member.
+  const std::vector<Int>& ElementList(Int principal_member) const;
 
   //  If control_.store_structures was true, then this routine overwrites
   // 'eliminated_structures' with the (sorted) structures of the eliminated
