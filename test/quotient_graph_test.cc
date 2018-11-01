@@ -72,11 +72,10 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   control.store_structures = true;
 
   quotient::QuotientGraph quotient_graph(graph, control);
-  const Int first_pivot = quotient_graph.GetNextPivot();
+  const Int first_pivot = quotient_graph.FindAndProcessPivot();
   const std::vector<Int> first_supernode =
       quotient_graph.FormSupernode(first_pivot);
   const std::vector<Int>& first_element = quotient_graph.Element(first_pivot);
-  quotient_graph.ComputePivotStructure();
   const Int first_cholesky_nonzeros = quotient_graph.NumPivotCholeskyNonzeros();
   const double first_cholesky_flops = quotient_graph.NumPivotCholeskyFlops();
 

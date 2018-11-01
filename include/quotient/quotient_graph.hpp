@@ -80,18 +80,6 @@ class QuotientGraph {
   // the selected pivot.
   Int FindAndProcessPivot();
 
-  // Retrieve a variable with minimal (approximate) external degree and set it
-  // as the active pivot.
-  Int GetNextPivot();
-
-  // Stores the element for the pivot:
-  //
-  //   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
-  //
-  // It is assumed that the mask is of length 'num_orig_vertices' and set to all
-  // zeros on input.
-  void ComputePivotStructure();
-
   // Returns the number of members of the element list of the pivot.
   Int NumPivotElements() const;
 
@@ -109,84 +97,6 @@ class QuotientGraph {
   // Returns the number of floating-point operations required for a standard
   // Cholesky factorization to eliminate the current pivot.
   double NumPivotCholeskyFlops() const;
-
-  // Returns (an approximation of) the external degree of a given supervariable
-  // and its hash. Further, redundant and non-principal members of the adjacency
-  // list are removed, as are any lingering aggressively-absorbed elements
-  // in an element list of a structural variable.
-  std::pair<Int, std::size_t> ExternalDegreeAndHash(Int principal_variable);
-
-  // Compute the external degree approximations of the supernodes adjacent to
-  // the current pivot.
-  void ComputeExternalDegreesAndHashes(
-      std::vector<Int>* external_degrees,
-      std::vector<std::size_t>* bucket_keys);
-
-  // Insert the new external degrees in to the degree lists.
-  void UpdateExternalDegrees(const std::vector<Int>& external_degrees);
-
-  // Returns true if supernodes 'i' and 'j' are considered indistinguishable
-  // with respect to their quotient graph representation. It is assumed that
-  // both supernodes share at least one element as a neighbor.
-  //
-  // The elimination graph definition (e.g., as given by [ADD-96])
-  // involves testing if
-  //
-  //   Adj_{GElim}(i) \cup {i} = Adj_{GElim}(j) \cup {j}.
-  //
-  // There is a discussion in [ADD-96] about using
-  //
-  //   Adj_{GQuotient}(i) \cup {i} = Adj_{GQuotient}(j) \cup {j},
-  //
-  // but the original George and Liu definition of indistinguishability
-  // involved Reach(i) \cup {i} = Reach(j) \cup {j}, where Reach(j) is the
-  // union of the adjacencies of node i in the quotient graph *and* its
-  // adjacencies that are *through* elements. With this in mind, and the fact
-  // that we only query indistinguishability when i and j are known to share
-  // an element neighbor, they must be reachable from each other.
-  //
-  // We therefore test for the equality of the element lists and adjacency
-  // lists.
-  bool StructuralSupervariablesAreQuotientIndistinguishable(Int i, Int j) const;
-
-  // Detects and merges pairs of supervariables in the pivot structure who are
-  // indistinguishable with respect to the quotient graph.
-  //
-  // While the supernodal merges will potentially shrink the supernodal
-  // adjacency lists (and thus change the associated Ashcraft hash of
-  // variables), if two variables are indistinguishable, their cached bucket
-  // might be wrong, but they would be wrong together.
-  //
-  // The test for indistinguishability does not depend upon the variable
-  // supernodal structure and is thus invariant to supervariable merges.
-  void MergeVariables(const std::vector<std::size_t>& bucket_keys);
-
-  // Converts the 'pivot' (super)variable into an element.
-  void ConvertPivotIntoElement(
-      const std::vector<Int>& aggressive_absorption_elements);
-
-  // An implementation of Algorithm 2 from [ADD-96].
-  // On exit, it holds |L_e \ L_p| for all elements e in the element list
-  // of a supernode in the structure, L_p. During the computation, natural
-  // absorption (E_i := (E_i \ E_p) \cup {p}) is performed.
-  //
-  // On entry all entries of external_element_sizes should be less than the
-  // external element size shift.
-  //
-  // On exit, all entries of 'shifted_external_element_sizes' corresponding to
-  // element indices in the element list of a supernode in the structure L_p
-  // should be, after removing the shift, non-negative and equal to |L_e \ L_p|.
-  //
-  // If the 'aggressive_absorption' boolean is true, then
-  // 'aggressive_absorption_elements' is filled with the elements which should
-  // be absorbed.
-  void AbsorptionAndExternalElementSizes(
-    std::vector<Int>* aggressive_absorption_elements);
-
-  // Sets all entries of 'external_element_sizes' that correspond to an
-  // element index in the element list of a supernode in the structure L_p to
-  // -1.
-  void ResetExternalElementSizes();
 
   // Returns the number of aggressive absorptions that occurred.
   Int NumAggressiveAbsorptions() const;
@@ -332,6 +242,96 @@ class QuotientGraph {
   // A map from the stage name to the associated timer.
   mutable std::unordered_map<std::string, Timer> timers;
 #endif
+
+  // Retrieve a variable with minimal (approximate) external degree and set it
+  // as the active pivot.
+  Int GetNextPivot();
+
+  // Stores the element for the pivot:
+  //
+  //   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
+  //
+  // It is assumed that the mask is of length 'num_orig_vertices' and set to all
+  // zeros on input.
+  void ComputePivotStructure();
+
+  // Returns (an approximation of) the external degree of a given supervariable
+  // and its hash. Further, redundant and non-principal members of the adjacency
+  // list are removed, as are any lingering aggressively-absorbed elements
+  // in an element list of a structural variable.
+  std::pair<Int, std::size_t> ExternalDegreeAndHash(Int principal_variable);
+
+  // Compute the external degree approximations of the supernodes adjacent to
+  // the current pivot.
+  void ComputeExternalDegreesAndHashes(
+      std::vector<Int>* external_degrees,
+      std::vector<std::size_t>* bucket_keys);
+
+  // Insert the new external degrees in to the degree lists.
+  void UpdateExternalDegrees(const std::vector<Int>& external_degrees);
+
+  // Returns true if supernodes 'i' and 'j' are considered indistinguishable
+  // with respect to their quotient graph representation. It is assumed that
+  // both supernodes share at least one element as a neighbor.
+  //
+  // The elimination graph definition (e.g., as given by [ADD-96])
+  // involves testing if
+  //
+  //   Adj_{GElim}(i) \cup {i} = Adj_{GElim}(j) \cup {j}.
+  //
+  // There is a discussion in [ADD-96] about using
+  //
+  //   Adj_{GQuotient}(i) \cup {i} = Adj_{GQuotient}(j) \cup {j},
+  //
+  // but the original George and Liu definition of indistinguishability
+  // involved Reach(i) \cup {i} = Reach(j) \cup {j}, where Reach(j) is the
+  // union of the adjacencies of node i in the quotient graph *and* its
+  // adjacencies that are *through* elements. With this in mind, and the fact
+  // that we only query indistinguishability when i and j are known to share
+  // an element neighbor, they must be reachable from each other.
+  //
+  // We therefore test for the equality of the element lists and adjacency
+  // lists.
+  bool StructuralSupervariablesAreQuotientIndistinguishable(Int i, Int j) const;
+
+  // Detects and merges pairs of supervariables in the pivot structure who are
+  // indistinguishable with respect to the quotient graph.
+  //
+  // While the supernodal merges will potentially shrink the supernodal
+  // adjacency lists (and thus change the associated Ashcraft hash of
+  // variables), if two variables are indistinguishable, their cached bucket
+  // might be wrong, but they would be wrong together.
+  //
+  // The test for indistinguishability does not depend upon the variable
+  // supernodal structure and is thus invariant to supervariable merges.
+  void MergeVariables(const std::vector<std::size_t>& bucket_keys);
+
+  // Converts the 'pivot' (super)variable into an element.
+  void ConvertPivotIntoElement(
+      const std::vector<Int>& aggressive_absorption_elements);
+
+  // An implementation of Algorithm 2 from [ADD-96].
+  // On exit, it holds |L_e \ L_p| for all elements e in the element list
+  // of a supernode in the structure, L_p. During the computation, natural
+  // absorption (E_i := (E_i \ E_p) \cup {p}) is performed.
+  //
+  // On entry all entries of external_element_sizes should be less than the
+  // external element size shift.
+  //
+  // On exit, all entries of 'shifted_external_element_sizes' corresponding to
+  // element indices in the element list of a supernode in the structure L_p
+  // should be, after removing the shift, non-negative and equal to |L_e \ L_p|.
+  //
+  // If the 'aggressive_absorption' boolean is true, then
+  // 'aggressive_absorption_elements' is filled with the elements which should
+  // be absorbed.
+  void AbsorptionAndExternalElementSizes(
+    std::vector<Int>* aggressive_absorption_elements);
+
+  // Sets all entries of 'external_element_sizes' that correspond to an
+  // element index in the element list of a supernode in the structure L_p to
+  // -1.
+  void ResetExternalElementSizes();
 
   // Appends the supernode with the given principal member and length into
   // a given vector.
