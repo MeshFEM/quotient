@@ -710,9 +710,10 @@ inline void QuotientGraph::ComputeExternalDegreesAndHashes(
   bucket_keys->resize(supernodal_struct_size);
   // TODO(Jack Poulson): Consider how to parallelize using different masks
   // for each thread.
+#ifdef QUOTIENT_DEBUG
   for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
     const Int i = pivot_element[index];
-#ifdef QUOTIENT_DEBUG
+
     std::vector<std::pair<Int, std::size_t>> degrees_and_hashes(4);
     ExternalDegreeType degree_type = control_.degree_type;
     for (Int type = 0; type < 4; ++type) {
@@ -731,13 +732,51 @@ inline void QuotientGraph::ComputeExternalDegreesAndHashes(
         std::to_string(degrees_and_hashes[3].first));
     (*external_degrees)[index] = degrees_and_hashes[degree_type].first;
     (*bucket_keys)[index] = degrees_and_hashes[degree_type].second;
-#else
-    const std::pair<Int, std::size_t> degree_and_hash =
-        ExternalDegreeAndHash(i);
-    (*external_degrees)[index] = degree_and_hash.first;
-    (*bucket_keys)[index] = degree_and_hash.second;
-#endif
   }
+#else
+  switch(control_.degree_type) {
+    case kExactExternalDegree: {
+      for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
+        const Int i = pivot_element[index];
+        const std::pair<Int, std::size_t> degree_and_hash =
+            ExactExternalDegreeAndHash(i);
+        (*external_degrees)[index] = degree_and_hash.first;
+        (*bucket_keys)[index] = degree_and_hash.second;
+      }
+      break;
+    }
+    case kAmestoyExternalDegree: {
+      for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
+        const Int i = pivot_element[index];
+        const std::pair<Int, std::size_t> degree_and_hash =
+            AmestoyExternalDegreeAndHash(i);
+        (*external_degrees)[index] = degree_and_hash.first;
+        (*bucket_keys)[index] = degree_and_hash.second;
+      }
+      break;
+    }
+    case kAshcraftExternalDegree: {
+      for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
+        const Int i = pivot_element[index];
+        const std::pair<Int, std::size_t> degree_and_hash =
+            AshcraftExternalDegreeAndHash(i);
+        (*external_degrees)[index] = degree_and_hash.first;
+        (*bucket_keys)[index] = degree_and_hash.second;
+      }
+      break;
+    }
+    case kGilbertExternalDegree: {
+      for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
+        const Int i = pivot_element[index];
+        const std::pair<Int, std::size_t> degree_and_hash =
+            GilbertExternalDegreeAndHash(i);
+        (*external_degrees)[index] = degree_and_hash.first;
+        (*bucket_keys)[index] = degree_and_hash.second;
+      }
+      break;
+    }
+  }
+#endif
   QUOTIENT_STOP_TIMER(timers_, kComputeExternalDegrees);
 }
 
