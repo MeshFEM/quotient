@@ -255,20 +255,12 @@ class QuotientGraph {
   // zeros on input.
   void ComputePivotStructure();
 
-  // Returns (an approximation of) the external degree of a given supervariable
-  // and its hash. Further, redundant and non-principal members of the adjacency
-  // list are removed, as are any lingering aggressively-absorbed elements
-  // in an element list of a structural variable.
-  std::pair<Int, std::size_t> ExternalDegreeAndHash(Int principal_variable);
-
   // Compute the external degree approximations of the supernodes adjacent to
-  // the current pivot.
-  void ComputeExternalDegreesAndHashes(
-      std::vector<Int>* external_degrees,
-      std::vector<std::size_t>* bucket_keys);
+  // the current pivot. Element absorption is performed during this call.
+  void ComputeExternalDegreesAndHashes();
 
   // Insert the new external degrees in to the degree lists.
-  void UpdateExternalDegrees(const std::vector<Int>& external_degrees);
+  void UpdateExternalDegrees();
 
   // Returns true if supernodes 'i' and 'j' are considered indistinguishable
   // with respect to their quotient graph representation. It is assumed that
@@ -304,7 +296,7 @@ class QuotientGraph {
   //
   // The test for indistinguishability does not depend upon the variable
   // supernodal structure and is thus invariant to supervariable merges.
-  void MergeVariables(const std::vector<std::size_t>& bucket_keys);
+  void MergeVariables();
 
   // Converts the 'pivot' (super)variable into an element.
   void ConvertPivotIntoElement();
