@@ -121,11 +121,7 @@ class QuotientGraph {
   Int num_eliminated_vertices_;
 
   // The control structure used to configure the MinimumDegree analysis.
-#ifdef QUOTIENT_DEBUG
-  MinimumDegreeControl control_; 
-#else
   const MinimumDegreeControl control_;
-#endif
 
   // The principal member of the current pivot.
   Int pivot_;
@@ -315,8 +311,7 @@ class QuotientGraph {
 
   // An implementation of Algorithm 2 from [ADD-96].
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
-  // of a supernode in the structure, L_p. During the computation, natural
-  // absorption (E_i := (E_i \ E_p) \cup {p}) is performed.
+  // of a supernode in the structure, L_p.
   //
   // On entry all entries of external_element_sizes should be less than the
   // external element size shift.
@@ -324,7 +319,7 @@ class QuotientGraph {
   // On exit, all entries of 'shifted_external_element_sizes' corresponding to
   // element indices in the element list of a supernode in the structure L_p
   // should be, after removing the shift, non-negative and equal to |L_e \ L_p|.
-  void AbsorptionAndExternalElementSizes();
+  void ExternalElementSizes();
 
   // Sets all entries of 'external_element_sizes' that correspond to an
   // element index in the element list of a supernode in the structure L_p to
@@ -358,20 +353,13 @@ class QuotientGraph {
   std::pair<Int, std::size_t> PackCountAndHashAdjacencies(
       Int principal_variable);
 
-  // Computes the exact external degree of supernode, say, i, using a short-cut 
-  // of Eq. (2) of [ADD-96] meant for the case where there are no members in the
-  // element list.
-  //   d_i = |A_i \ supernode(i)|.
-  std::pair<Int, std::size_t> ExactEmptyExternalDegreeAndHash(
-      Int principal_variable);
-
   // Computes the exact external degree of supernode, say, i, using a short-cut
   // of Eq. (2) of [ADD-96] meant for the case where there is only one member of
   // the element list.
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> ExactSingleExternalDegreeAndHash(
+  std::pair<Int, std::size_t> ExactEmptyExternalDegreeAndHash(
       Int principal_variable);
 
   // Computes the exact external degree of supernode i using a short-cut of
@@ -380,7 +368,7 @@ class QuotientGraph {
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)| + |L_e \ L_p|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> ExactDoubleExternalDegreeAndHash(
+  std::pair<Int, std::size_t> ExactSingleExternalDegreeAndHash(
       Int principal_variable);
 
   // Computes the exact external degree of supernode i using Eq. (2) of
