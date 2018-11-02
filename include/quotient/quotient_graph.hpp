@@ -216,10 +216,6 @@ class QuotientGraph {
   // a supervariable in the current pivot structure, L_p.
   std::vector<Int> shifted_external_element_sizes_;
 
-  // A vector that will be used to store the list of elements that should be
-  // aggressively absorbed in a particular stage.
-  std::vector<Int> aggressive_absorption_elements_;
-
   // A mask of length 'num_original_vertices' that used within exact external
   // degree computations to perform set unions. It is only created if exact
   // degree computations were requested, and it must be set to all zeros before
@@ -315,8 +311,7 @@ class QuotientGraph {
   void MergeVariables(const std::vector<std::size_t>& bucket_keys);
 
   // Converts the 'pivot' (super)variable into an element.
-  void ConvertPivotIntoElement(
-      const std::vector<Int>& aggressive_absorption_elements);
+  void ConvertPivotIntoElement();
 
   // An implementation of Algorithm 2 from [ADD-96].
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
@@ -329,12 +324,7 @@ class QuotientGraph {
   // On exit, all entries of 'shifted_external_element_sizes' corresponding to
   // element indices in the element list of a supernode in the structure L_p
   // should be, after removing the shift, non-negative and equal to |L_e \ L_p|.
-  //
-  // If the 'aggressive_absorption' boolean is true, then
-  // 'aggressive_absorption_elements' is filled with the elements which should
-  // be absorbed.
-  void AbsorptionAndExternalElementSizes(
-    std::vector<Int>* aggressive_absorption_elements);
+  void AbsorptionAndExternalElementSizes();
 
   // Sets all entries of 'external_element_sizes' that correspond to an
   // element index in the element list of a supernode in the structure L_p to
@@ -346,11 +336,13 @@ class QuotientGraph {
   void AppendSupernode(
       Int principal_variable, Int supernode_size, std::vector<Int>* vec) const;
 
-  // Uses the parents_ and (absorbed) element_lists_ bidirectional links for
-  // the assembly tree to contiguously fill a subtree of the post-order
-  // rooted at 'index' into postorder[offset:].
+  // Uses the parents_ links for the assembly tree to contiguously fill a
+  // subtree of the post-order rooted at 'index' using the iterator.
   std::vector<Int>::iterator PreorderTree(
-      Int index, std::vector<Int>::iterator iter) const;
+      Int index,
+      const std::vector<Int>& children,
+      const std::vector<Int>& child_offsets,
+      std::vector<Int>::iterator iter) const;
 
   // A definition of Ashcraft's hash function (as described in [ADD-96]).
   std::size_t AshcraftVariableHash(Int principal_variable) const;

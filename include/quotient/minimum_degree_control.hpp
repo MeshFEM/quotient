@@ -13,25 +13,10 @@
 
 namespace quotient {
 
-// A choice of hash function for mapping a variable to an std::size_t.
-enum VariableHashType {
-  // Due to Ashcraft and described in [ADD-96].
-  kAshcraftVariableHash,
-
-  // A custom hash function meant to avoid collisions by removing the
-  // modular arithmetic (allowing the full range of std::size_t) and
-  // multiplying each index update by its position in the adjaency or
-  // element list.
-  kBasicVariableHash,
-};
-
 // A data structure for controlling the MinimumDegree reordering routine.
 struct MinimumDegreeControl {
   // The type of approximation to use for the external degree estimates.
   ExternalDegreeType degree_type = kAmestoyExternalDegree;
-
-  // The type of hash function to use for converting a variable to std::size_t.
-  VariableHashType hash_type = kBasicVariableHash;
 
   // Whether nontrivial supernodes are allowed. It is highly recommended that
   // this remain true.

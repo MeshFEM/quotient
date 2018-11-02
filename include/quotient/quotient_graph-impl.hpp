@@ -121,10 +121,6 @@ inline QuotientGraph::QuotientGraph(
   external_element_size_shift_ = 2;
   shifted_external_element_sizes_.resize(num_original_vertices_, 1);
 
-  if (control.aggressive_absorption) {
-    aggressive_absorption_elements_.reserve(num_original_vertices_ - 1);
-  }
-
 #ifdef QUOTIENT_DEBUG
   const bool using_exact_degree_mask = true;
 #else
@@ -156,7 +152,7 @@ inline Int QuotientGraph::FindAndProcessPivot() {
   // Compute the external structure cardinalities, |L_e \ L_p|, of all
   // elements e in an element list of a supernode in L_p. Any elements to
   // be aggressively absorbed are also returned.
-  AbsorptionAndExternalElementSizes(&aggressive_absorption_elements_);
+  AbsorptionAndExternalElementSizes();
 
   // Store the external degrees of all supervariables in the pivot structure.
   ComputeExternalDegreesAndHashes(&external_degrees_, &bucket_keys_);
@@ -174,7 +170,7 @@ inline Int QuotientGraph::FindAndProcessPivot() {
   ResetExternalElementSizes();
 
   // Formally convert the pivot from a supervariable into an element.
-  ConvertPivotIntoElement(aggressive_absorption_elements_);
+  ConvertPivotIntoElement();
 
   return pivot_;
 }
@@ -289,6 +285,8 @@ inline void QuotientGraph::ComputePivotStructure() {
 
     parents_[element] = pivot_;
     shifted_external_element_sizes_[element] = 0;
+    SwapClearVector(&element_lists_[element]);
+
     pivot_elements[num_kept_elements++] = element;
 
     for (const Int& index : elements_[element]) {
@@ -901,23 +899,10 @@ inline void QuotientGraph::MergeVariables(
   }
 #endif
 
-  // Remove any non-principal variables from the element. 
-  if (num_merges) {
-    Int num_packed = 0;
-    for (const Int& i : elements_[pivot_]) {
-      const Int supernode_size = -signed_supernode_sizes_[i]; 
-      if (supernode_size > 0) {
-        elements_[pivot_][num_packed++] = i;
-      }
-    }
-    elements_[pivot_].resize(num_packed);
-  }
-
   QUOTIENT_STOP_TIMER(timers_, kMergeVariables);
 }
 
-inline void QuotientGraph::ConvertPivotIntoElement(
-    const std::vector<Int>& aggressive_absorption_elements) {
+inline void QuotientGraph::ConvertPivotIntoElement() {
   const Int supernode_size = -signed_supernode_sizes_[pivot_];
   QUOTIENT_ASSERT(supernode_size > 0,
       "The supernode size was assumed positive.");
@@ -947,25 +932,6 @@ inline void QuotientGraph::ConvertPivotIntoElement(
   degree_lists_.RemoveDegree(pivot_);
   SwapClearVector(&adjacency_lists_[pivot_]);
 
-  // Store the bidirectional links for element absorptions so that we can later
-  // quickly compute the post-ordering.
-  if (!aggressive_absorption_elements.empty()) {
-    // Append the aggressive absorption elements onto the element list so that
-    // the element list becomes the list of *absorbed* elements.
-    std::vector<Int>& element_list = element_lists_[pivot_];
-    element_list.reserve(
-        element_list.size() + aggressive_absorption_elements.size());
-    for (const Int& element : aggressive_absorption_elements) {
-#ifdef QUOTIENT_DEBUG
-      for (const Int& e : element_list) {
-        QUOTIENT_ASSERT(e != element,
-            "Aggressive absorption element was redundant.");
-      }
-#endif
-      element_list.push_back(element); 
-    }
-  }
-
   elimination_order_.push_back(pivot_);
   num_eliminated_vertices_ += supernode_size;
 }
@@ -985,6 +951,32 @@ inline void QuotientGraph::AppendSupernode(
 }
 
 inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
+  // Reconstruct the child links from the parent links in a contiguous array
+  // (similar to the CSR format) by first counting the number of children of
+  // each node.
+  std::vector<Int> child_offsets(num_original_vertices_ + 1, 0);
+  for (const Int& i : elimination_order_) {
+    if (parents_[i] != -1) {
+      ++child_offsets[parents_[i]];
+    }
+  }
+  Int num_total_children = 0;
+  for (Int i = 0; i <= num_original_vertices_; ++i) {
+    const Int num_children = child_offsets[i];
+    child_offsets[i] = num_total_children;
+    num_total_children += num_children;
+  }
+
+  // Pack the children into a buffer.
+  std::vector<Int> children(num_total_children);
+  auto offsets_copy = child_offsets;
+  for (const Int& i : elimination_order_) {
+    const Int parent = parents_[i];
+    if (parent != -1) {
+      children[offsets_copy[parent]++] = i;
+    }
+  }
+
   // Scan for the roots and launch a pe-order traversal on each of them.
   postorder->resize(num_original_vertices_);
   std::vector<Int>::iterator iter = postorder->begin();
@@ -992,7 +984,7 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
     if (!shifted_external_element_sizes_[index]) {
       continue;
     }
-    iter = PreorderTree(index, iter);
+    iter = PreorderTree(index, children, child_offsets, iter);
   }
   QUOTIENT_ASSERT(iter == postorder->end(),
       "Preorder had incorrect final offset.");
@@ -1002,7 +994,10 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
 }
 
 inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
-    Int root, std::vector<Int>::iterator iter) const {
+    Int root,
+    const std::vector<Int>& children,
+    const std::vector<Int>& child_offsets,
+    std::vector<Int>::iterator iter) const {
   std::vector<Int> stack;
   stack.reserve(num_original_vertices_);
 
@@ -1014,17 +1009,18 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
 
     // Push the supernode into the preorder.
     {
-      Int index = element;
+      Int i = element;
       *(iter++) = element;
-      while (index != tail_index_[element]) {
-        index = next_index_[index];
-        *(iter++) = index;
+      while (i != tail_index_[element]) {
+        i = next_index_[i];
+        *(iter++) = i;
       }
     }
 
     // Push the children onto the stack. 
-    for (const Int& e : element_lists_[element]) {
-      stack.push_back(e); 
+    for (Int index = child_offsets[element];
+        index < child_offsets[element + 1]; ++index) {
+      stack.push_back(children[index]);
     }
   }
 
@@ -1035,8 +1031,7 @@ inline const std::vector<Int>& QuotientGraph::Parents() const {
   return parents_;
 }
 
-inline void QuotientGraph::AbsorptionAndExternalElementSizes(
-    std::vector<Int>* aggressive_absorption_elements) {
+inline void QuotientGraph::AbsorptionAndExternalElementSizes() {
   QUOTIENT_START_TIMER(timers_, kAbsorption);
   const Int shift = external_element_size_shift_;
   const bool aggressive_absorption = control_.aggressive_absorption;
@@ -1044,8 +1039,6 @@ inline void QuotientGraph::AbsorptionAndExternalElementSizes(
   if (aggressive_absorption) {
     // Follow the advice at the beginning of Section 5 of [AMD-96] and absorb
     // any element e that satisfies |L_e \ L_p| = 0.
-    aggressive_absorption_elements->clear();
-
     for (const Int& i : elements_[pivot_]) {
       std::vector<Int>& element_list = element_lists_[i];
       const Int supernode_size = -signed_supernode_sizes_[i];
@@ -1080,7 +1073,7 @@ inline void QuotientGraph::AbsorptionAndExternalElementSizes(
           ++num_aggressive_absorptions_;
           shifted_external_size = 0;
           parents_[element] = pivot_;
-          aggressive_absorption_elements->push_back(element);
+          SwapClearVector(&element_lists_[element]);
         } else {
           element_list[num_packed++] = element;
         }

@@ -454,11 +454,6 @@ int main(int argc, char** argv) {
       "The degree approximation type.\n"
       "0:exact, 1:Amestoy, 2:Ashcraft, 3:Gilbert",
       1);
-  const int hash_type_int = parser.OptionalInput<int>(
-      "hash_type_int",
-      "The variable hash type.\n"
-      "0:Ashcraft, 1:basic",
-      1);
   const bool allow_supernodes = parser.OptionalInput<bool>(
       "allow_supernodes",
       "Allow variables to be merged into supernodes?",
@@ -549,7 +544,6 @@ int main(int argc, char** argv) {
   quotient::MinimumDegreeControl control;
   control.degree_type =
       static_cast<quotient::ExternalDegreeType>(degree_type_int);
-  control.hash_type = static_cast<quotient::VariableHashType>(hash_type_int);
   control.allow_supernodes = allow_supernodes;
   control.aggressive_absorption = aggressive_absorption;
   control.store_pivot_element_list_sizes = store_pivot_element_list_sizes;
