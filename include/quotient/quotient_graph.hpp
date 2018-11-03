@@ -75,7 +75,7 @@ class QuotientGraph {
   const std::vector<Int>& Element(Int principal_member) const;
 
   // Returns a reference to the element list of the given principal member.
-  const std::vector<Int>& ElementList(Int principal_member) const;
+  std::vector<Int> ElementList(Int principal_member) const;
 
   //  If control_.store_structures was true, then this routine overwrites
   // 'eliminated_structures' with the (sorted) structures of the eliminated
@@ -152,22 +152,23 @@ class QuotientGraph {
   // ordering defined by the 'next_index' traversal).
   std::vector<Int> tail_index_;
 
-  // A list of length 'num_original_vertices' of the (unmodified) variable
-  // adjacencies of each principal variable. For example, if index 'i' is a
+  // A packing of the adjacency and element lists, with the element lists
+  // occurring first in each member, so that memory allocations are not
+  // required during the elimination process. The list is of length
+  // 'num_original_vertices_'.
+  //
+  // Each element list is the set of current children of a principal variable.
+  //
+  // The adjacency portion of each member contains the (unmodified) variable
+  // adjacencies of the principal variable. For example, if index 'i' is a
   // principal variable, then 'adjacency_lists[i]' contains the set of neighbor
   // variables for variable i that are not redundant with respect to edges
   // implied by 'structures'.
-  //
-  // The adjacency lists connect to each individual member of any supernode.
-  std::vector<std::vector<Int>> adjacency_lists_;
+  std::vector<std::vector<Int>> element_and_adjacency_lists_;
 
-  // A list of length 'num_original_vertices' of the elements adjacent to
-  // each principal variable. For example, if index 'i' is a principal
-  // variable, then 'element_lists[i]' contains the list of elements adjacent
-  // to supervariable 'i'.
-  //
-  // The element lists only contain the principal member of any supernode.
-  std::vector<std::vector<Int>> element_lists_;
+  // The list of element list sizes in 'element_and_adjacency_lists_' so that
+  // the adjacency portion can be easily accessed.
+  std::vector<Int> element_list_sizes_;
 
   // A set of linked lists for keeping track of supervariables of each degree
   // (and, also, a way to provide fast access to a supervariable with
@@ -320,8 +321,7 @@ class QuotientGraph {
 
   // Appends the supernode with the given principal member and length into
   // a given vector.
-  void AppendSupernode(
-      Int principal_variable, Int supernode_size, std::vector<Int>* vec) const;
+  void AppendSupernode(Int i, Int supernode_size, std::vector<Int>* vec) const;
 
   // Uses the parents_ links for the assembly tree to contiguously fill a
   // subtree of the post-order rooted at 'index' using the iterator.
@@ -332,18 +332,18 @@ class QuotientGraph {
       std::vector<Int>::iterator iter) const;
 
   // A definition of Ashcraft's hash function (as described in [ADD-96]).
-  std::size_t AshcraftVariableHash(Int principal_variable) const;
+  std::size_t AshcraftVariableHash(Int i) const;
 
   // An alternative hash that does not explicitly use modular arithmetic and
   // multiplies each index contribution by its position in the adjacency or
   // element list (with the hope of decreasing collisions).
-  std::size_t BasicVariableHash(Int principal_variable) const;
+  std::size_t BasicVariableHash(Int i) const;
 
-  // Returns the sum of the supernode sizes in the adjacency list and the hash
-  // of their indices. While doing so, the non-principal and redundant members
-  // are removed.
-  std::pair<Int, std::size_t> PackCountAndHashAdjacencies(
-      Int principal_variable);
+  // Accumulates the sum of the supernode sizes in the adjacency list and the
+  // hash of their indices. While doing so, the non-principal and redundant
+  // members are removed (with the remainder packed at the given index).
+  void PackCountAndHashAdjacencies(
+      Int i, Int pack_index, Int* degree, std::size_t* hash);
 
   // Computes the exact external degree of supernode, say, i, using a short-cut
   // of Eq. (2) of [ADD-96] meant for the case where there is only one member of
@@ -351,8 +351,7 @@ class QuotientGraph {
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> ExactEmptyExternalDegreeAndHash(
-      Int principal_variable);
+  std::pair<Int, std::size_t> ExactEmptyExternalDegreeAndHash(Int i);
 
   // Computes the exact external degree of supernode i using a short-cut of
   // Eq. (2) of [ADD-96] meant for the case where there are two members of the
@@ -360,24 +359,21 @@ class QuotientGraph {
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)| + |L_e \ L_p|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> ExactSingleExternalDegreeAndHash(
-      Int principal_variable);
+  std::pair<Int, std::size_t> ExactSingleExternalDegreeAndHash(Int i);
 
   // Computes the exact external degree of supernode i using Eq. (2) of
   // [ADD-96] in the case of arbitrary members in element_lists[i].
   //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> ExactGenericExternalDegreeAndHash(
-      Int principal_variable);
+  std::pair<Int, std::size_t> ExactGenericExternalDegreeAndHash(Int i);
 
   // Computes the exact external degree of supernode i using Eq. (2) of
   // [ADD-96].
   //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> ExactExternalDegreeAndHash(
-      Int principal_variable);
+  std::pair<Int, std::size_t> ExactExternalDegreeAndHash(Int i);
 
   // Computes an approximation of the external degree of supernode i using
   // Eq. (4) of [ADD-96].
@@ -386,8 +382,7 @@ class QuotientGraph {
   // supernode(i) from bound0.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> AmestoyExternalDegreeAndHash(
-      Int principal_variable);
+  std::pair<Int, std::size_t> AmestoyExternalDegreeAndHash(Int i);
 
   // Returns the external degree approximation of Gilbert, Moler, and Schreiber,
   //   \hat{d_i} = |A_i \ supernode(i)|  + \sum_{e in E_i} |L_e \ supernode(i)|.
@@ -397,16 +392,19 @@ class QuotientGraph {
   //   (num_original_vertices - num_eliminated_vertices) - size(supernode(i)).
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> GilbertExternalDegreeAndHash(
-      Int principal_variable);
+  std::pair<Int, std::size_t> GilbertExternalDegreeAndHash(Int i);
 
   // Returns the external degree approximation of Ashcraft, Eisenstat, and
   // Lucas:
   //   \tilde{d_i} = d_i if |E_i| = 2, \hat{d_i} otherwise.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> AshcraftExternalDegreeAndHash(
-      Int principal_variable);
+  std::pair<Int, std::size_t> AshcraftExternalDegreeAndHash(Int i);
+
+  // Inserts the current pivot into the back of the element list of principal
+  // variable 'i' by appending the first adjacency to the back of the adjacency
+  // list then replacing the first adjacency with the pivot.
+  void InsertPivotElement(Int i);
 };
 
 // Pretty-prints an std::vector<T>.
