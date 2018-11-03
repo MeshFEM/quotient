@@ -41,6 +41,8 @@ inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index) {
       "True minimal degree was different from result from FindMinimalIndex.");
 #endif
 
+  RemoveDegree(index);
+
   return index;
 }
 

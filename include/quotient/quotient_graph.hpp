@@ -190,9 +190,6 @@ class QuotientGraph {
   // The structure list also contains non-principal members.
   std::vector<std::vector<Int>> elements_;
 
-  // The total number of variables (including nonprincipal) in each element.
-  std::vector<Int> element_sizes_;
-
   // The current datum value for the external_element_sizes. All values should
   // be interpreted relative to the datum value.
   Int external_element_size_shift_;
@@ -213,15 +210,6 @@ class QuotientGraph {
   //
   // It is also used for temporarily flagging variables as within a set.
   std::vector<Int> node_flags_;
-
-  // A mask of length 'num_original_vertices' that used within exact external
-  // degree computations to perform set unions. It is only created if exact
-  // degree computations were requested, and it must be set to all zeros before
-  // and after each call to ExternalDegree.
-  mutable std::vector<int> exact_degree_mask_;
-
-  // A vector for storing the list of new external degree updates.
-  std::vector<Int> external_degrees_;
 
   // A vector for storing the hashes of the supervariables in the current
   // pivot's structure.
@@ -260,9 +248,6 @@ class QuotientGraph {
   // Compute the external degree approximations of the supernodes adjacent to
   // the current pivot. Element absorption is performed during this call.
   void ComputeExternalDegreesAndHashes();
-
-  // Insert the new external degrees in to the degree lists.
-  void UpdateExternalDegrees();
 
   // Returns true if supernodes 'i' and 'j' are considered indistinguishable
   // with respect to their quotient graph representation. It is assumed that
