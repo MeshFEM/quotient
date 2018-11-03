@@ -461,7 +461,7 @@ int main(int argc, char** argv) {
   const bool aggressive_absorption = parser.OptionalInput<bool>(
       "aggressive_absorption",
       "Eliminate elements with aggressive absorption?",
-      false);
+      true);
   const bool store_pivot_element_list_sizes =
       parser.OptionalInput<bool>(
           "store_pivot_element_list_sizes",
