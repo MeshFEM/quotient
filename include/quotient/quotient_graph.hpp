@@ -211,10 +211,6 @@ class QuotientGraph {
   // It is also used for temporarily flagging variables as within a set.
   std::vector<Int> node_flags_;
 
-  // A vector for storing the hashes of the supervariables in the current
-  // pivot's structure.
-  std::vector<std::size_t> bucket_keys_;
-
   // An array of single-linked lists for hash buckets for the supervariables.
   HashLists hash_lists_;
 

@@ -135,8 +135,6 @@ inline QuotientGraph::QuotientGraph(
   external_element_size_shift_ = 2;
   node_flags_.resize(num_original_vertices_, 1);
 
-  bucket_keys_.reserve(num_original_vertices_ - 1);
-
   QUOTIENT_STOP_TIMER(timers_, kSetup);
 }
 
@@ -295,6 +293,8 @@ inline void QuotientGraph::ComputePivotStructure() {
         "Used an absorbed element in pivot structure.");
 
     for (const Int& index : elements_[element]) {
+      QUOTIENT_ASSERT(parents_[index] == -1,
+          "An absorbed element was in an element.");
       const Int supernode_size = signed_supernode_sizes_[index];
       // While no eliminated supernodes should appear in unabsorbed elements,
       // we have (temporarily) flipped the signs of the supernode sizes of
@@ -686,8 +686,6 @@ inline void QuotientGraph::ComputeExternalDegreesAndHashes() {
   QUOTIENT_START_TIMER(timers_, kComputeExternalDegrees);
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const std::size_t supernodal_struct_size = pivot_element.size();
-  bucket_keys_.clear();
-  bucket_keys_.resize(supernodal_struct_size);
 
   // Remove the old values from the linked lists.
   for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
@@ -704,7 +702,7 @@ inline void QuotientGraph::ComputeExternalDegreesAndHashes() {
         const std::pair<Int, std::size_t> degree_and_hash =
             ExactExternalDegreeAndHash(i);
         degree_lists_.degrees[i] = degree_and_hash.first;
-        bucket_keys_[index] = degree_and_hash.second;
+        hash_lists_.hashes[i] = degree_and_hash.second;
       }
       break;
     }
@@ -714,7 +712,7 @@ inline void QuotientGraph::ComputeExternalDegreesAndHashes() {
         const std::pair<Int, std::size_t> degree_and_hash =
             AmestoyExternalDegreeAndHash(i);
         degree_lists_.degrees[i] = degree_and_hash.first;
-        bucket_keys_[index] = degree_and_hash.second;
+        hash_lists_.hashes[i] = degree_and_hash.second;
       }
       break;
     }
@@ -724,7 +722,7 @@ inline void QuotientGraph::ComputeExternalDegreesAndHashes() {
         const std::pair<Int, std::size_t> degree_and_hash =
             AshcraftExternalDegreeAndHash(i);
         degree_lists_.degrees[i] = degree_and_hash.first;
-        bucket_keys_[index] = degree_and_hash.second;
+        hash_lists_.hashes[i] = degree_and_hash.second;
       }
       break;
     }
@@ -734,7 +732,7 @@ inline void QuotientGraph::ComputeExternalDegreesAndHashes() {
         const std::pair<Int, std::size_t> degree_and_hash =
             GilbertExternalDegreeAndHash(i);
         degree_lists_.degrees[i] = degree_and_hash.first;
-        bucket_keys_[index] = degree_and_hash.second;
+        hash_lists_.hashes[i] = degree_and_hash.second;
       }
       break;
     }
@@ -744,7 +742,6 @@ inline void QuotientGraph::ComputeExternalDegreesAndHashes() {
   for (std::size_t index = 0; index < supernodal_struct_size; ++index) {
     const Int i = pivot_element[index];
     const Int degree = degree_lists_.degrees[i];
-    QUOTIENT_ASSERT(degree > 0, "Degree was non-positive");
     degree_lists_.AddDegree(i, degree);
   }
 
@@ -823,9 +820,9 @@ inline void QuotientGraph::MergeVariables() {
 
   // Add the hashes into the hash lists.
   for (Int i_index = 0; i_index < supernodal_struct_size; ++i_index) {
-    const std::size_t hash = bucket_keys_[i_index];
-    const Int bucket = hash % num_original_vertices_;
     const Int i = pivot_element[i_index];
+    const std::size_t hash = hash_lists_.hashes[i];
+    const Int bucket = hash % num_original_vertices_;
     hash_lists_.AddHash(i, hash, bucket);
   }
 
