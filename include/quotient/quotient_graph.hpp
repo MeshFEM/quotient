@@ -69,13 +69,13 @@ class QuotientGraph {
   Int NumHashCollisions() const;
 
   // Forms the set of members of the supernode with the given principal member.
-  std::vector<Int> FormSupernode(Int principal_member) const;
+  std::vector<Int> FormSupernode(Int i) const;
 
   // Returns a reference to the element for the given principal member.
-  const std::vector<Int>& Element(Int principal_member) const;
+  const std::vector<Int>& Element(Int i) const;
 
   // Returns a reference to the element list of the given principal member.
-  std::vector<Int> ElementList(Int principal_member) const;
+  std::vector<Int> ElementList(Int i) const;
 
   //  If control_.store_structures was true, then this routine overwrites
   // 'eliminated_structures' with the (sorted) structures of the eliminated
@@ -164,11 +164,10 @@ class QuotientGraph {
   // principal variable, then 'adjacency_lists[i]' contains the set of neighbor
   // variables for variable i that are not redundant with respect to edges
   // implied by 'structures'.
-  std::vector<std::vector<Int>> element_and_adjacency_lists_;
-
-  // The list of element list sizes in 'element_and_adjacency_lists_' so that
-  // the adjacency portion can be easily accessed.
+  std::vector<Int> element_and_adjacency_lists_;
+  std::vector<Int> element_list_offsets_; 
   std::vector<Int> element_list_sizes_;
+  std::vector<Int> adjacency_list_sizes_;
 
   // A set of linked lists for keeping track of supervariables of each degree
   // (and, also, a way to provide fast access to a supervariable with
@@ -211,7 +210,9 @@ class QuotientGraph {
   // A mask of length 'num_orig_vertices' that can be used to quickly compute
   // the cardinalities of |L_e \ L_p| for each element e in an element list of
   // a supervariable in the current pivot structure, L_p.
-  std::vector<Int> shifted_external_element_sizes_;
+  //
+  // It is also used for temporarily flagging variables as within a set.
+  std::vector<Int> node_flags_;
 
   // A mask of length 'num_original_vertices' that used within exact external
   // degree computations to perform set unions. It is only created if exact
@@ -285,7 +286,7 @@ class QuotientGraph {
   //
   // We therefore test for the equality of the element lists and adjacency
   // lists.
-  bool StructuralSupervariablesAreQuotientIndistinguishable(Int i, Int j) const;
+  bool StructuralVariablesAreQuotientIndistinguishable(Int i, Int j) const;
 
   // Detects and merges pairs of supervariables in the pivot structure who are
   // indistinguishable with respect to the quotient graph.
@@ -343,7 +344,7 @@ class QuotientGraph {
   // hash of their indices. While doing so, the non-principal and redundant
   // members are removed (with the remainder packed at the given index).
   void PackCountAndHashAdjacencies(
-      Int i, Int pack_index, Int* degree, std::size_t* hash);
+      Int i, Int num_elements, Int* degree, std::size_t* hash);
 
   // Computes the exact external degree of supernode, say, i, using a short-cut
   // of Eq. (2) of [ADD-96] meant for the case where there is only one member of
