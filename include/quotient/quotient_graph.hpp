@@ -201,8 +201,8 @@ class QuotientGraph {
   // The structure list also contains non-principal members.
   std::vector<std::vector<Int>> elements_;
 
-  // The current datum value for the external_degrees_. All values should
-  // be interpreted relative to the datum value.
+  // The current datum value for the external degrees (stored within
+  // node_flags_). All values should be interpreted relative to the datum value.
   Int external_degree_shift_;
 
   // The maximum allowable value of the datum until an explicit reset is
@@ -237,8 +237,8 @@ class QuotientGraph {
   mutable std::unordered_map<std::string, Timer> timers_;
 #endif
 
-  // Retrieve a variable with minimal (approximate) external degree and set it
-  // as the active pivot.
+  // Retrieve a variable with minimal (approximate) degree and set it as the
+  // active pivot.
   Int GetNextPivot();
 
   // Stores the element for the pivot:
@@ -296,8 +296,8 @@ class QuotientGraph {
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
   // of a supernode in the structure, L_p.
   //
-  // On entry all entries of external_degrees_ should be less than the
-  // external element size shift.
+  // On entry all entries of node_flags_ should be less than the external
+  // element size shift.
   //
   // On exit, all entries of 'node_flags_' corresponding to element indices
   // in the element list of a supernode in the structure L_p should be,
@@ -334,24 +334,24 @@ class QuotientGraph {
   void PackCountAndHashAdjacencies(
       Int i, Int num_elements, Int* degree, UInt* hash);
 
-  // Computes the exact external degree of supernode, say, i, using a short-cut
-  // of Eq. (2) of [ADD-96] meant for the case where there is only one member of
+  // Computes the exact degree of supernode, say, i, using a short-cut of
+  // Eq. (2) of [ADD-96] meant for the case where there is only one member of
   // the element list.
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
   std::pair<Int, UInt> ExactEmptyDegreeAndHash(Int i);
 
-  // Computes the exact external degree of supernode i using a short-cut of
-  // Eq. (2) of [ADD-96] meant for the case where there are two members of the
-  // element list.
+  // Computes the exact degree of supernode i using a short-cut of Eq. (2) of
+  // [ADD-96] meant for the case where there are two members of the element
+  // list.
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)| + |L_e \ L_p|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
   std::pair<Int, UInt> ExactSingleDegreeAndHash(Int i);
 
-  // Computes the exact external degree of supernode i using Eq. (2) of
-  // [ADD-96] in the case of arbitrary members in element_lists[i].
+  // Computes the exact degree of supernode i using Eq. (2) of [ADD-96] in the
+  // case of arbitrary members in element_lists[i].
   //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
