@@ -9,14 +9,14 @@
 #define QUOTIENT_MINIMUM_DEGREE_CONTROL_H_
 
 #include "quotient/config.hpp"
-#include "quotient/external_degree_type.hpp"
+#include "quotient/degree_type.hpp"
 
 namespace quotient {
 
 // A data structure for controlling the MinimumDegree reordering routine.
 struct MinimumDegreeControl {
-  // The type of approximation to use for the external degree estimates.
-  ExternalDegreeType degree_type = kAmestoyExternalDegree;
+  // The type of approximation to use for the degree estimates.
+  DegreeType degree_type = kAmestoyDegree;
 
   // Whether nontrivial supernodes are allowed. It is highly recommended that
   // this remain true.
@@ -33,9 +33,9 @@ struct MinimumDegreeControl {
   // the pivots.
   bool store_pivot_element_list_sizes = false;
 
-  // Whether or not to store the count of the number of external degree updates
-  // which involved more than two (and, separately, how many less than or equal
-  // to two) elements in the variable's element list.
+  // Whether or not to store the count of the number of degree updates which
+  // involved more than two (and, separately, how many less than or equal to
+  // two) elements in the variable's element list.
   bool store_num_degree_updates_with_multiple_elements = false;
 
   // Whether or not to create and store the nonzeros structures of each pivot.

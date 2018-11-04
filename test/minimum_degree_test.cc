@@ -67,7 +67,7 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   graph.AddEdge(9, 8);
 
   quotient::MinimumDegreeControl control;
-  control.degree_type = quotient::kExactExternalDegree;
+  control.degree_type = quotient::kExactDegree;
   control.force_minimal_pivot_indices = true;
   control.store_structures = true;
   quotient::MinimumDegreeResult analysis =
@@ -142,7 +142,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   graph.AddEdge(3, 1);
 
   quotient::MinimumDegreeControl control;
-  control.degree_type = quotient::kExactExternalDegree;
+  control.degree_type = quotient::kExactDegree;
   control.allow_supernodes = false;
   control.force_minimal_pivot_indices = true;
   control.aggressive_absorption = true;

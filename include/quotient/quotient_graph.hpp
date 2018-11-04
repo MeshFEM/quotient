@@ -174,6 +174,11 @@ class QuotientGraph {
   // minimal degree).
   DegreeLists degree_lists_;
 
+  // The maximum degree that has been constructed so far. Since the external
+  // degree updates in each stage will be less than this value, it is used as
+  // the amount to increase external_degree_shift_ by at each iteration.
+  Int max_degree_;
+
   // An (optional) list of length 'num_original_vertices' of element nonzero
   // structures. The 'element' index of the list, 'structures[element]', will
   // be created when supernode 'element' is converted from a variable to an
@@ -190,15 +195,9 @@ class QuotientGraph {
   // The structure list also contains non-principal members.
   std::vector<std::vector<Int>> elements_;
 
-  // The current datum value for the external_element_sizes. All values should
+  // The current datum value for the external_degrees_. All values should
   // be interpreted relative to the datum value.
-  Int external_element_size_shift_;
-
-  // The maximum element size that has been constructed so far. Since the
-  // external degree updates in each stage will be less than this value, it is
-  // used as the amount to increase external_element_size_shift_ by at each
-  // iteration.
-  Int max_element_size_;
+  Int external_degree_shift_;
 
   // The maximum allowable value of the datum until an explicit reset is
   // required.
@@ -241,9 +240,9 @@ class QuotientGraph {
   // zeros on input.
   void ComputePivotStructure();
 
-  // Compute the external degree approximations of the supernodes adjacent to
-  // the current pivot. Element absorption is performed during this call.
-  void ComputeExternalDegreesAndHashes();
+  // Compute the degree approximations of the supernodes adjacent to the
+  // current pivot. Element absorption is performed during this call.
+  void ComputeDegreesAndHashes();
 
   // Returns true if supernodes 'i' and 'j' are considered indistinguishable
   // with respect to their quotient graph representation. It is assumed that
@@ -288,18 +287,17 @@ class QuotientGraph {
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
   // of a supernode in the structure, L_p.
   //
-  // On entry all entries of external_element_sizes should be less than the
+  // On entry all entries of external_degrees_ should be less than the
   // external element size shift.
   //
-  // On exit, all entries of 'shifted_external_element_sizes' corresponding to
-  // element indices in the element list of a supernode in the structure L_p
-  // should be, after removing the shift, non-negative and equal to |L_e \ L_p|.
-  void ExternalElementSizes();
+  // On exit, all entries of 'node_flags_' corresponding to element indices
+  // in the element list of a supernode in the structure L_p should be,
+  // after removing the shift, non-negative and equal to |L_e \ L_p|.
+  void ExternalDegrees();
 
-  // Sets all entries of 'external_element_sizes' that correspond to an
-  // element index in the element list of a supernode in the structure L_p to
-  // -1.
-  void ResetExternalElementSizes();
+  // Sets all entries of 'node_flags_' that correspond to an element in the
+  // element list of a supernode in the pivot structure, L_p.
+  void ResetExternalDegrees();
 
   // Appends the supernode with the given principal member and length into
   // a given vector.
@@ -333,7 +331,7 @@ class QuotientGraph {
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, UInt> ExactEmptyExternalDegreeAndHash(Int i);
+  std::pair<Int, UInt> ExactEmptyDegreeAndHash(Int i);
 
   // Computes the exact external degree of supernode i using a short-cut of
   // Eq. (2) of [ADD-96] meant for the case where there are two members of the
@@ -341,33 +339,33 @@ class QuotientGraph {
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)| + |L_e \ L_p|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, UInt> ExactSingleExternalDegreeAndHash(Int i);
+  std::pair<Int, UInt> ExactSingleDegreeAndHash(Int i);
 
   // Computes the exact external degree of supernode i using Eq. (2) of
   // [ADD-96] in the case of arbitrary members in element_lists[i].
   //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, UInt> ExactGenericExternalDegreeAndHash(Int i);
+  std::pair<Int, UInt> ExactGenericDegreeAndHash(Int i);
 
   // Updates the exact degrees and hashes of the principal members of the
   // supernodes in the pivot structure.
-  void ExactExternalDegreesAndHashes();
+  void ExactDegreesAndHashes();
 
   // Updates the Amestoy degrees and hashes of the principal members of the
   // supernodes in the pivot structure.
-  void AmestoyExternalDegreesAndHashes();
+  void AmestoyDegreesAndHashes();
 
   // Returns the degree and hash of supernode i in the current pivot structure.
-  std::pair<Int, UInt> GilbertExternalDegreeAndHash(Int i);
+  std::pair<Int, UInt> GilbertDegreeAndHash(Int i);
 
   // Updates the Gilbert degrees and hashes of the principal members of the
   // supernodes in the pivot structure.
-  void GilbertExternalDegreesAndHashes();
+  void GilbertDegreesAndHashes();
 
   // Updates the Ashcraft degrees and hashes of the principal members of the
   // supernodes in the pivot structure.
-  void AshcraftExternalDegreesAndHashes();
+  void AshcraftDegreesAndHashes();
 
   // Inserts the current pivot into the back of the element list of principal
   // variable 'i' by appending the first adjacency to the back of the adjacency

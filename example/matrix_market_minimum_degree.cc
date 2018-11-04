@@ -542,8 +542,7 @@ int main(int argc, char** argv) {
 #endif
 
   quotient::MinimumDegreeControl control;
-  control.degree_type =
-      static_cast<quotient::ExternalDegreeType>(degree_type_int);
+  control.degree_type = static_cast<quotient::DegreeType>(degree_type_int);
   control.allow_supernodes = allow_supernodes;
   control.aggressive_absorption = aggressive_absorption;
   control.store_pivot_element_list_sizes = store_pivot_element_list_sizes;

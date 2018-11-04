@@ -39,7 +39,7 @@ graph.FlushEdgeQueues();
 // Run the Approximate Minimum Degree analysis using the usual external degree
 // approximation.
 quotient::MinimumDegreeControl control;
-control.degree_type = quotient::kAmestoyExternalDegree;
+control.degree_type = quotient::kAmestoyDegree;
 const quotient::MinimumDegreeResult analysis = quotient::MinimumDegree(
     graph, control);
 ```
