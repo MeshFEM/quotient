@@ -289,17 +289,27 @@ inline void QuotientGraph::FormEliminatedStructures(
 inline void QuotientGraph::ComputePivotStructure() {
   QUOTIENT_START_TIMER(timers_, kComputePivotStructure);
   QUOTIENT_ASSERT(elements_[pivot_].empty(), "Chose a pivot more than once.");
-
-  // Negate the signed supernode size of the pivot.
-  signed_supernode_sizes_[pivot_] *= -1;
-
-  // Push the supervariables in the pivot adjacency list into the structure.
-  // TODO(Jack Poulson): Reserve space for elements_[pivot_].
-  Int pivot_degree = 0;
   const Int element_list_beg = element_list_offsets_[pivot_];
   const Int element_list_end = element_list_beg + element_list_sizes_[pivot_];
   const Int adjacency_list_end =
       element_list_end + adjacency_list_sizes_[pivot_];
+  const Int pivot_supernode_size = signed_supernode_sizes_[pivot_];
+  std::vector<Int>& pivot_element = elements_[pivot_];
+
+  // Allocate space for the element using an upper-bound on the size
+  // (note that, because of supernodes, this is *not* the degree).
+  Int element_size_bound = adjacency_list_sizes_[pivot_];
+  for (Int k = element_list_beg; k < element_list_end; ++k) {
+    const Int element = element_and_adjacency_lists_[k];
+    element_size_bound += elements_[element].size() - 1;
+  }
+  pivot_element.reserve(element_size_bound);
+
+  // Negate the signed supernode size of the pivot.
+  signed_supernode_sizes_[pivot_] = -pivot_supernode_size;
+
+  // Push the supervariables in the pivot adjacency list into the structure.
+  Int pivot_degree = 0;
   for (Int k = element_list_end; k < adjacency_list_end; ++k) {
     const Int i = element_and_adjacency_lists_[k];
     const Int supernode_size = signed_supernode_sizes_[i];
@@ -313,7 +323,7 @@ inline void QuotientGraph::ComputePivotStructure() {
 
     pivot_degree += supernode_size;
     signed_supernode_sizes_[i] = -supernode_size;
-    elements_[pivot_].push_back(i);
+    pivot_element.push_back(i);
   }
   adjacency_list_sizes_[pivot_] = 0;
 
@@ -337,7 +347,7 @@ inline void QuotientGraph::ComputePivotStructure() {
 
       pivot_degree += supernode_size;
       signed_supernode_sizes_[index] = -supernode_size;
-      elements_[pivot_].push_back(index);
+      pivot_element.push_back(index);
     }
 #ifdef QUOTIENT_DEBUG
     Int degree = 0;
