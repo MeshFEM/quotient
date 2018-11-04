@@ -1112,7 +1112,7 @@ inline void QuotientGraph::ExternalElementSizes() {
         shifted_external_size =
             degree_lists_.degrees[element] + shift_minus_supernode_size;
       }
-      QUOTIENT_ASSERT(shifted_external_size >= shift,
+      QUOTIENT_ASSERT(!shifted_external_size || shifted_external_size >= shift,
           "Computed negative external element size.");
       if (aggressive_absorption && shifted_external_size == shift) {
         ++num_aggressive_absorptions_;
