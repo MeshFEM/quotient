@@ -1091,14 +1091,16 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
   }
 
   // Scan for the roots and launch a pe-order traversal on each of them.
+  // We march through elimination_order in reverse order so that, after a
+  // subsequent reversal, the lowest degree nodes are in the upper-left.
   postorder->resize(num_original_vertices_);
   std::vector<Int>::iterator iter = postorder->begin();
-  for (const Int& index : elimination_order_) {
-    if (!node_flags_[index]) {
+  for (const Int& i : elimination_order_) {
+    if (parents_[i] != -1) {
       // This element was absorbed into another element.
       continue;
     }
-    iter = PreorderTree(index, children, child_offsets, iter);
+    iter = PreorderTree(i, children, child_offsets, iter);
   }
 
   // Reverse the preordering (to form a postordering) in-place.
