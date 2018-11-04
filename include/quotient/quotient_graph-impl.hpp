@@ -59,7 +59,8 @@ inline QuotientGraph::QuotientGraph(
   max_shift_value_(std::numeric_limits<Int>::max() - graph.NumSources()),
   num_hash_bucket_collisions_(0),
   num_hash_collisions_(0),
-  num_aggressive_absorptions_(0) {
+  num_aggressive_absorptions_(0),
+  num_dense_(0) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
   // Initialize the supernodes as simple.
@@ -86,18 +87,43 @@ inline QuotientGraph::QuotientGraph(
     }
   }
 
+  // Every row with at least this many non-diagonal nonzeros will be treated
+  // as dense and moved to the back of the postordering.
+  const Int dense_threshold =
+      std::max(1.f * control_.min_dense_threshold,
+          control_.dense_sqrt_multiple *
+              std::sqrt(1.f * num_original_vertices_));
+
   // Convert the counts into an offset scan.
   Int num_edges = 0;
   for (Int source = 0; source < num_original_vertices_; ++source) {
     element_list_offsets_[source] = num_edges;
+    if (adjacency_list_sizes_[source] >= dense_threshold) {
+      ++num_dense_;
+      ++num_eliminated_vertices_;
+      // We will denote this source as dense by setting its supernode size to
+      // 0 and keeping its parent as -1. A merged variable also has a supernode
+      // size of 0, but its parent is a valid vertex index.
+      signed_supernode_sizes_[source] = 0;
+      adjacency_list_sizes_[source] = 0;
+    }
     num_edges += adjacency_list_sizes_[source];
   }
   element_list_offsets_[num_original_vertices_] = num_edges;
+#ifdef QUOTIENT_DEBUG
+  if (num_dense_) {
+    std::cout << "Eliminated " << num_dense_ << " dense rows." << std::endl;
+  }
+#endif
 
   // Pack the edges.
   num_edges = 0;
   element_and_adjacency_lists_.reserve(num_edges);
   for (Int source = 0; source < num_original_vertices_; ++source) {
+    if (!signed_supernode_sizes_[source]) {
+      // Skip the dense row.
+      continue;
+    }
     const Int source_edge_offset = graph.SourceEdgeOffset(source);
     const Int next_source_edge_offset = graph.SourceEdgeOffset(source + 1);
     for (Int k = source_edge_offset; k < next_source_edge_offset; ++k) {
@@ -114,6 +140,10 @@ inline QuotientGraph::QuotientGraph(
   degree_lists_.next_member.resize(num_original_vertices_, -1);
   degree_lists_.last_member.resize(num_original_vertices_, -1);
   for (Int source = 0; source < num_original_vertices_; ++source) {
+    if (!signed_supernode_sizes_[source]) {
+      // Skip the dense row.
+      continue;
+    }
     const Int degree = adjacency_list_sizes_[source];
     degree_lists_.AddDegree(source, degree);
   }
@@ -174,6 +204,10 @@ inline Int QuotientGraph::GetNextPivot() {
 
 inline Int QuotientGraph::NumAggressiveAbsorptions() const {
   return num_aggressive_absorptions_;
+}
+
+inline Int QuotientGraph::NumDense() const {
+  return num_dense_;
 }
 
 inline Int QuotientGraph::NumOriginalVertices() const {
@@ -270,11 +304,12 @@ inline void QuotientGraph::ComputePivotStructure() {
     const Int i = element_and_adjacency_lists_[k];
     const Int supernode_size = signed_supernode_sizes_[i];
     QUOTIENT_ASSERT(supernode_size >= 0,
-        "Encountered element in adjacency list.");
+        "An element was in the adjacency list.");
     if (!supernode_size) {
       continue;
     }
-    QUOTIENT_ASSERT(parents_[i] == -1, "Absorbed element in adjacency list.");
+    QUOTIENT_ASSERT(parents_[i] == -1,
+        "An absorbed element was in the adjacency list.");
 
     pivot_degree += supernode_size;
     signed_supernode_sizes_[i] = -supernode_size;
@@ -290,8 +325,6 @@ inline void QuotientGraph::ComputePivotStructure() {
         "Used an absorbed element in pivot structure.");
 
     for (const Int& index : elements_[element]) {
-      QUOTIENT_ASSERT(parents_[index] == -1,
-          "An absorbed element was in an element.");
       const Int supernode_size = signed_supernode_sizes_[index];
       // While no eliminated supernodes should appear in unabsorbed elements,
       // we have (temporarily) flipped the signs of the supernode sizes of
@@ -299,6 +332,8 @@ inline void QuotientGraph::ComputePivotStructure() {
       if (supernode_size <= 0) {
         continue;
       }
+      QUOTIENT_ASSERT(parents_[index] == -1,
+          "An absorbed element was in an element.");
 
       pivot_degree += supernode_size;
       signed_supernode_sizes_[index] = -supernode_size;
@@ -918,6 +953,7 @@ inline void QuotientGraph::MergeVariables() {
           degree_lists_.RemoveDegree(j);
 
           // Merge [i] -> [j] (and i becomes the principal member).
+          parents_[j] = i;
           next_index_[tail_index_[i]] = j;
           tail_index_[i] = tail_index_[j];
           signed_supernode_sizes_[i] -= absorbed_size;  // Recall it is negated.
@@ -1036,15 +1072,27 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
   std::vector<Int>::iterator iter = postorder->begin();
   for (const Int& index : elimination_order_) {
     if (!node_flags_[index]) {
+      // This element was absorbed into another element.
       continue;
     }
     iter = PreorderTree(index, children, child_offsets, iter);
   }
-  QUOTIENT_ASSERT(iter == postorder->end(),
-      "Preorder had incorrect final offset.");
 
   // Reverse the preordering (to form a postordering) in-place.
-  std::reverse(postorder->begin(), postorder->end());
+  std::reverse(postorder->begin(), iter);
+
+  if (num_dense_ > 0) {
+    // Pack the dense columns into the back.
+    for (Int i = 0; i < num_original_vertices_; ++i) {
+      if (!signed_supernode_sizes_[i] && parents_[i] == -1) {
+        *iter = i;
+        ++iter;
+      }
+    }
+  }
+
+  QUOTIENT_ASSERT(iter == postorder->end(),
+      "Postorder had incorrect final offset.");
 }
 
 inline std::vector<Int>::iterator QuotientGraph::PreorderTree(

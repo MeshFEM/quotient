@@ -18,12 +18,18 @@ struct MinimumDegreeControl {
   // The type of approximation to use for the degree estimates.
   DegreeType degree_type = kAmestoyDegree;
 
-  // Whether nontrivial supernodes are allowed. It is highly recommended that
-  // this remain true.
-  bool allow_supernodes = true;
-
   // Whether aggressive element absorptions are allowed.
   bool aggressive_absorption = true;
+
+  // If a row has at least
+  //
+  //   max(min_dense_threshold,
+  //       dense_sqrt_multiple * sqrt(num_original_vertices)),
+  //
+  // nonzeros away from the diagonal, then it will be treated as dense and
+  // placed at the end of the ordering.
+  Int min_dense_threshold = 16;
+  float dense_sqrt_multiple = 10.f;
 
   // Whether the entire degree list will be traversed in order to ensure that
   // the member of the minimal degree list with smallest index is chosen.
@@ -37,6 +43,10 @@ struct MinimumDegreeControl {
   // involved more than two (and, separately, how many less than or equal to
   // two) elements in the variable's element list.
   bool store_num_degree_updates_with_multiple_elements = false;
+
+  // Whether nontrivial supernodes are allowed. It is highly recommended that
+  // this remain true.
+  bool allow_supernodes = true;
 
   // Whether or not to create and store the nonzeros structures of each pivot.
   bool store_structures = false;

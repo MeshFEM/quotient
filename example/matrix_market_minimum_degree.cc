@@ -462,6 +462,18 @@ int main(int argc, char** argv) {
       "aggressive_absorption",
       "Eliminate elements with aggressive absorption?",
       true);
+  const Int min_dense_threshold = parser.OptionalInput<Int>(
+      "min_dense_threshold",
+      "Lower-bound on non-diagonal nonzeros for a row to be dense. The actual "
+      "threshold will be: "
+      "max(min_dense_threshold, dense_sqrt_multiple * sqrt(n))",
+      16);
+  const float dense_sqrt_multiple = parser.OptionalInput<float>(
+      "dense_sqrt_multiple",
+      "The multiplier on the square-root of the number of vertices for "
+      "determining if a row is dense. The actual threshold will be: "
+      "max(min_dense_threshold, dense_sqrt_multiple * sqrt(n))",
+      10.f);
   const bool store_pivot_element_list_sizes =
       parser.OptionalInput<bool>(
           "store_pivot_element_list_sizes",
@@ -541,6 +553,8 @@ int main(int argc, char** argv) {
   control.degree_type = static_cast<quotient::DegreeType>(degree_type_int);
   control.allow_supernodes = allow_supernodes;
   control.aggressive_absorption = aggressive_absorption;
+  control.min_dense_threshold = min_dense_threshold;
+  control.dense_sqrt_multiple = dense_sqrt_multiple;
   control.store_pivot_element_list_sizes = store_pivot_element_list_sizes;
   control.store_num_degree_updates_with_multiple_elements =
       store_num_degree_updates_with_multiple_elements;

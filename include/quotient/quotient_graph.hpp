@@ -109,6 +109,9 @@ class QuotientGraph {
   // Returns the number of aggressive absorptions that occurred.
   Int NumAggressiveAbsorptions() const;
 
+  // Returns the number of dense rows that were preprocessed out.
+  Int NumDense() const;
+
   // Prints the current breakdown of the stage timings. The result will be
   // trivial unless QUOTIENT_ENABLE_TIMERS is defined.
   std::vector<std::pair<std::string, double>> ComponentSeconds() const;
@@ -222,6 +225,9 @@ class QuotientGraph {
 
   // The number of aggressive absorptions that have occurred.
   Int num_aggressive_absorptions_;
+
+  // The number of dense rows that were preprocessed out.
+  Int num_dense_;
 
 #ifdef QUOTIENT_ENABLE_TIMERS
   // A map from the stage name to the associated timer.
