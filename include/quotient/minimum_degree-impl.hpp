@@ -159,11 +159,13 @@ inline MinimumDegreeResult MinimumDegree(
       quotient_graph.NumHashBucketCollisions();
   analysis.num_aggressive_absorptions =
       quotient_graph.NumAggressiveAbsorptions();
+#ifdef QUOTIENT_ENABLE_TIMERS
   const std::vector<std::pair<std::string, double>>& timings =
-      quotient_graph.ComponentTimes();
+      quotient_graph.ComponentSeconds();
   for (const std::pair<std::string, double>& pairing : timings) {
     analysis.elapsed_seconds[pairing.first] = pairing.second;
   }
+#endif
 
   return analysis;
 }

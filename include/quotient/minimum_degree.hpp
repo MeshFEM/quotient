@@ -72,9 +72,10 @@ struct MinimumDegreeResult {
   // factorization using this ordering.
   double num_cholesky_flops = 0;
 
-  // An optional (based upon the value of 'MinimumDegreeControl.time_stages')
-  // map from the stage names to the corresponding elapsed seconds.
+#ifdef QUOTIENT_ENABLE_TIMERS
+  // A map from the stage names to the corresponding elapsed seconds.
   std::unordered_map<std::string, double> elapsed_seconds;
+#endif
 
   // A trivial constructor.
   MinimumDegreeResult();

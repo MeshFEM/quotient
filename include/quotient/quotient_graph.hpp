@@ -111,7 +111,7 @@ class QuotientGraph {
 
   // Prints the current breakdown of the stage timings. The result will be
   // trivial unless QUOTIENT_ENABLE_TIMERS is defined.
-  std::vector<std::pair<std::string, double>> ComponentTimes() const;
+  std::vector<std::pair<std::string, double>> ComponentSeconds() const;
 
  private:
   // The number of vertices in the original graph.

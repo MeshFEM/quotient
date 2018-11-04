@@ -295,13 +295,13 @@ AMDExperiment RunMatrixMarketAMDTest(
                 << fraction_of_degree_updates_with_multiple_elements.back()
                 << std::endl;
     }
-    if (control.time_stages) {
-      for (const std::pair<std::string, double>& pairing :
-          analysis.elapsed_seconds) {
-        std::cout << "    " << pairing.first << ": " << pairing.second
-                  << " seconds." << std::endl;
-      }
+#ifdef QUOTIENT_ENABLE_TIMERS
+    for (const std::pair<std::string, double>& pairing :
+        analysis.elapsed_seconds) {
+      std::cout << "    " << pairing.first << ": " << pairing.second
+                << " seconds." << std::endl;
     }
+#endif
 
     if (write_permuted_graphs) {
       const std::vector<Int> permutation = analysis.Permutation();
@@ -502,10 +502,6 @@ int main(int argc, char** argv) {
       "matrix_market_directory",
       "The directory where the ADD96 matrix market .tar.gz's were unpacked",
       "");
-  const bool time_stages = parser.OptionalInput<bool>(
-      "time_stages",
-      "Report the timings of each stage of MinimumDegree?",
-      false);
   const bool randomly_seed = parser.OptionalInput<bool>(
       "randomly_seed",
       "Randomly seed the pseudo-random number generator?",
@@ -549,7 +545,6 @@ int main(int argc, char** argv) {
   control.store_num_degree_updates_with_multiple_elements =
       store_num_degree_updates_with_multiple_elements;
   control.store_structures = store_structures;
-  control.time_stages = time_stages;
 
   if (randomly_seed) {
     // Seed the random number generator based upon the current time.

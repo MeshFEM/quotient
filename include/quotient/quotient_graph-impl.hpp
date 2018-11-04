@@ -1152,7 +1152,7 @@ inline void QuotientGraph::ResetExternalDegrees() {
 }
 
 inline std::vector<std::pair<std::string, double>>
-QuotientGraph::ComponentTimes() const {
+QuotientGraph::ComponentSeconds() const {
   std::vector<std::pair<std::string, double>> times;
 #ifdef QUOTIENT_ENABLE_TIMERS
   for (const std::pair<std::string, Timer>& pairing : timers_) {
