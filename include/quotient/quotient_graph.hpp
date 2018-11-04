@@ -350,38 +350,24 @@ class QuotientGraph {
   // NOTE: It is assumed that this supervariable is in the pivot structure.
   std::pair<Int, std::size_t> ExactGenericExternalDegreeAndHash(Int i);
 
-  // Computes the exact external degree of supernode i using Eq. (2) of
-  // [ADD-96].
-  //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
-  //
-  // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> ExactExternalDegreeAndHash(Int i);
+  // Updates the exact degrees and hashes of the principal members of the
+  // supernodes in the pivot structure.
+  void ExactExternalDegreesAndHashes();
 
-  // Computes an approximation of the external degree of supernode i using
-  // Eq. (4) of [ADD-96].
-  //
-  // This routine is made slightly more accurate by subtracting the size of
-  // supernode(i) from bound0.
-  //
-  // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> AmestoyExternalDegreeAndHash(Int i);
+  // Updates the Amestoy degrees and hashes of the principal members of the
+  // supernodes in the pivot structure.
+  void AmestoyExternalDegreesAndHashes();
 
-  // Returns the external degree approximation of Gilbert, Moler, and Schreiber,
-  //   \hat{d_i} = |A_i \ supernode(i)|  + \sum_{e in E_i} |L_e \ supernode(i)|.
-  //
-  // We slightly modify this formula to ensure that the estimated degree is
-  // at most
-  //   (num_original_vertices - num_eliminated_vertices) - size(supernode(i)).
-  //
-  // NOTE: It is assumed that this supervariable is in the pivot structure.
+  // Returns the degree and hash of supernode i in the current pivot structure.
   std::pair<Int, std::size_t> GilbertExternalDegreeAndHash(Int i);
 
-  // Returns the external degree approximation of Ashcraft, Eisenstat, and
-  // Lucas:
-  //   \tilde{d_i} = d_i if |E_i| = 2, \hat{d_i} otherwise.
-  //
-  // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, std::size_t> AshcraftExternalDegreeAndHash(Int i);
+  // Updates the Gilbert degrees and hashes of the principal members of the
+  // supernodes in the pivot structure.
+  void GilbertExternalDegreesAndHashes();
+
+  // Updates the Ashcraft degrees and hashes of the principal members of the
+  // supernodes in the pivot structure.
+  void AshcraftExternalDegreesAndHashes();
 
   // Inserts the current pivot into the back of the element list of principal
   // variable 'i' by appending the first adjacency to the back of the adjacency
