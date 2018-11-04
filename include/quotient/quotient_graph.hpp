@@ -71,6 +71,9 @@ class QuotientGraph {
   // Forms the set of members of the supernode with the given principal member.
   std::vector<Int> FormSupernode(Int i) const;
 
+  // Returns the size of the supernode with the given principal variable.
+  Int SupernodeSize(Int i) const;
+
   // Returns a reference to the element for the given principal member.
   const std::vector<Int>& Element(Int i) const;
 

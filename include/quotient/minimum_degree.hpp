@@ -30,6 +30,9 @@ struct MinimumDegreeResult {
   // the sorted list of members of the supernode.
   std::vector<std::vector<Int>> supernodes;
 
+  // The list, of length num_original_vertices, of supernode sizes.
+  std::vector<Int> supernode_sizes;
+
   // The structures of the eliminated supernodes. Entry 'index' corresponds to
   // the structure of supernode 'elimination_order[index]'. This will only be
   // formed if 'MinimumDegreeControl.store_structures' was true.

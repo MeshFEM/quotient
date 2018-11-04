@@ -255,10 +255,23 @@ inline void QuotientGraph::Print() const {
 }
 
 inline std::vector<Int> QuotientGraph::FormSupernode(Int i) const {
+  const Int supernode_size = SupernodeSize(i);
   std::vector<Int> supernode;
-  const Int supernode_size = std::abs(signed_supernode_sizes_[i]);
   AppendSupernode(i, supernode_size, &supernode);
   return supernode;
+}
+
+inline Int QuotientGraph::SupernodeSize(Int i) const {
+  if (signed_supernode_sizes_[i]) {
+    // This is a traditional supernode (but it might be eliminated).
+    return std::abs(signed_supernode_sizes_[i]);
+  } else if (parents_[i] == -1) {
+    // This is a dense node.
+    return 1;
+  } else {
+    // This is a merged node.
+    return 0;
+  }
 }
 
 inline const std::vector<Int>& QuotientGraph::Element(Int i) const {
@@ -401,7 +414,7 @@ inline Int QuotientGraph::NumPivotDegreeUpdatesWithMultipleElements() const {
 
 inline Int QuotientGraph::NumPivotCholeskyNonzeros() const {
   const Int pivot_size = std::abs(signed_supernode_sizes_[pivot_]);
-  const Int structure_size = degree_lists_.degrees[pivot_];
+  const Int structure_size = degree_lists_.degrees[pivot_] + num_dense_;
   const Int diag_block_nonzeros = (pivot_size * (pivot_size + 1)) / 2;
   const Int subdiagonal_nonzeros = structure_size * pivot_size;
   return diag_block_nonzeros + subdiagonal_nonzeros;
@@ -409,7 +422,7 @@ inline Int QuotientGraph::NumPivotCholeskyNonzeros() const {
 
 inline double QuotientGraph::NumPivotCholeskyFlops() const {
   const Int pivot_size = std::abs(signed_supernode_sizes_[pivot_]);
-  const Int structure_size = degree_lists_.degrees[pivot_];
+  const Int structure_size = degree_lists_.degrees[pivot_] + num_dense_;
   const double diag_block_flops =  std::pow(1. * pivot_size, 3.) / 3.;
   const double schur_complement_flops =
       std::pow(1. * structure_size, 2.) * pivot_size;

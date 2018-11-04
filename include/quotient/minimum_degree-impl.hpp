@@ -29,23 +29,23 @@ namespace quotient {
 inline MinimumDegreeResult::MinimumDegreeResult() { }
 
 inline Int MinimumDegreeResult::NumStrictlyLowerCholeskyNonzeros() const {
-  return num_cholesky_nonzeros - supernodes.size();
+  return num_cholesky_nonzeros - supernode_sizes.size();
 }
 
 inline Int MinimumDegreeResult::LargestSupernode() const {
   Int largest_supernode = -1;
-  std::size_t largest_supernode_size = 0;
-  for (std::size_t i = 0; i < supernodes.size(); ++i) {
-    if (supernodes[i].size() > largest_supernode_size) {
+  Int largest_supernode_size = 0;
+  for (std::size_t i = 0; i < supernode_sizes.size(); ++i) {
+    if (supernode_sizes[i] > largest_supernode_size) {
       largest_supernode = i;
-      largest_supernode_size = supernodes[i].size();
+      largest_supernode_size = supernode_sizes[i];
     }
   }
   return largest_supernode;
 }
 
 inline Int MinimumDegreeResult::LargestSupernodeSize() const {
-  return supernodes[LargestSupernode()].size();
+  return supernode_sizes[LargestSupernode()];
 }
 
 inline double
@@ -99,7 +99,8 @@ inline void MinimumDegreeResult::AssemblyForestToDot(
 
   file << "digraph g{\n";
   for (const Int& i : postorder) {
-    if (supernodes[i].empty() || parents[i] == -1) {
+    // Skip empty and root nodes.
+    if (!supernode_sizes[i] || parents[i] == -1) {
       continue;
     }
     std::ostringstream os;
@@ -142,11 +143,22 @@ inline MinimumDegreeResult MinimumDegree(
           quotient_graph.NumPivotDegreeUpdatesWithMultipleElements();
     }
   }
+  // Assume the Schur complement of the non-dense supernodes onto the "dense"
+  // ones results in a dense Schur complement.
+  const Int num_dense = quotient_graph.NumDense();
+  analysis.num_cholesky_nonzeros += ((num_dense + 1) * num_dense) / 2;
+  analysis.num_cholesky_flops += std::pow(1. * num_dense, 3.) / 3.;
 
   // Extract the relevant information from the QuotientGraph.
-  analysis.supernodes.resize(num_orig_vertices);
+  if (control.store_supernodes) {
+    analysis.supernodes.resize(num_orig_vertices);
+    for (Int i = 0; i < num_orig_vertices; ++i) {
+      analysis.supernodes[i] = quotient_graph.FormSupernode(i);
+    }
+  }
+  analysis.supernode_sizes.resize(num_orig_vertices);
   for (Int i = 0; i < num_orig_vertices; ++i) {
-    analysis.supernodes[i] = quotient_graph.FormSupernode(i);
+    analysis.supernode_sizes[i] = quotient_graph.SupernodeSize(i);
   }
   analysis.elimination_order = quotient_graph.EliminationOrder();
   quotient_graph.ComputePostorder(&analysis.postorder);
