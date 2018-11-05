@@ -117,6 +117,8 @@ inline QuotientGraph::QuotientGraph(
 #endif
 
   // Pack the edges.
+  // TODO(Jack Poulson): Test if switching from 'reserve' and 'push_back' to
+  // 'resize' and explicit assignment is noticeably faster.
   num_edges = 0;
   element_and_adjacency_lists_.reserve(num_edges);
   for (Int source = 0; source < num_original_vertices_; ++source) {
@@ -282,6 +284,8 @@ inline std::vector<Int> QuotientGraph::ElementList(Int i) const {
   const Int num_elements = element_list_sizes_[i];
   const Int element_list_beg = element_list_offsets_[i];
   const Int element_list_end = element_list_beg + num_elements;
+  // TODO(Jack Poulson): Test if switching from 'reserve' and 'push_back' to
+  // 'resize' and explicit assignment is noticeably faster.
   std::vector<Int> element_list;
   element_list.reserve(num_elements);
   for (Int k = element_list_beg; k < element_list_end; ++k) {
@@ -316,6 +320,8 @@ inline void QuotientGraph::ComputePivotStructure() {
     const Int element = element_and_adjacency_lists_[k];
     element_size_bound += elements_[element].size() - 1;
   }
+  // TODO(Jack Poulson): Test if switching from 'reserve' and 'push_back' to
+  // 'resize' and explicit assignment is noticeably faster.
   pivot_element.reserve(element_size_bound);
 
   // Negate the signed supernode size of the pivot.
@@ -385,6 +391,8 @@ inline void QuotientGraph::ComputePivotStructure() {
   max_degree_ = std::max(max_degree_, pivot_degree);
 
   if (control_.store_structures) {
+    // TODO(Jack Poulson): Test if switching from 'reserve' and 'push_back' to
+    // 'resize' and explicit assignment is noticeably faster.
     structures_[pivot_].reserve(pivot_degree);
     for (const Int& i : pivot_element) {
       Int index = i;
@@ -1059,6 +1067,8 @@ inline void QuotientGraph::AppendSupernode(
   if (!supernode_size) {
     return;
   }
+  // TODO(Jack Poulson): Test if switching from 'reserve' and 'push_back' to
+  // 'resize' and explicit assignment is noticeably faster.
   vec->reserve(vec->size() + supernode_size);
   Int index = principal_member;
   vec->push_back(index);
