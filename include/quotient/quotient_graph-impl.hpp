@@ -60,7 +60,8 @@ inline QuotientGraph::QuotientGraph(
   num_hash_bucket_collisions_(0),
   num_hash_collisions_(0),
   num_aggressive_absorptions_(0),
-  num_dense_(0) {
+  num_dense_(0),
+  principal_dense_(-1) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
   // Initialize the supernodes as simple.
@@ -99,6 +100,9 @@ inline QuotientGraph::QuotientGraph(
   for (Int source = 0; source < num_original_vertices_; ++source) {
     element_list_offsets_[source] = num_edges;
     if (adjacency_list_sizes_[source] >= dense_threshold) {
+      if (!num_dense_) {
+        principal_dense_ = source;
+      }
       ++num_dense_;
       ++num_eliminated_vertices_;
       // We will denote this source as dense by setting its supernode size to
@@ -391,9 +395,12 @@ inline void QuotientGraph::ComputePivotStructure() {
   max_degree_ = std::max(max_degree_, pivot_degree);
 
   if (control_.store_structures) {
+    // We fill in the non-dense portion of the structure now and the dense
+    // portion after eliminating all non-dense variables.
+    //
     // TODO(Jack Poulson): Test if switching from 'reserve' and 'push_back' to
     // 'resize' and explicit assignment is noticeably faster.
-    structures_[pivot_].reserve(pivot_degree);
+    structures_[pivot_].reserve(pivot_degree + num_dense_);
     for (const Int& i : pivot_element) {
       Int index = i;
       structures_[pivot_].push_back(index);
@@ -1244,28 +1251,40 @@ inline void QuotientGraph::CombineDenseNodes() {
     return;
   }
 
-  // Absorb all of the dense nodes into the first instance.
-  Int dense_principal = -1;
+  // Absorb all of the dense nodes into the principal member.
+  Int last_dense = -1;
   for (Int i = 0; i < num_original_vertices_; ++i) {
     if (!signed_supernode_sizes_[i] && parents_[i] == -1) {
-      // This is a dense node.
-      if (dense_principal == -1) {
-        // This is the first occurrence of a dense variable.
-        dense_principal = i;
+      if (i == principal_dense_) {
         signed_supernode_sizes_[i] = -num_dense_;
       } else {
-        parents_[i] = dense_principal;
+        next_index_[last_dense] = i;
+        parents_[i] = principal_dense_;
         signed_supernode_sizes_[i] = 0;
       }
+      last_dense = i;
     }
   }
+  tail_index_[principal_dense_] = last_dense;
 
   // Point the non-dense elements currently marked as roots to the dense
   // supernode.
   for (Int i = 0; i < num_original_vertices_; ++i) {
-    if (signed_supernode_sizes_[i] && i != dense_principal &&
+    if (signed_supernode_sizes_[i] && i != principal_dense_ &&
         parents_[i] == -1) {
-      parents_[i] = dense_principal;
+      parents_[i] = principal_dense_;
+    }
+  }
+
+  if (control_.store_structures) {
+    // Append the dense supernode to each structure.
+    for (std::vector<Int>& structure : structures_) {
+      Int index = principal_dense_;
+      structure.push_back(index);
+      while (index != tail_index_[principal_dense_]) {
+        index = next_index_[index];
+        structure.push_back(index);
+      }
     }
   }
 }

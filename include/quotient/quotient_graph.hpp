@@ -237,6 +237,10 @@ class QuotientGraph {
   // The number of dense rows that were preprocessed out.
   Int num_dense_;
 
+  // If there are any dense nodes, they will eventually be combined into a
+  // single supernode with this principal member.
+  Int principal_dense_;
+
 #ifdef QUOTIENT_ENABLE_TIMERS
   // A map from the stage name to the associated timer.
   mutable std::unordered_map<std::string, Timer> timers_;
