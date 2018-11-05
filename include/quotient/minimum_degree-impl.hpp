@@ -143,6 +143,8 @@ inline MinimumDegreeResult MinimumDegree(
           quotient_graph.NumPivotDegreeUpdatesWithMultipleElements();
     }
   }
+  quotient_graph.CombineDenseNodes();
+
   // Assume the Schur complement of the non-dense supernodes onto the "dense"
   // ones results in a dense Schur complement.
   const Int num_dense = quotient_graph.NumDense();

@@ -385,9 +385,14 @@ inline void QuotientGraph::ComputePivotStructure() {
   max_degree_ = std::max(max_degree_, pivot_degree);
 
   if (control_.store_structures) {
-    for (const Int& i : elements_[pivot_]) {
-      const Int supernode_size = -signed_supernode_sizes_[i];
-      AppendSupernode(i, supernode_size, &structures_[pivot_]);
+    structures_[pivot_].reserve(pivot_degree);
+    for (const Int& i : pivot_element) {
+      Int index = i;
+      structures_[pivot_].push_back(index);
+      while (index != tail_index_[i]) {
+        index = next_index_[index];
+        structures_[pivot_].push_back(index);
+      }
     }
   }
 
@@ -1220,6 +1225,37 @@ inline void QuotientGraph::ResetExternalDegrees() {
   for (UInt i = 0; i < node_flags_.size(); ++i) {
     if (node_flags_[i]) {
       node_flags_[i] = 1;
+    }
+  }
+}
+
+inline void QuotientGraph::CombineDenseNodes() {
+  if (!num_dense_) {
+    return;
+  }
+
+  // Absorb all of the dense nodes into the first instance.
+  Int dense_principal = -1;
+  for (Int i = 0; i < num_original_vertices_; ++i) {
+    if (!signed_supernode_sizes_[i] && parents_[i] == -1) {
+      // This is a dense node.
+      if (dense_principal == -1) {
+        // This is the first occurrence of a dense variable.
+        dense_principal = i;
+        signed_supernode_sizes_[i] = -num_dense_;
+      } else {
+        parents_[i] = dense_principal;
+        signed_supernode_sizes_[i] = 0;
+      }
+    }
+  }
+
+  // Point the non-dense elements currently marked as roots to the dense
+  // supernode.
+  for (Int i = 0; i < num_original_vertices_; ++i) {
+    if (signed_supernode_sizes_[i] && i != dense_principal &&
+        parents_[i] == -1) {
+      parents_[i] = dense_principal;
     }
   }
 }

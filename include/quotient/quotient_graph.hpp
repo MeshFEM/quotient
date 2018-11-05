@@ -119,6 +119,11 @@ class QuotientGraph {
   // trivial unless QUOTIENT_ENABLE_TIMERS is defined.
   std::vector<std::pair<std::string, double>> ComponentSeconds() const;
 
+  // This routine should be called after eliminating the non-dense variables,
+  // as it updates the assembly forest by combining the dense nodes into a
+  // single supernode which becomes the parent of all non-dense roots.
+  void CombineDenseNodes();
+
  private:
   // The number of vertices in the original graph.
   Int num_original_vertices_;
