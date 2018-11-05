@@ -113,7 +113,6 @@ inline QuotientGraph::QuotientGraph(
     }
     num_edges += adjacency_list_sizes_[source];
   }
-  element_list_offsets_[num_original_vertices_] = num_edges;
 #ifdef QUOTIENT_DEBUG
   if (num_dense_) {
     std::cout << "Eliminated " << num_dense_ << " dense rows." << std::endl;
