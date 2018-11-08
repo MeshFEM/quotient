@@ -7,7 +7,7 @@ There are no dependencies for installation of the headers.
 
 But running the example drivers requires previous installation of the
 header-only command-line processing C++14 library
-[specify](https://gitlab.com/jack_poulson/specify).
+[specify](https://gitlab.com/hodge_star/specify).
 
 The build system for the examples uses [meson](http://mesonbuild.com) and
 the unit tests use [Catch2](https://github.com/catchorg/Catch2).
@@ -16,7 +16,6 @@ the unit tests use [Catch2](https://github.com/catchorg/Catch2).
 
 Usage through the `quotient::CoordinateGraph` class is fairly straight-forward:
 ```c++
-#include <iostream>
 #include "quotient.hpp"
 
 [...]
@@ -45,14 +44,38 @@ const quotient::MinimumDegreeResult analysis = quotient::MinimumDegree(
 ```
 
 ### Running the unit tests
-Assuming that [meson](http://mesonbuild.com) and
-[Catch2](https://github.com/catchorg/Catch2) are already installed:
+Assuming that [meson](http://mesonbuild.com), [Catch2](https://github.com/catchorg/Catch2), and [specify](https://gitlab.com/hodge_star/specify) are already installed:
 ```
 mkdir build-debug/
 meson build-debug
 cd build-debug
 ninja
 ninja test
+```
+
+### Testing performance
+Again assuming [meson](http://mesonbuild.com), [Catch2](https://github.com/catchorg/Catch2), and [specify](https://gitlab.com/hodge_star/specify) are already installed:
+
+The default is for Quotient to use 64-bit integers, but there is a noticeable performance difference relative to 32-bit integers due to the work primarily consisting of memory-bound index manipulation. A release-mode 64-bit version can be built with:
+```
+mkdir build-release-64/
+meson build-release-64 --buildtype=release
+cd build-release-64
+ninja
+```
+whereas a 32-bit, release-mode version can be built with:
+```
+mkdir build-release-32/
+meson build-release-32 --buildtype=release
+cd build-release-32
+meson configure -Duse-64bit=false
+ninja
+```
+
+One could then download and unpack, for example, the [LHR34](https://www.cise.ufl.edu/research/sparse/matrices/Mallya/lhr34.html) [matrix market description](https://www.cise.ufl.edu/research/sparse/MM/Mallya/lhr34.tar.gz) into `${HOME}/Data/lhr34.mtx` and then test performance with and without aggressive absorption using:
+```
+time ./matrix_market_minimum_degree --filename="${HOME}/Data/lhr34.mtx" --print_progress=true --aggressive_absorption=true 
+time ./matrix_market_minimum_degree --filename="${HOME}/Data/lhr34.mtx" --print_progress=true --aggressive_absorption=false
 ```
 
 ### License
