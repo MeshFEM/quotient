@@ -58,7 +58,7 @@ class QuotientGraph {
   void ComputePostorder(std::vector<Int>* postorder) const;
 
   // Returns a reference to the list containing the parent of each supernode.
-  const std::vector<Int>& Parents() const;
+  const std::vector<Int>& AssemblyParents() const;
 
   // Returns the number of times that supervariables have been falsely hashed
   // into the same bucket.
@@ -125,14 +125,37 @@ class QuotientGraph {
   void CombineDenseNodes();
 
  private:
+  // Bookkeeping data for the dense supernode (if it exists).
+  struct DenseSupernode {
+    // The number of dense rows that were preprocessed out.
+    Int size;
+
+    // If there are any dense nodes, they will eventually be combined into a
+    // single supernode with this principal member.
+    Int principal_member;
+  };
+
+  // Data structures related to hashing supervariables.
+  struct HashInfo {
+    // An array of single-linked lists for hash buckets for the supervariables.
+    HashLists lists;
+
+    // The number of times that supervariables were falsely placed within the
+    // same bucket.
+    Int num_bucket_collisions;
+
+    // The number of times that supervariables falsely had the same hash value.
+    Int num_collisions;
+  };
+
+  // The control structure used to configure the MinimumDegree analysis.
+  const MinimumDegreeControl control_;
+
   // The number of vertices in the original graph.
   Int num_original_vertices_;
 
   // The number of vertices that have been eliminated from the original graph.
   Int num_eliminated_vertices_;
-
-  // The control structure used to configure the MinimumDegree analysis.
-  const MinimumDegreeControl control_;
 
   // The principal member of the current pivot.
   Int pivot_;
@@ -143,25 +166,25 @@ class QuotientGraph {
   // if 'i' is a principal element, the value is negated.
   std::vector<Int> signed_supernode_sizes_;
 
+  // A list of length 'num_original_vertices' such that each supernode is
+  // traversed from the principal member to the final member in a continuous
+  // manner by following the 'next_index' paths.
+  //
+  // The values are undefined on tail indices of supernodes.
+  std::vector<Int> next_index_in_supernode_;
+
+  // A list of length 'num_original_vertices' such that, if 'i' is principal,
+  // then 'tail_index[i]' points to the last index in supernode i (with the
+  // ordering defined by the 'next_index' traversal).
+  std::vector<Int> supernode_tail_index_;
+
   // The ordered list of principal members of eliminated supernodes.
   std::vector<Int> elimination_order_;
 
   // A list of length 'num_original_vertices' where index 'e' contains the
   // index of the parent of element 'e' in the elimination forest (if it
   // exists). If element 'e' has no parent, then the value is equal to -1.
-  std::vector<Int> parents_;
-
-  // A list of length 'num_original_vertices' such that each supernode is
-  // traversed from the principal member to the final member in a continuous
-  // manner by following the 'next_index' paths.
-  //
-  // The values are undefined on tail indices of supernodes.
-  std::vector<Int> next_index_;
-
-  // A list of length 'num_original_vertices' such that, if 'i' is principal,
-  // then 'tail_index[i]' points to the last index in supernode i (with the
-  // ordering defined by the 'next_index' traversal).
-  std::vector<Int> tail_index_;
+  std::vector<Int> assembly_parents_;
 
   // A packing of the adjacency and element lists, with the element lists
   // occurring first in each member, so that memory allocations are not
@@ -221,25 +244,14 @@ class QuotientGraph {
   // It is also used for temporarily flagging variables as within a set.
   std::vector<Int> node_flags_;
 
-  // An array of single-linked lists for hash buckets for the supervariables.
-  HashLists hash_lists_;
-
-  // The number of times that supervariables were falsely placed within the
-  // same bucket.
-  Int num_hash_bucket_collisions_;
-
-  // The number of times that supervariables falsely had the same hash value.
-  Int num_hash_collisions_;
+  // Data structures related to hashing supervariables.
+  HashInfo hash_info_;
 
   // The number of aggressive absorptions that have occurred.
   Int num_aggressive_absorptions_;
 
-  // The number of dense rows that were preprocessed out.
-  Int num_dense_;
-
-  // If there are any dense nodes, they will eventually be combined into a
-  // single supernode with this principal member.
-  Int principal_dense_;
+  // Bookkeeping data for the dense supernode (if it exists).
+  DenseSupernode dense_supernode_;
 
 #ifdef QUOTIENT_ENABLE_TIMERS
   // A map from the stage name to the associated timer.

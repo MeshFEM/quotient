@@ -41,8 +41,8 @@ struct MinimumDegreeResult {
   // The postordering of the assembly forest.
   std::vector<Int> postorder;
 
-  // The parent of each supernode.
-  std::vector<Int> parents;
+  // The parent of each supernode in the assembly forest.
+  std::vector<Int> assembly_parents;
 
   // The number of aggressive absorptions that occurred.
   Int num_aggressive_absorptions;

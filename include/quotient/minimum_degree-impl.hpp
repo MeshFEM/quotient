@@ -100,11 +100,11 @@ inline void MinimumDegreeResult::AssemblyForestToDot(
   file << "digraph g{\n";
   for (const Int& i : postorder) {
     // Skip empty and root nodes.
-    if (!supernode_sizes[i] || parents[i] == -1) {
+    if (!supernode_sizes[i] || assembly_parents[i] == -1) {
       continue;
     }
     std::ostringstream os;
-    os << "  " << parents[i] << " -> " << i << ";\n";
+    os << "  " << assembly_parents[i] << " -> " << i << ";\n";
     file << os.str();
   }
   file << "}\n";
@@ -164,7 +164,7 @@ inline MinimumDegreeResult MinimumDegree(
   }
   analysis.elimination_order = quotient_graph.EliminationOrder();
   quotient_graph.ComputePostorder(&analysis.postorder);
-  analysis.parents = quotient_graph.Parents();
+  analysis.assembly_parents = quotient_graph.AssemblyParents();
   if (control.store_structures) {
     quotient_graph.FormEliminatedStructures(&analysis.eliminated_structures);
   }
