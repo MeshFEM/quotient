@@ -19,6 +19,15 @@
 
 namespace quotient {
 
+// A macro for facilitating a single entry encoding either the parent of an
+// absorbed element (if the value is non-negative) or the tail of a supernode
+// (if the value is negative). In the latter case, if the last member of the
+// supernode had index 'j', then the value is stored as
+//   SYMMETRIC_INDEX(j),
+// which, due to the macro being an involution, allows us to recover j via
+//   j = SYMMETRIC_INDEX(SYMMETRIC_INDEX(j)).
+#define SYMMETRIC_INDEX(index) -(index + 1)
+
 // A data structure representing the "quotient graph" interpretation of the
 // original graph after eliminating a sequence of vertices. This is the
 // primary data structure of the (Approximate) Minimum Degree reordering
@@ -148,8 +157,8 @@ class QuotientGraph {
     //
     // Absorbed elements and dense supernode members both are marked via a
     // signed size of '0', but eliminated elements have their assembly parent
-    // marked as their parent in the tree, while dense supernode members have
-    // their parent marked as -1.
+    // marked as their parent in the tree, while dense supernode member 'i' has
+    // its parent equal to SYMMETRIC_INDEX(i).
     std::vector<Int> signed_supernode_sizes;
 
     // A list of length 'num_vertices' such that each supernode is
@@ -157,20 +166,16 @@ class QuotientGraph {
     // manner by following the 'next_index' paths.
     //
     // The values are undefined on tail indices of supernodes.
-    std::vector<Int> next_index_in_supernode;
-
-    // A list of length 'num_vertices' such that, if 'i' is principal,
-    // then the i'th tail index points to the last index in supernode i (with
-    // the ordering defined by the 'next_index' traversal).
-    std::vector<Int> tail_index_of_supernode;
+    std::vector<Int> next_index;
 
     // A (possibly empty) dense supernode.
     DenseSupernode dense_supernode;
 
     // A list of length 'num_vertices' where index 'e' contains the index of
     // the parent of element 'e' in the elimination forest (if it exists).
-    // If element 'e' has no parent, then the value is equal to -1.
-    std::vector<Int> parents;
+    // If element 'e' has no parent, then the value is equal to
+    // SYMMETRIC_INDEX(j), where 'j' is the last member of the supernode.
+    std::vector<Int> parent_or_tail;
   };
 
   // A data structure managing an array of length 'num_vertices' which can be

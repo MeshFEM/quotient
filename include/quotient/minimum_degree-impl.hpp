@@ -100,7 +100,7 @@ inline void MinimumDegreeResult::AssemblyForestToDot(
   file << "digraph g{\n";
   for (const Int& i : postorder) {
     // Skip empty and root nodes.
-    if (!supernode_sizes[i] || assembly_parents[i] == -1) {
+    if (!supernode_sizes[i] || assembly_parents[i] <= 0) {
       continue;
     }
     std::ostringstream os;
