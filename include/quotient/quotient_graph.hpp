@@ -135,17 +135,39 @@ class QuotientGraph {
     Int principal_member;
   };
 
-  // Data structures related to hashing supervariables.
-  struct HashInfo {
-    // An array of single-linked lists for hash buckets for the supervariables.
-    HashLists lists;
+  // An easily-modifiable representation of the supernodes in the quotient
+  // graph. Each supernode is maintained as a singly-linked list.
+  struct AssemblyForest {
+    // A list of length 'num_original_vertices' of the (signed) sizes of each
+    // supernode. If index 'i' is not principal, then it is set to zero; if
+    // 'i' is a principal variable, then index 'i' is the size of the supernode:
+    // if 'i' is a principal element, the value is negated.
+    //
+    // Absorbed elements and dense supernode members both are marked via a
+    // signed size of '0', but eliminated elements have their assembly parent
+    // marked as their parent in the tree, while dense supernode members have
+    // their parent marked as -1.
+    std::vector<Int> signed_supernode_sizes;
 
-    // The number of times that supervariables were falsely placed within the
-    // same bucket.
-    Int num_bucket_collisions;
+    // A list of length 'num_original_vertices' such that each supernode is
+    // traversed from the principal member to the final member in a continuous
+    // manner by following the 'next_index' paths.
+    //
+    // The values are undefined on tail indices of supernodes.
+    std::vector<Int> next_index_in_supernode;
 
-    // The number of times that supervariables falsely had the same hash value.
-    Int num_collisions;
+    // A list of length 'num_original_vertices' such that, if 'i' is principal,
+    // then the i'th tail index points to the last index in supernode i (with
+    // the ordering defined by the 'next_index' traversal).
+    std::vector<Int> tail_index_of_supernode;
+
+    // A (possibly empty) dense supernode.
+    DenseSupernode dense_supernode;
+
+    // A list of length 'num_original_vertices' where index 'e' contains the
+    // index of the parent of element 'e' in the elimination forest (if it
+    // exists). If element 'e' has no parent, then the value is equal to -1.
+    std::vector<Int> parents;
   };
 
   // A data structure managing an array of length 'num_original_vertices'
@@ -210,6 +232,19 @@ class QuotientGraph {
     std::vector<Int> adjacency_list_sizes;
   };
 
+  // Data structures related to hashing supervariables.
+  struct HashInfo {
+    // An array of single-linked lists for hash buckets for the supervariables.
+    HashLists lists;
+
+    // The number of times that supervariables were falsely placed within the
+    // same bucket.
+    Int num_bucket_collisions;
+
+    // The number of times that supervariables falsely had the same hash value.
+    Int num_collisions;
+  };
+
   // The control structure used to configure the MinimumDegree analysis.
   const MinimumDegreeControl control_;
 
@@ -222,31 +257,11 @@ class QuotientGraph {
   // The principal member of the current pivot.
   Int pivot_;
 
-  // A list of length 'num_original_vertices' of the (signed) sizes of each
-  // supernode. If index 'i' is not principal, then it is set to zero; if
-  // 'i' is a principal variable, then index 'i' is the size of the supernode:
-  // if 'i' is a principal element, the value is negated.
-  std::vector<Int> signed_supernode_sizes_;
-
-  // A list of length 'num_original_vertices' such that each supernode is
-  // traversed from the principal member to the final member in a continuous
-  // manner by following the 'next_index' paths.
-  //
-  // The values are undefined on tail indices of supernodes.
-  std::vector<Int> next_index_in_supernode_;
-
-  // A list of length 'num_original_vertices' such that, if 'i' is principal,
-  // then 'tail_index[i]' points to the last index in supernode i (with the
-  // ordering defined by the 'next_index' traversal).
-  std::vector<Int> supernode_tail_index_;
+  // The representation of the current assembly forest.
+  AssemblyForest assembly_;
 
   // The ordered list of principal members of eliminated supernodes.
   std::vector<Int> elimination_order_;
-
-  // A list of length 'num_original_vertices' where index 'e' contains the
-  // index of the parent of element 'e' in the elimination forest (if it
-  // exists). If element 'e' has no parent, then the value is equal to -1.
-  std::vector<Int> assembly_parents_;
 
   // The representation of the element lists and adjacencies of the nodes
   // in the quotient graph.
@@ -281,9 +296,6 @@ class QuotientGraph {
 
   // The number of aggressive absorptions that have occurred.
   Int num_aggressive_absorptions_;
-
-  // Bookkeeping data for the dense supernode (if it exists).
-  DenseSupernode dense_supernode_;
 
 #ifdef QUOTIENT_ENABLE_TIMERS
   // A map from the stage name to the associated timer.
