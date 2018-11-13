@@ -52,31 +52,31 @@ inline QuotientGraph::QuotientGraph(
     const CoordinateGraph& graph,
     const MinimumDegreeControl& control)
 : control_(control),
-  num_original_vertices_(graph.NumSources()),
+  num_vertices_(graph.NumSources()),
   num_eliminated_vertices_(0),
   num_aggressive_absorptions_(0) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
   // Initialize the assembly tree.
-  assembly_.signed_supernode_sizes.resize(num_original_vertices_, 1);
-  assembly_.next_index_in_supernode.resize(num_original_vertices_, -1);
-  assembly_.tail_index_of_supernode.resize(num_original_vertices_);
+  assembly_.signed_supernode_sizes.resize(num_vertices_, 1);
+  assembly_.next_index_in_supernode.resize(num_vertices_, -1);
+  assembly_.tail_index_of_supernode.resize(num_vertices_);
   std::iota(
       assembly_.tail_index_of_supernode.begin(),
       assembly_.tail_index_of_supernode.end(),
       0);
   assembly_.dense_supernode.size = 0;
   assembly_.dense_supernode.principal_member = -1;
-  assembly_.parents.resize(num_original_vertices_, -1);
+  assembly_.parents.resize(num_vertices_, -1);
 
-  elimination_order_.reserve(num_original_vertices_);
+  elimination_order_.reserve(num_vertices_);
 
   // Initialize the counts for the adjacency lists.
-  edges_.element_list_offsets.resize(num_original_vertices_, 0);
-  edges_.element_list_sizes.resize(num_original_vertices_, 0);
-  edges_.adjacency_list_sizes.resize(num_original_vertices_, 0);
+  edges_.element_list_offsets.resize(num_vertices_, 0);
+  edges_.element_list_sizes.resize(num_vertices_, 0);
+  edges_.adjacency_list_sizes.resize(num_vertices_, 0);
   const std::vector<GraphEdge>& edges = graph.Edges();
-  for (Int source = 0; source < num_original_vertices_; ++source) {
+  for (Int source = 0; source < num_vertices_; ++source) {
     const Int source_edge_offset = graph.SourceEdgeOffset(source);
     const Int next_source_edge_offset = graph.SourceEdgeOffset(source + 1);
     for (Int k = source_edge_offset; k < next_source_edge_offset; ++k) {
@@ -91,12 +91,11 @@ inline QuotientGraph::QuotientGraph(
   // as dense and moved to the back of the postordering.
   const Int dense_threshold =
       std::max(1.f * control_.min_dense_threshold,
-          control_.dense_sqrt_multiple *
-              std::sqrt(1.f * num_original_vertices_));
+          control_.dense_sqrt_multiple * std::sqrt(1.f * num_vertices_));
 
   // Convert the counts into an offset scan.
   Int num_edges = 0;
-  for (Int source = 0; source < num_original_vertices_; ++source) {
+  for (Int source = 0; source < num_vertices_; ++source) {
     edges_.element_list_offsets[source] = num_edges;
     if (edges_.adjacency_list_sizes[source] >= dense_threshold) {
       if (!assembly_.dense_supernode.size) {
@@ -124,7 +123,7 @@ inline QuotientGraph::QuotientGraph(
   // 'resize' and explicit assignment is noticeably faster.
   num_edges = 0;
   edges_.lists.reserve(num_edges);
-  for (Int source = 0; source < num_original_vertices_; ++source) {
+  for (Int source = 0; source < num_vertices_; ++source) {
     if (!assembly_.signed_supernode_sizes[source]) {
       // Skip the dense row.
       continue;
@@ -140,11 +139,11 @@ inline QuotientGraph::QuotientGraph(
   }
 
   // Initialize the degree lists.
-  degree_lists_.degrees.resize(num_original_vertices_, 0);
-  degree_lists_.heads.resize(num_original_vertices_ - 1, -1);
-  degree_lists_.next_member.resize(num_original_vertices_, -1);
-  degree_lists_.last_member.resize(num_original_vertices_, -1);
-  for (Int source = 0; source < num_original_vertices_; ++source) {
+  degree_lists_.degrees.resize(num_vertices_, 0);
+  degree_lists_.heads.resize(num_vertices_ - 1, -1);
+  degree_lists_.next_member.resize(num_vertices_, -1);
+  degree_lists_.last_member.resize(num_vertices_, -1);
+  for (Int source = 0; source < num_vertices_; ++source) {
     if (!assembly_.signed_supernode_sizes[source]) {
       // Skip the dense row.
       continue;
@@ -156,24 +155,23 @@ inline QuotientGraph::QuotientGraph(
   // Initialize the hash lists.
   hash_info_.num_collisions = 0;
   hash_info_.num_bucket_collisions = 0;
-  hash_info_.lists.buckets.resize(num_original_vertices_);
-  hash_info_.lists.hashes.resize(num_original_vertices_);
-  hash_info_.lists.heads.resize(num_original_vertices_, -1);
-  hash_info_.lists.next_member.resize(num_original_vertices_, -1);
+  hash_info_.lists.buckets.resize(num_vertices_);
+  hash_info_.lists.hashes.resize(num_vertices_);
+  hash_info_.lists.heads.resize(num_vertices_, -1);
+  hash_info_.lists.next_member.resize(num_vertices_, -1);
 
   // Trivially initialize the lower-triangular nonzero structures.
   if (control_.store_structures) {
-    structures_.resize(num_original_vertices_);
+    structures_.resize(num_vertices_);
   }
-  elements_.resize(num_original_vertices_);
+  elements_.resize(num_vertices_);
 
   // The absorbed elements will be maintained as 0, the unabsorbed will be
   // initialized as 1, and the shift will be initialized as 2.
   node_flags_.shift = 2;
-  node_flags_.flags.resize(num_original_vertices_, 1);
+  node_flags_.flags.resize(num_vertices_, 1);
   node_flags_.max_degree = 0;
-  node_flags_.shift_cap =
-      std::numeric_limits<Int>::max() - num_original_vertices_;
+  node_flags_.shift_cap = std::numeric_limits<Int>::max() - num_vertices_;
 
   QUOTIENT_STOP_TIMER(timers_, kSetup);
 }
@@ -220,8 +218,8 @@ inline Int QuotientGraph::NumDense() const {
   return assembly_.dense_supernode.size;
 }
 
-inline Int QuotientGraph::NumOriginalVertices() const {
-  return num_original_vertices_;
+inline Int QuotientGraph::NumVertices() const {
+  return num_vertices_;
 }
 
 inline Int QuotientGraph::NumEliminatedVertices() const {
@@ -237,7 +235,7 @@ inline Int QuotientGraph::NumHashCollisions() const {
 }
 
 inline void QuotientGraph::Print() const {
-  for (Int i = 0; i < num_original_vertices_; ++i) {
+  for (Int i = 0; i < num_vertices_; ++i) {
     if (!assembly_.signed_supernode_sizes[i]) {
       continue;
     }
@@ -499,7 +497,7 @@ inline void QuotientGraph::InsertPivotElement(Int i) {
   const Int adjacency_list_end =
       element_list_end + edges_.adjacency_list_sizes[i];
 #ifdef QUOTIENT_DEBUG
-  if (i == num_original_vertices_ - 1) {
+  if (i == num_vertices_ - 1) {
     if (adjacency_list_end == Int(edges_.lists.size())) {
       std::cerr << "Adjacency list ran off the end of the array." << std::endl;
     }
@@ -669,8 +667,7 @@ inline void QuotientGraph::ExactDegreesAndHashes() {
 inline void QuotientGraph::AmestoyDegreesAndHashes() {
   const Int shift = node_flags_.shift;
   const Int pivot_degree = degree_lists_.degrees[pivot_];
-  const Int num_vertices_left =
-      num_original_vertices_ - num_eliminated_vertices_;
+  const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
   for (const Int& i : elements_[pivot_]) {
     Int degree = 0;
     UInt hash = 0;
@@ -769,8 +766,7 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i) {
   PackCountAndHashAdjacencies(i, num_elements, &degree, &hash);
   InsertPivotElement(i);
 
-  const Int num_vertices_left =
-      num_original_vertices_ - num_eliminated_vertices_;
+  const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
   const Int bound = num_vertices_left - supernode_size;
   degree = std::min(degree, bound);
 
@@ -778,8 +774,7 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i) {
 }
 
 inline void QuotientGraph::GilbertDegreesAndHashes() {
-  const Int num_vertices_left =
-      num_original_vertices_ - num_eliminated_vertices_;
+  const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
   const Int pivot_degree = degree_lists_.degrees[pivot_];
   for (const Int& i : elements_[pivot_]) {
     Int degree = 0;
@@ -929,7 +924,7 @@ inline void QuotientGraph::MergeVariables() {
   for (Int i_index = 0; i_index < supernodal_struct_size; ++i_index) {
     const Int i = pivot_element[i_index];
     const UInt hash = hash_info_.lists.hashes[i];
-    const Int bucket = hash % num_original_vertices_;
+    const Int bucket = hash % num_vertices_;
     hash_info_.lists.AddHash(i, hash, bucket);
   }
 
@@ -1034,7 +1029,7 @@ inline void QuotientGraph::MergeVariables() {
   }
 
 #ifdef QUOTIENT_DEBUG
-  for (Int index = 0; index < num_original_vertices_; ++index) {
+  for (Int index = 0; index < num_vertices_; ++index) {
     if (hash_info_.lists.heads[index] != -1) {
       std::cerr << "Did not clear head for bucket " << index << std::endl;
     }
@@ -1103,14 +1098,14 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
   // Reconstruct the child links from the parent links in a contiguous array
   // (similar to the CSR format) by first counting the number of children of
   // each node.
-  std::vector<Int> child_offsets(num_original_vertices_ + 1, 0);
+  std::vector<Int> child_offsets(num_vertices_ + 1, 0);
   for (const Int& i : elimination_order_) {
     if (assembly_.parents[i] != -1) {
       ++child_offsets[assembly_.parents[i]];
     }
   }
   Int num_total_children = 0;
-  for (Int i = 0; i <= num_original_vertices_; ++i) {
+  for (Int i = 0; i <= num_vertices_; ++i) {
     const Int num_children = child_offsets[i];
     child_offsets[i] = num_total_children;
     num_total_children += num_children;
@@ -1129,7 +1124,7 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
   // Scan for the roots and launch a pe-order traversal on each of them.
   // We march through elimination_order in reverse order so that, after a
   // subsequent reversal, the lowest degree nodes are in the upper-left.
-  postorder->resize(num_original_vertices_);
+  postorder->resize(num_vertices_);
   std::vector<Int>::iterator iter = postorder->begin();
   for (const Int& i : elimination_order_) {
     if (assembly_.parents[i] != -1) {
@@ -1144,7 +1139,7 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
 
   if (assembly_.dense_supernode.size) {
     // Pack the dense columns into the back.
-    for (Int i = 0; i < num_original_vertices_; ++i) {
+    for (Int i = 0; i < num_vertices_; ++i) {
       if (!assembly_.signed_supernode_sizes[i] && assembly_.parents[i] == -1) {
         *iter = i;
         ++iter;
@@ -1162,7 +1157,7 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
     const std::vector<Int>& child_offsets,
     std::vector<Int>::iterator iter) const {
   std::vector<Int> stack;
-  stack.reserve(num_original_vertices_);
+  stack.reserve(num_vertices_);
 
   stack.push_back(root);
 
@@ -1267,7 +1262,7 @@ inline void QuotientGraph::CombineDenseNodes() {
 
   // Absorb all of the dense nodes into the principal member.
   Int last_dense = -1;
-  for (Int i = 0; i < num_original_vertices_; ++i) {
+  for (Int i = 0; i < num_vertices_; ++i) {
     if (!assembly_.signed_supernode_sizes[i] && assembly_.parents[i] == -1) {
       if (i == assembly_.dense_supernode.principal_member) {
         assembly_.signed_supernode_sizes[i] = -assembly_.dense_supernode.size;
@@ -1284,7 +1279,7 @@ inline void QuotientGraph::CombineDenseNodes() {
 
   // Point the non-dense elements currently marked as roots to the dense
   // supernode.
-  for (Int i = 0; i < num_original_vertices_; ++i) {
+  for (Int i = 0; i < num_vertices_; ++i) {
     if (assembly_.signed_supernode_sizes[i] &&
         i != assembly_.dense_supernode.principal_member &&
         assembly_.parents[i] == -1) {

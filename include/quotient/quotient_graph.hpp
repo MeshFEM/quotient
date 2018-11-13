@@ -46,7 +46,7 @@ class QuotientGraph {
   void Print() const;
 
   // Returns the number of vertices in the original graph.
-  Int NumOriginalVertices() const;
+  Int NumVertices() const;
 
   // Returns the number of vertices that have been eliminated from the graph.
   Int NumEliminatedVertices() const;
@@ -138,7 +138,7 @@ class QuotientGraph {
   // An easily-modifiable representation of the supernodes in the quotient
   // graph. Each supernode is maintained as a singly-linked list.
   struct AssemblyForest {
-    // A list of length 'num_original_vertices' of the (signed) sizes of each
+    // A list of length 'num_vertices' of the (signed) sizes of each
     // supernode. If index 'i' is not principal, then it is set to zero; if
     // 'i' is a principal variable, then index 'i' is the size of the supernode:
     // if 'i' is a principal element, the value is negated.
@@ -149,14 +149,14 @@ class QuotientGraph {
     // their parent marked as -1.
     std::vector<Int> signed_supernode_sizes;
 
-    // A list of length 'num_original_vertices' such that each supernode is
+    // A list of length 'num_vertices' such that each supernode is
     // traversed from the principal member to the final member in a continuous
     // manner by following the 'next_index' paths.
     //
     // The values are undefined on tail indices of supernodes.
     std::vector<Int> next_index_in_supernode;
 
-    // A list of length 'num_original_vertices' such that, if 'i' is principal,
+    // A list of length 'num_vertices' such that, if 'i' is principal,
     // then the i'th tail index points to the last index in supernode i (with
     // the ordering defined by the 'next_index' traversal).
     std::vector<Int> tail_index_of_supernode;
@@ -164,23 +164,23 @@ class QuotientGraph {
     // A (possibly empty) dense supernode.
     DenseSupernode dense_supernode;
 
-    // A list of length 'num_original_vertices' where index 'e' contains the
-    // index of the parent of element 'e' in the elimination forest (if it
-    // exists). If element 'e' has no parent, then the value is equal to -1.
+    // A list of length 'num_vertices' where index 'e' contains the index of
+    // the parent of element 'e' in the elimination forest (if it exists).
+    // If element 'e' has no parent, then the value is equal to -1.
     std::vector<Int> parents;
   };
 
-  // A data structure managing an array of length 'num_original_vertices'
-  // which can be used to quickly compute the cardinalities of |L_e \ L_p| for
-  // each element e in an element list of a supervariable in the current pivot
-  // structure, L_p.
+  // A data structure managing an array of length 'num_vertices' which can be
+  // used to quickly compute the cardinalities of |L_e \ L_p| for each element
+  // e in an element list of a supervariable in the current pivot structure,
+  // L_p.
   //
   // The positive values can be quickly 'unset' by increasing a shift such that,
   // in the next iteration, a value is unset if it is less than the shift.
   //
   // It is also used for temporarily flagging variables as within a set.
   struct NodeFlags {
-    // A mask of length 'num_orig_vertices' that can be used to quickly compute
+    // A mask of length 'num_vertices' that can be used to quickly compute
     // the cardinalities of |L_e \ L_p| for each element e in an element list of
     // a supervariable in the current pivot structure, L_p.
     //
@@ -208,7 +208,7 @@ class QuotientGraph {
   // A packing of the adjacency and element lists, with the element lists
   // occurring first in each member, so that memory allocations are not
   // required during the elimination process. The list is of length
-  // 'num_original_vertices_'.
+  // 'num_vertices_'.
   //
   // Each element list is the set of current children of a principal variable.
   //
@@ -249,7 +249,7 @@ class QuotientGraph {
   const MinimumDegreeControl control_;
 
   // The number of vertices in the original graph.
-  Int num_original_vertices_;
+  Int num_vertices_;
 
   // The number of vertices that have been eliminated from the original graph.
   Int num_eliminated_vertices_;
@@ -260,33 +260,22 @@ class QuotientGraph {
   // The representation of the current assembly forest.
   AssemblyForest assembly_;
 
-  // The ordered list of principal members of eliminated supernodes.
-  std::vector<Int> elimination_order_;
-
   // The representation of the element lists and adjacencies of the nodes
   // in the quotient graph.
   Edges edges_;
 
-  // A set of linked lists for keeping track of supervariables of each degree
-  // (and, also, a way to provide fast access to a supervariable with
-  // minimal degree).
-  DegreeLists degree_lists_;
-
-  // An (optional) list of length 'num_original_vertices' of element nonzero
-  // structures. The 'element' index of the list, 'structures[element]', will
-  // be created when supernode 'element' is converted from a variable to an
-  // element.
-  //
-  // The structure list also contains non-principal members.
-  std::vector<std::vector<Int>> structures_;
-
-  // A list of length 'num_original_vertices' of elements (lists of principal
+  // A list of length 'num_vertices' of elements (lists of principal
   // variables in the nonzero pattern). The 'e' index of the list,
   // 'elements[e]', will be created when supernode 'e' is converted from a
   // variable to an element.
   //
   // The structure list also contains non-principal members.
   std::vector<std::vector<Int>> elements_;
+
+  // A set of linked lists for keeping track of supervariables of each degree
+  // (and, also, a way to provide fast access to a supervariable with
+  // minimal degree).
+  DegreeLists degree_lists_;
 
   // A data structure for quickly maintaining node statuses and degrees.
   NodeFlags node_flags_;
@@ -296,6 +285,17 @@ class QuotientGraph {
 
   // The number of aggressive absorptions that have occurred.
   Int num_aggressive_absorptions_;
+
+  // The ordered list of principal members of eliminated supernodes.
+  std::vector<Int> elimination_order_;
+
+  // An (optional) list of length 'num_vertices' of element nonzero
+  // structures. The 'element' index of the list, 'structures[element]', will
+  // be created when supernode 'element' is converted from a variable to an
+  // element.
+  //
+  // The structure list also contains non-principal members.
+  std::vector<std::vector<Int>> structures_;
 
 #ifdef QUOTIENT_ENABLE_TIMERS
   // A map from the stage name to the associated timer.
@@ -310,7 +310,7 @@ class QuotientGraph {
   //
   //   L_p := (A_p \cup (\cup_{e in E_p} L_e)) \ supernode(p).
   //
-  // It is assumed that the mask is of length 'num_orig_vertices' and set to all
+  // It is assumed that the mask is of length 'num_vertices' and set to all
   // zeros on input.
   void ComputePivotStructure();
 
