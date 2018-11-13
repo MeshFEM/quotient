@@ -183,6 +183,33 @@ class QuotientGraph {
     Int shift_cap;
   };
 
+  // A packing of the adjacency and element lists, with the element lists
+  // occurring first in each member, so that memory allocations are not
+  // required during the elimination process. The list is of length
+  // 'num_original_vertices_'.
+  //
+  // Each element list is the set of current children of a principal variable.
+  //
+  // The adjacency portion of each member contains the (unmodified) variable
+  // adjacencies of the principal variable. For example, if index 'i' is a
+  // principal variable, then 'adjacency_lists[i]' contains the set of neighbor
+  // variables for variable i that are not redundant with respect to edges
+  // implied by 'structures'.
+  struct Edges {
+    // The concatentation of the element + adjacency lists of each node.
+    std::vector<Int> lists;
+
+    // The element list of variable 'i' will start at index
+    // `element_list_offsets[i]` of 'lists'.
+    std::vector<Int> element_list_offsets; 
+
+    // The length of the element list of variable i.
+    std::vector<Int> element_list_sizes;
+
+    // The length of the variable list of variable i.
+    std::vector<Int> adjacency_list_sizes;
+  };
+
   // The control structure used to configure the MinimumDegree analysis.
   const MinimumDegreeControl control_;
 
@@ -221,22 +248,9 @@ class QuotientGraph {
   // exists). If element 'e' has no parent, then the value is equal to -1.
   std::vector<Int> assembly_parents_;
 
-  // A packing of the adjacency and element lists, with the element lists
-  // occurring first in each member, so that memory allocations are not
-  // required during the elimination process. The list is of length
-  // 'num_original_vertices_'.
-  //
-  // Each element list is the set of current children of a principal variable.
-  //
-  // The adjacency portion of each member contains the (unmodified) variable
-  // adjacencies of the principal variable. For example, if index 'i' is a
-  // principal variable, then 'adjacency_lists[i]' contains the set of neighbor
-  // variables for variable i that are not redundant with respect to edges
-  // implied by 'structures'.
-  std::vector<Int> element_and_adjacency_lists_;
-  std::vector<Int> element_list_offsets_; 
-  std::vector<Int> element_list_sizes_;
-  std::vector<Int> adjacency_list_sizes_;
+  // The representation of the element lists and adjacencies of the nodes
+  // in the quotient graph.
+  Edges edges_;
 
   // A set of linked lists for keeping track of supervariables of each degree
   // (and, also, a way to provide fast access to a supervariable with
