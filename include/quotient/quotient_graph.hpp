@@ -125,7 +125,10 @@ class QuotientGraph {
   void CombineDenseNodes();
 
  private:
-  // Bookkeeping data for the dense supernode (if it exists).
+  // Bookkeeping data for the dense supernode (if it exists). It is used at the
+  // end of the minimum degree analysis to postprocess the assembly forest so
+  // that, if any dense variables were detected, they are all combined and
+  // injected as the root of the assembly tree.
   struct DenseSupernode {
     // The number of dense rows that were preprocessed out.
     Int size;

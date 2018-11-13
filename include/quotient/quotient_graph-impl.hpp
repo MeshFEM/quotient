@@ -752,7 +752,7 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i) {
     }
     edges_.lists[offset + num_packed++] = element;
 
-    QUOTIENT_ASSERT(assembly_parents_[element] == -1,
+    QUOTIENT_ASSERT(assembly_.parents[element] == -1,
         "Used absorbed element in Gilbert degree update.");
     QUOTIENT_ASSERT(degree_lists_.degrees[element] - supernode_size >= 0,
         "Negative Gilbert degree update.");
