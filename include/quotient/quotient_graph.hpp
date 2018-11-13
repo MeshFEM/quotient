@@ -148,6 +148,41 @@ class QuotientGraph {
     Int num_collisions;
   };
 
+  // A data structure managing an array of length 'num_original_vertices'
+  // which can be used to quickly compute the cardinalities of |L_e \ L_p| for
+  // each element e in an element list of a supervariable in the current pivot
+  // structure, L_p.
+  //
+  // The positive values can be quickly 'unset' by increasing a shift such that,
+  // in the next iteration, a value is unset if it is less than the shift.
+  //
+  // It is also used for temporarily flagging variables as within a set.
+  struct NodeFlags {
+    // A mask of length 'num_orig_vertices' that can be used to quickly compute
+    // the cardinalities of |L_e \ L_p| for each element e in an element list of
+    // a supervariable in the current pivot structure, L_p.
+    //
+    // It is also used for temporarily flagging variables as within a set.
+    std::vector<Int> flags;
+
+    // The maximum degree that has been constructed so far. Since the external
+    // degree updates in each stage will be less than this value, it is used as
+    // the amount to increase external_degree_shift_ by at each iteration.
+    //
+    // TODO(Jack Poulson): This is true for Amestoy and exact degree bounds, but
+    // I have not yet checked if it holds for the Gilbert bound.
+    Int max_degree;
+
+    // The current datum value for the external degrees (stored within
+    // node_flags_). All values should be interpreted relative to the datum
+    // value.
+    Int shift;
+
+    // The maximum allowable value of the datum until an explicit reset is
+    // required.
+    Int shift_cap;
+  };
+
   // The control structure used to configure the MinimumDegree analysis.
   const MinimumDegreeControl control_;
 
@@ -208,11 +243,6 @@ class QuotientGraph {
   // minimal degree).
   DegreeLists degree_lists_;
 
-  // The maximum degree that has been constructed so far. Since the external
-  // degree updates in each stage will be less than this value, it is used as
-  // the amount to increase external_degree_shift_ by at each iteration.
-  Int max_degree_;
-
   // An (optional) list of length 'num_original_vertices' of element nonzero
   // structures. The 'element' index of the list, 'structures[element]', will
   // be created when supernode 'element' is converted from a variable to an
@@ -229,20 +259,8 @@ class QuotientGraph {
   // The structure list also contains non-principal members.
   std::vector<std::vector<Int>> elements_;
 
-  // The current datum value for the external degrees (stored within
-  // node_flags_). All values should be interpreted relative to the datum value.
-  Int external_degree_shift_;
-
-  // The maximum allowable value of the datum until an explicit reset is
-  // required.
-  Int max_shift_value_;
-
-  // A mask of length 'num_orig_vertices' that can be used to quickly compute
-  // the cardinalities of |L_e \ L_p| for each element e in an element list of
-  // a supervariable in the current pivot structure, L_p.
-  //
-  // It is also used for temporarily flagging variables as within a set.
-  std::vector<Int> node_flags_;
+  // A data structure for quickly maintaining node statuses and degrees.
+  NodeFlags node_flags_;
 
   // Data structures related to hashing supervariables.
   HashInfo hash_info_;

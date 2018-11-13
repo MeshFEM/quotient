@@ -54,9 +54,6 @@ inline QuotientGraph::QuotientGraph(
 : control_(control),
   num_original_vertices_(graph.NumSources()),
   num_eliminated_vertices_(0),
-  max_degree_(0),
-  external_degree_shift_(0),
-  max_shift_value_(std::numeric_limits<Int>::max() - graph.NumSources()),
   num_aggressive_absorptions_(0) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
@@ -168,8 +165,11 @@ inline QuotientGraph::QuotientGraph(
 
   // The absorbed elements will be maintained as 0, the unabsorbed will be
   // initialized as 1, and the shift will be initialized as 2.
-  external_degree_shift_ = 2;
-  node_flags_.resize(num_original_vertices_, 1);
+  node_flags_.shift = 2;
+  node_flags_.flags.resize(num_original_vertices_, 1);
+  node_flags_.max_degree = 0;
+  node_flags_.shift_cap =
+      std::numeric_limits<Int>::max() - num_original_vertices_;
 
   QUOTIENT_STOP_TIMER(timers_, kSetup);
 }
@@ -386,13 +386,13 @@ inline void QuotientGraph::ComputePivotStructure() {
 
     // Absorb this element into the pivot.
     assembly_parents_[element] = pivot_;
-    node_flags_[element] = 0;
+    node_flags_.flags[element] = 0;
     SwapClearVector(&elements_[element]);
     element_list_sizes_[element] = 0;
   }
 
   degree_lists_.degrees[pivot_] = pivot_degree;
-  max_degree_ = std::max(max_degree_, pivot_degree);
+  node_flags_.max_degree = std::max(node_flags_.max_degree, pivot_degree);
 
   if (control_.store_structures) {
     // We fill in the non-dense portion of the structure now and the dense
@@ -557,12 +557,12 @@ QuotientGraph::ExactSingleDegreeAndHash(Int i) {
   degree += degree_lists_.degrees[pivot_] - supernode_size;
   QUOTIENT_HASH_COMBINE(hash, pivot_);
 
-  Int& shifted_external_degree = node_flags_[element];
+  Int& shifted_external_degree = node_flags_.flags[element];
   if (!shifted_external_degree) {
     --num_elements;
   } else {
     // Add |L_e \ L_p|.
-    degree += shifted_external_degree - external_degree_shift_;
+    degree += shifted_external_degree - node_flags_.shift;
     QUOTIENT_HASH_COMBINE(hash, element);
   }
 
@@ -580,14 +580,14 @@ QuotientGraph::ExactGenericDegreeAndHash(Int i) {
   Int num_elements = element_list_sizes_[i];
   Int degree = 0;
   UInt hash = 0;
-  const Int shift = external_degree_shift_;
+  const Int shift = node_flags_.shift;
 
   // Add on the number of unique entries in the structures of the element lists
   // that are outside supernode(i).
   Int num_packed = 0;
   for (Int k = 0; k < num_elements; ++k) {
     const Int element = element_and_adjacency_lists_[offset + k];
-    if (!node_flags_[element]) {
+    if (!node_flags_.flags[element]) {
       continue;
     }
 
@@ -598,11 +598,11 @@ QuotientGraph::ExactGenericDegreeAndHash(Int i) {
       // Unabsorbed elements should not have any eliminated members of
       // in their element. Thus, we can take the absolute value of the signed
       // supernode size (since some members might be in the pivot structure).
-      if (node_flags_[j] == shift || i == j) {
+      if (node_flags_.flags[j] == shift || i == j) {
         continue;
       }
       degree += std::abs(signed_supernode_sizes_[j]);
-      node_flags_[j] = shift;
+      node_flags_.flags[j] = shift;
     }
   }
   num_elements = num_packed;
@@ -613,25 +613,25 @@ QuotientGraph::ExactGenericDegreeAndHash(Int i) {
     // Unabsorbed elements should not have any eliminated members of
     // in their element. Thus, we can take the absolute value of the signed
     // supernode size (since some members might be in the pivot structure).
-    if (node_flags_[j] == shift || i == j) {
+    if (node_flags_.flags[j] == shift || i == j) {
       continue;
     }
     degree += std::abs(signed_supernode_sizes_[j]);
-    node_flags_[j] = shift;
+    node_flags_.flags[j] = shift;
   }
 
   // Clear the mask.
   for (Int k = 0; k < num_elements; ++k) {
     const Int element = element_and_adjacency_lists_[offset + k];
-    if (!node_flags_[element]) {
+    if (!node_flags_.flags[element]) {
       continue;
     }
     for (const Int& j : elements_[element]) {
-      node_flags_[j] = shift - 1;
+      node_flags_.flags[j] = shift - 1;
     }
   }
   for (const Int& j : elements_[pivot_]) {
-    node_flags_[j] = shift - 1;
+    node_flags_.flags[j] = shift - 1;
   }
 
   // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
@@ -659,7 +659,7 @@ inline void QuotientGraph::ExactDegreesAndHashes() {
 }
 
 inline void QuotientGraph::AmestoyDegreesAndHashes() {
-  const Int shift = external_degree_shift_;
+  const Int shift = node_flags_.shift;
   const Int pivot_degree = degree_lists_.degrees[pivot_];
   const Int num_vertices_left =
       num_original_vertices_ - num_eliminated_vertices_;
@@ -690,12 +690,12 @@ inline void QuotientGraph::AmestoyDegreesAndHashes() {
     for (Int k = offset; k < offset + num_elements; ++k) {
       const Int element = element_and_adjacency_lists_[k];
       QUOTIENT_ASSERT(element != pivot_, "Iterated over pivot element.");
-      if (node_flags_[element]){
-        QUOTIENT_ASSERT(node_flags_[element],
+      if (node_flags_.flags[element]){
+        QUOTIENT_ASSERT(node_flags_.flags[element],
             "Ran into an absorbed element in the external degree calculation.");
         element_and_adjacency_lists_[offset + num_packed++] = element;
 
-        const Int external_degree = node_flags_[element] - shift;
+        const Int external_degree = node_flags_.flags[element] - shift;
         QUOTIENT_ASSERT(external_degree >= 0, "Created a negative update.");
         degree += external_degree;
         QUOTIENT_HASH_COMBINE(hash, element);
@@ -742,7 +742,7 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i) {
   Int num_elements = element_list_sizes_[i];
   for (Int k = 0; k < num_elements; ++k) {
     const Int element = element_and_adjacency_lists_[offset + k];
-    if (!node_flags_[element]) {
+    if (!node_flags_.flags[element]) {
       continue;
     }
     element_and_adjacency_lists_[offset + num_packed++] = element;
@@ -786,7 +786,7 @@ inline void QuotientGraph::GilbertDegreesAndHashes() {
     const Int offset = element_list_offsets_[i];
     for (Int k = 0; k < num_elements; ++k) {
       const Int element = element_and_adjacency_lists_[offset + k];
-      if (!node_flags_[element]) {
+      if (!node_flags_.flags[element]) {
         continue;
       }
       element_and_adjacency_lists_[offset + num_packed++] = element;
@@ -901,12 +901,12 @@ inline bool QuotientGraph::StructuralVariablesAreQuotientIndistinguishable(
 
   // Check if A_i = A_j by ensuring that all members of A_j are in A_i (by
   // checking that the indices are currently flagged).
-  const Int shift = external_degree_shift_;
+  const Int shift = node_flags_.shift;
   const Int adjacency_list_j_beg = offset_j + num_elements_j;
   const Int adjacency_list_j_end = adjacency_list_j_beg + num_adjacencies_j;
   for (Int k = adjacency_list_j_beg; k < adjacency_list_j_end; ++k) {
     const Int index = element_and_adjacency_lists_[k];
-    if (node_flags_[index] != shift) {
+    if (node_flags_.flags[index] != shift) {
       return false;
     }
   }
@@ -918,7 +918,7 @@ inline void QuotientGraph::MergeVariables() {
   QUOTIENT_START_TIMER(timers_, kMergeVariables);
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int supernodal_struct_size = pivot_element.size();
-  const Int shift = external_degree_shift_;
+  const Int shift = node_flags_.shift;
 
   // Add the hashes into the hash lists.
   for (Int i_index = 0; i_index < supernodal_struct_size; ++i_index) {
@@ -965,8 +965,9 @@ inline void QuotientGraph::MergeVariables() {
         }
         if (!scattered_adjacencies) {
           // Temporarily flag the adjacencies of supervariable i by setting
-          // 'node_flags_' to the current shift value in said indices. This
-          // is representative because only elements should hold this value.
+          // 'node_flags_.flags' to the current shift value in said indices.
+          // This is representative because only elements should hold this
+          // value.
           //
           // It's worth noting that the adjacency lists are not guaranteed to
           // be in the same order (the reason for the scattering) because of the
@@ -980,7 +981,7 @@ inline void QuotientGraph::MergeVariables() {
           // same order.
           for (Int k = adjacency_list_i_beg; k < adjacency_list_i_end; ++k) {
             const Int index = element_and_adjacency_lists_[k];
-            node_flags_[index] = shift;
+            node_flags_.flags[index] = shift;
           }
           scattered_adjacencies = true;
         }
@@ -1015,7 +1016,7 @@ inline void QuotientGraph::MergeVariables() {
         // Reset the flagged adjacencies to the shift minus one.
         for (Int k = adjacency_list_i_beg; k < adjacency_list_i_end; ++k) {
           const Int index = element_and_adjacency_lists_[k];
-          node_flags_[index] = shift - 1;
+          node_flags_.flags[index] = shift - 1;
         }
       }
     }
@@ -1184,7 +1185,7 @@ inline const std::vector<Int>& QuotientGraph::AssemblyParents() const {
 
 inline void QuotientGraph::ExternalDegrees() {
   QUOTIENT_START_TIMER(timers_, kExternalDegrees);
-  const Int shift = external_degree_shift_;
+  const Int shift = node_flags_.shift;
   const bool aggressive_absorption = control_.aggressive_absorption;
 
   for (const Int& i : elements_[pivot_]) {
@@ -1198,7 +1199,7 @@ inline void QuotientGraph::ExternalDegrees() {
     const Int num_elements = element_list_sizes_[i];
     for (Int k = offset; k < offset + num_elements; ++k) {
       const Int element = element_and_adjacency_lists_[k];
-      Int& shifted_external_degree = node_flags_[element];
+      Int& shifted_external_degree = node_flags_.flags[element];
 
       if (shifted_external_degree >= shift) {
         QUOTIENT_ASSERT(assembly_parents_[element] == -1,
@@ -1229,8 +1230,8 @@ inline void QuotientGraph::ExternalDegrees() {
 }
 
 inline void QuotientGraph::ResetExternalDegrees() {
-  if (external_degree_shift_ + max_degree_ < max_shift_value_) {
-    external_degree_shift_ += max_degree_ + 1;
+  if (node_flags_.shift + node_flags_.max_degree < node_flags_.shift_cap) {
+    node_flags_.shift += node_flags_.max_degree + 1;
     return; 
   }
 
@@ -1240,10 +1241,10 @@ inline void QuotientGraph::ResetExternalDegrees() {
 #ifdef QUOTIENT_DEBUG
   std::cerr << "Resetting external degrees." << std::endl;
 #endif
-  external_degree_shift_ = 2;
-  for (UInt i = 0; i < node_flags_.size(); ++i) {
-    if (node_flags_[i]) {
-      node_flags_[i] = 1;
+  node_flags_.shift = 2;
+  for (UInt i = 0; i < node_flags_.flags.size(); ++i) {
+    if (node_flags_.flags[i]) {
+      node_flags_.flags[i] = 1;
     }
   }
 }
