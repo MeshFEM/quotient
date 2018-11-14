@@ -42,6 +42,9 @@ namespace quotient {
 //
 // There appears to be a plethora of publicly available preprints.
 //
+// It is also worth emphasizing that this implementation is similar in many
+// respects to that of SuiteSparse's AMD.
+//
 class QuotientGraph {
  public:
   // Trivial constructor.

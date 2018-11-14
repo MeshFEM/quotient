@@ -82,6 +82,8 @@ matrix_market_minimum_degree_exe = executable(
     include_directories : include_dir,
     dependencies : deps)
 
+quotient_dep = declare_dependency(include_directories : include_dir)
+
 install_headers('include/quotient.hpp')
 install_headers([
     'include/quotient/config.hpp',
