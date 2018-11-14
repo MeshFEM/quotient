@@ -94,21 +94,5 @@ matrix_market_minimum_degree_exe = executable(
 # For using quotient as a subproject.
 quotient_dep = declare_dependency(include_directories : include_dir)
 
-install_headers('include/quotient.hpp')
-install_headers([
-    'include/quotient/config.hpp',
-    'include/quotient/coordinate_graph.hpp',
-    'include/quotient/coordinate_graph-impl.hpp',
-    'include/quotient/degree_lists.hpp',
-    'include/quotient/degree_lists-impl.hpp',
-    'include/quotient/hash_lists.hpp',
-    'include/quotient/hash_lists-impl.hpp',
-    'include/quotient/macros.hpp',
-    'include/quotient/minimum_degree_control.hpp',
-    'include/quotient/minimum_degree.hpp',
-    'include/quotient/minimum_degree-impl.hpp',
-    'include/quotient/quotient_graph.hpp',
-    'include/quotient/quotient_graph-impl.hpp',
-    'include/quotient/timer.hpp',
-    'include/quotient/timer-impl.hpp',
-    ], subdir : 'quotient')
+# Install include/quotient.hpp and include/quotient/
+install_subdir('include', install_dir : '.')
