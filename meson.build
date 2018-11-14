@@ -16,6 +16,7 @@ include_dir = include_directories('include')
 cxx = meson.get_compiler('cpp')
 
 deps = []
+cxx_args = []
 
 # Test if specify is installed.
 found_specify = cxx.has_header('specify.hpp')
@@ -28,25 +29,25 @@ endif
 # For controlling whether 32-bit or 64-bit integers are used. By default,
 # 64-bit integers are used.
 if get_option('use-64bit')
-  add_global_arguments('-DQUOTIENT_USE_64BIT', language : 'cpp')
+  cxx_args += '-DQUOTIENT_USE_64BIT'
 endif
 
 # For controlling the tradeoff between quality and speed for the supervariable
 # hash function. It seems to typically be preferable to prefer the cheapest-
 # possible hash.
 if get_option('strong-hashes')
-  add_global_arguments('-DQUOTIENT_STRONG_HASHES', language : 'cpp')
+  cxx_args += '-DQUOTIENT_STRONG_HASHES'
 endif
 
 # For controlling whether QuotientGraph includes timers for the various stages
 # of minimum-degree analysis.
 if get_option('enable-timers')
-  add_global_arguments('-DQUOTIENT_ENABLE_TIMERS', language : 'cpp')
+  cxx_args += '-DQUOTIENT_ENABLE_TIMERS'
 endif
 
 # For controlling whether (expensive) debugging checks are performed.
 if get_option('enable-debug')
-  add_global_arguments('-DQUOTIENT_DEBUG', language : 'cpp')
+  cxx_args += '-DQUOTIENT_DEBUG'
 endif
 
 # For controlling whether (still not implemented) OpenMP support is enabled.
@@ -65,7 +66,8 @@ coordinate_graph_test_exe = executable(
     'coordinate_graph_test',
     ['test/coordinate_graph_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : deps)
+    dependencies : deps,
+    cpp_args : cxx_args)
 test('CoordinateGraph tests', coordinate_graph_test_exe)
 
 # Unit tests for the QuotientGraph class.
@@ -73,7 +75,8 @@ quotient_graph_test_exe = executable(
     'quotient_graph_test',
     ['test/quotient_graph_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : deps)
+    dependencies : deps,
+    cpp_args : cxx_args)
 test('QuotientGraph tests', quotient_graph_test_exe)
 
 # Unit tests for the MinimumDegree function.
@@ -81,7 +84,8 @@ minimum_degree_test_exe = executable(
     'minimum_degree_test',
     ['test/minimum_degree_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : deps)
+    dependencies : deps,
+    cpp_args : cxx_args)
 test('MinimumDegree tests', minimum_degree_test_exe)
 
 # A utility for running the MinimumDegree analysis on a Matrix Market graph.
@@ -89,7 +93,8 @@ matrix_market_minimum_degree_exe = executable(
     'matrix_market_minimum_degree',
     ['example/matrix_market_minimum_degree.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : deps)
+    dependencies : deps,
+    cpp_args : cxx_args)
 
 # For using quotient as a subproject.
 quotient_dep = declare_dependency(include_directories : include_dir)
