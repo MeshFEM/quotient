@@ -174,11 +174,12 @@ inline QuotientGraph::QuotientGraph(
   QUOTIENT_STOP_TIMER(timers_, kSetup);
 }
 
-inline const std::vector<Int>& QuotientGraph::EliminationOrder() const {
+inline const std::vector<Int>& QuotientGraph::EliminationOrder() const
+    QUOTIENT_NOEXCEPT {
   return elimination_order_;
 }
 
-inline Int QuotientGraph::FindAndProcessPivot() {
+inline Int QuotientGraph::FindAndProcessPivot() QUOTIENT_NOEXCEPT {
   // Get the next pivot.
   GetNextPivot();
 
@@ -203,32 +204,32 @@ inline Int QuotientGraph::FindAndProcessPivot() {
   return pivot_;
 }
 
-inline Int QuotientGraph::GetNextPivot() {
+inline Int QuotientGraph::GetNextPivot() QUOTIENT_NOEXCEPT {
   pivot_ = degree_lists_.FindMinimalIndex(control_.force_minimal_pivot_indices);
   return pivot_;
 }
 
-inline Int QuotientGraph::NumAggressiveAbsorptions() const {
+inline Int QuotientGraph::NumAggressiveAbsorptions() const QUOTIENT_NOEXCEPT {
   return num_aggressive_absorptions_;
 }
 
-inline Int QuotientGraph::NumDense() const {
+inline Int QuotientGraph::NumDense() const QUOTIENT_NOEXCEPT {
   return assembly_.dense_supernode.size;
 }
 
-inline Int QuotientGraph::NumVertices() const {
+inline Int QuotientGraph::NumVertices() const QUOTIENT_NOEXCEPT {
   return num_vertices_;
 }
 
-inline Int QuotientGraph::NumEliminatedVertices() const {
+inline Int QuotientGraph::NumEliminatedVertices() const QUOTIENT_NOEXCEPT {
   return num_eliminated_vertices_;
 }
 
-inline Int QuotientGraph::NumHashBucketCollisions() const {
+inline Int QuotientGraph::NumHashBucketCollisions() const QUOTIENT_NOEXCEPT {
   return hash_info_.num_bucket_collisions;
 }
 
-inline Int QuotientGraph::NumHashCollisions() const {
+inline Int QuotientGraph::NumHashCollisions() const QUOTIENT_NOEXCEPT {
   return hash_info_.num_collisions;
 }
 
@@ -262,14 +263,15 @@ inline void QuotientGraph::Print() const {
   }
 }
 
-inline std::vector<Int> QuotientGraph::FormSupernode(Int i) const {
+inline std::vector<Int> QuotientGraph::FormSupernode(Int i) const
+    QUOTIENT_NOEXCEPT {
   const Int supernode_size = SupernodeSize(i);
   std::vector<Int> supernode;
   AppendSupernode(i, supernode_size, &supernode);
   return supernode;
 }
 
-inline Int QuotientGraph::SupernodeSize(Int i) const {
+inline Int QuotientGraph::SupernodeSize(Int i) const QUOTIENT_NOEXCEPT {
   if (assembly_.signed_supernode_sizes[i]) {
     // This is a traditional supernode (but it might be eliminated).
     return std::abs(assembly_.signed_supernode_sizes[i]);
@@ -282,11 +284,13 @@ inline Int QuotientGraph::SupernodeSize(Int i) const {
   }
 }
 
-inline const std::vector<Int>& QuotientGraph::Element(Int i) const {
+inline const std::vector<Int>& QuotientGraph::Element(Int i) const
+    QUOTIENT_NOEXCEPT{
   return elements_[i];
 }
 
-inline std::vector<Int> QuotientGraph::ElementList(Int i) const {
+inline std::vector<Int> QuotientGraph::ElementList(Int i) const
+    QUOTIENT_NOEXCEPT {
   const Int num_elements = edges_.element_list_sizes[i];
   const Int element_list_beg = edges_.element_list_offsets[i];
   const Int element_list_end = element_list_beg + num_elements;
@@ -301,7 +305,8 @@ inline std::vector<Int> QuotientGraph::ElementList(Int i) const {
 }
 
 inline void QuotientGraph::FormEliminatedStructures(
-    std::vector<std::vector<Int>>* eliminated_structures) const {
+    std::vector<std::vector<Int>>* eliminated_structures) const
+    QUOTIENT_NOEXCEPT {
   eliminated_structures->resize(elimination_order_.size());
   for (UInt index = 0; index < elimination_order_.size(); ++index) {
     std::vector<Int>& eliminated_structure = (*eliminated_structures)[index];
@@ -309,7 +314,7 @@ inline void QuotientGraph::FormEliminatedStructures(
   }
 }
 
-inline void QuotientGraph::ComputePivotStructure() {
+inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kComputePivotStructure);
   QUOTIENT_ASSERT(elements_[pivot_].empty(), "Chose a pivot more than once.");
   const Int element_list_beg = edges_.element_list_offsets[pivot_];
@@ -419,15 +424,16 @@ inline void QuotientGraph::ComputePivotStructure() {
   QUOTIENT_STOP_TIMER(timers_, kComputePivotStructure);
 }
 
-inline Int QuotientGraph::NumPivotElements() const {
+inline Int QuotientGraph::NumPivotElements() const QUOTIENT_NOEXCEPT {
   return edges_.element_list_sizes[pivot_];
 }
 
-inline Int QuotientGraph::NumPivotDegreeUpdates() const {
+inline Int QuotientGraph::NumPivotDegreeUpdates() const QUOTIENT_NOEXCEPT {
   return elements_[pivot_].size();
 }
 
-inline Int QuotientGraph::NumPivotDegreeUpdatesWithMultipleElements() const {
+inline Int QuotientGraph::NumPivotDegreeUpdatesWithMultipleElements() const
+    QUOTIENT_NOEXCEPT{
   Int num_multi_updates = 0;
   for (const Int& i : elements_[pivot_]) {
     if (edges_.element_list_sizes[i] > 2) {
@@ -437,7 +443,7 @@ inline Int QuotientGraph::NumPivotDegreeUpdatesWithMultipleElements() const {
   return num_multi_updates;
 }
 
-inline Int QuotientGraph::NumPivotCholeskyNonzeros() const {
+inline Int QuotientGraph::NumPivotCholeskyNonzeros() const QUOTIENT_NOEXCEPT {
   const Int pivot_size = std::abs(assembly_.signed_supernode_sizes[pivot_]);
   const Int structure_size =
       degree_lists_.degrees[pivot_] + assembly_.dense_supernode.size;
@@ -446,7 +452,7 @@ inline Int QuotientGraph::NumPivotCholeskyNonzeros() const {
   return diag_block_nonzeros + subdiagonal_nonzeros;
 }
 
-inline double QuotientGraph::NumPivotCholeskyFlops() const {
+inline double QuotientGraph::NumPivotCholeskyFlops() const QUOTIENT_NOEXCEPT {
   const Int pivot_size = std::abs(assembly_.signed_supernode_sizes[pivot_]);
   const Int structure_size =
       degree_lists_.degrees[pivot_] + assembly_.dense_supernode.size;
@@ -457,7 +463,7 @@ inline double QuotientGraph::NumPivotCholeskyFlops() const {
 }
 
 inline void QuotientGraph::PackCountAndHashAdjacencies(
-    Int i, Int num_elements, Int* degree, UInt* hash) {
+    Int i, Int num_elements, Int* degree, UInt* hash) QUOTIENT_NOEXCEPT {
   Int degree_new = *degree;
   UInt hash_new = *hash;
 
@@ -490,7 +496,7 @@ inline void QuotientGraph::PackCountAndHashAdjacencies(
   *hash = hash_new;
 }
 
-inline void QuotientGraph::InsertPivotElement(Int i) {
+inline void QuotientGraph::InsertPivotElement(Int i) QUOTIENT_NOEXCEPT {
   Int& num_elements = edges_.element_list_sizes[i];
   const Int element_list_beg = edges_.element_list_offsets[i];
   const Int element_list_end = element_list_beg + num_elements;
@@ -517,7 +523,7 @@ inline void QuotientGraph::InsertPivotElement(Int i) {
 }
 
 inline std::pair<Int, UInt>
-QuotientGraph::ExactEmptyDegreeAndHash(Int i) {
+QuotientGraph::ExactEmptyDegreeAndHash(Int i) QUOTIENT_NOEXCEPT {
   const Int num_elements = edges_.element_list_sizes[i];
   Int degree = 0;
   UInt hash = 0;
@@ -542,7 +548,7 @@ QuotientGraph::ExactEmptyDegreeAndHash(Int i) {
 }
 
 inline std::pair<Int, UInt>
-QuotientGraph::ExactSingleDegreeAndHash(Int i) {
+QuotientGraph::ExactSingleDegreeAndHash(Int i) QUOTIENT_NOEXCEPT {
   const Int offset = edges_.element_list_offsets[i];
   Int num_elements = edges_.element_list_sizes[i];
   Int degree = 0;
@@ -581,7 +587,7 @@ QuotientGraph::ExactSingleDegreeAndHash(Int i) {
 }
 
 inline std::pair<Int, UInt>
-QuotientGraph::ExactGenericDegreeAndHash(Int i) {
+QuotientGraph::ExactGenericDegreeAndHash(Int i) QUOTIENT_NOEXCEPT {
   const Int offset = edges_.element_list_offsets[i];
   Int num_elements = edges_.element_list_sizes[i];
   Int degree = 0;
@@ -648,7 +654,7 @@ QuotientGraph::ExactGenericDegreeAndHash(Int i) {
   return std::make_pair(degree, hash);
 }
 
-inline void QuotientGraph::ExactDegreesAndHashes() {
+inline void QuotientGraph::ExactDegreesAndHashes() QUOTIENT_NOEXCEPT {
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int pivot_element_size = pivot_element.size();
 
@@ -670,7 +676,7 @@ inline void QuotientGraph::ExactDegreesAndHashes() {
   }
 }
 
-inline void QuotientGraph::AmestoyDegreesAndHashes() {
+inline void QuotientGraph::AmestoyDegreesAndHashes() QUOTIENT_NOEXCEPT {
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int shift = node_flags_.shift;
   const Int pivot_degree = degree_lists_.degrees[pivot_];
@@ -731,7 +737,7 @@ inline void QuotientGraph::AmestoyDegreesAndHashes() {
   }
 }
 
-inline void QuotientGraph::AshcraftDegreesAndHashes() {
+inline void QuotientGraph::AshcraftDegreesAndHashes() QUOTIENT_NOEXCEPT {
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int pivot_element_size = pivot_element.size();
 
@@ -751,7 +757,8 @@ inline void QuotientGraph::AshcraftDegreesAndHashes() {
   }
 }
 
-inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i) {
+inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i)
+    QUOTIENT_NOEXCEPT {
   Int degree = 0;
   UInt hash = 0;
 
@@ -790,7 +797,7 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i) {
   return std::make_pair(degree, hash);
 }
 
-inline void QuotientGraph::GilbertDegreesAndHashes() {
+inline void QuotientGraph::GilbertDegreesAndHashes() QUOTIENT_NOEXCEPT {
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
   const Int pivot_degree = degree_lists_.degrees[pivot_];
@@ -838,7 +845,7 @@ inline void QuotientGraph::GilbertDegreesAndHashes() {
   }
 }
 
-inline void QuotientGraph::ComputeDegreesAndHashes() {
+inline void QuotientGraph::ComputeDegreesAndHashes() QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kComputeDegrees);
 
   // Remove the old values from the linked lists.
@@ -875,7 +882,7 @@ inline void QuotientGraph::ComputeDegreesAndHashes() {
 }
 
 inline bool QuotientGraph::StructuralVariablesAreQuotientIndistinguishable(
-    Int i, Int j) const {
+    Int i, Int j) const QUOTIENT_NOEXCEPT {
   QUOTIENT_ASSERT(i != j,
       "Explicitly tested for equivalence of a supernode with itself...");
   const Int offset_i = edges_.element_list_offsets[i];
@@ -936,7 +943,7 @@ inline bool QuotientGraph::StructuralVariablesAreQuotientIndistinguishable(
   return true;
 }
 
-inline void QuotientGraph::MergeVariables() {
+inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kMergeVariables);
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int supernodal_struct_size = pivot_element.size();
@@ -1066,7 +1073,7 @@ inline void QuotientGraph::MergeVariables() {
   QUOTIENT_STOP_TIMER(timers_, kMergeVariables);
 }
 
-inline void QuotientGraph::FinalizePivot() {
+inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kFinalizePivot);
   ResetExternalDegrees();
 
@@ -1106,7 +1113,7 @@ inline void QuotientGraph::FinalizePivot() {
 }
 
 inline void QuotientGraph::AppendSupernode(
-    Int i, Int supernode_size, std::vector<Int>* vec) const {
+    Int i, Int supernode_size, std::vector<Int>* vec) const QUOTIENT_NOEXCEPT {
   if (!supernode_size) {
     return;
   }
@@ -1125,7 +1132,8 @@ inline void QuotientGraph::AppendSupernode(
   }
 }
 
-inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const {
+inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
+    QUOTIENT_NOEXCEPT {
   // Reconstruct the child links from the parent links in a contiguous array
   // (similar to the CSR format) by first counting the number of children of
   // each node.
@@ -1187,7 +1195,7 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
     Int root,
     const std::vector<Int>& children,
     const std::vector<Int>& child_offsets,
-    std::vector<Int>::iterator iter) const {
+    std::vector<Int>::iterator iter) const QUOTIENT_NOEXCEPT {
   std::vector<Int> stack;
   stack.reserve(num_vertices_);
 
@@ -1220,11 +1228,12 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
   return iter;
 }
 
-inline const std::vector<Int>& QuotientGraph::AssemblyParents() const {
+inline const std::vector<Int>& QuotientGraph::AssemblyParents() const
+    QUOTIENT_NOEXCEPT {
   return assembly_.parent_or_tail;
 }
 
-inline void QuotientGraph::ExternalDegrees() {
+inline void QuotientGraph::ExternalDegrees() QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kExternalDegrees);
   const Int shift = node_flags_.shift;
   const bool aggressive_absorption = control_.aggressive_absorption;
@@ -1270,7 +1279,7 @@ inline void QuotientGraph::ExternalDegrees() {
   QUOTIENT_STOP_TIMER(timers_, kExternalDegrees);
 }
 
-inline void QuotientGraph::ResetExternalDegrees() {
+inline void QuotientGraph::ResetExternalDegrees() QUOTIENT_NOEXCEPT {
   if (node_flags_.shift + node_flags_.max_degree < node_flags_.shift_cap) {
     node_flags_.shift += node_flags_.max_degree + 1;
     return;
@@ -1290,7 +1299,7 @@ inline void QuotientGraph::ResetExternalDegrees() {
   }
 }
 
-inline void QuotientGraph::CombineDenseNodes() {
+inline void QuotientGraph::CombineDenseNodes() QUOTIENT_NOEXCEPT {
   if (!assembly_.dense_supernode.size) {
     return;
   }
@@ -1339,7 +1348,7 @@ inline void QuotientGraph::CombineDenseNodes() {
 }
 
 inline std::vector<std::pair<std::string, double>>
-QuotientGraph::ComponentSeconds() const {
+QuotientGraph::ComponentSeconds() const QUOTIENT_NOEXCEPT {
   std::vector<std::pair<std::string, double>> times;
 #ifdef QUOTIENT_ENABLE_TIMERS
   for (const std::pair<std::string, Timer>& pairing : timers_) {

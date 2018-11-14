@@ -20,6 +20,13 @@
 # define OMP_PRAGMA(x)
 #endif
 
+#ifdef QUOTIENT_DEBUG
+# define QUOTIENT_NOEXCEPT
+#else
+// For now, we disable 'noexcept', even in release mode.
+# define QUOTIENT_NOEXCEPT
+#endif
+
 namespace quotient {
 
 // The datatype for signed indices.

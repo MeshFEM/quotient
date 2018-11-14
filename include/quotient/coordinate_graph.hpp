@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "quotient/config.hpp"
+#include "quotient/matrix_market.hpp"
 
 namespace quotient {
 
@@ -30,57 +31,10 @@ enum EntryMask {
   kEntryMaskUpperTriangle,
 };
 
-// The character that Matrix Market comment lines begin with.
-static constexpr char kMatrixMarketCommentChar = '%';
-
-// The Matrix Market 'complex' field string.
-static constexpr char kMatrixMarketFieldComplexString[] = "complex";
-
-// The Matrix Market 'double' field string.
-static constexpr char kMatrixMarketFieldDoubleString[] = "real";
-
-// The Matrix Market 'integer' field string.
-static constexpr char kMatrixMarketFieldIntegerString[] = "integer";
-
-// The Matrix Market 'pattern' field string.
-static constexpr char kMatrixMarketFieldPatternString[] = "pattern";
-
-// The Matrix Market 'real' field string.
-static constexpr char kMatrixMarketFieldRealString[] = "real";
-
-// The Matrix Market 'array' format string.
-static constexpr char kMatrixMarketFormatArrayString[]= "array";
-
-// The Matrix Market 'coordinate' format string.
-static constexpr char kMatrixMarketFormatCoordinateString[] = "coordinate";
-
-// The Matrix Market 'matrix' object string.
-static constexpr char kMatrixMarketObjectMatrixString[] = "matrix";
-
-// The Matrix Market 'vector' object string.
-static constexpr char kMatrixMarketObjectVectorString[] = "vector";
-
-// The Matrix Market 'hermitian' symmetry string.
-static constexpr char kMatrixMarketSymmetryHermitianString[] = "hermitian";
-
-// The Matrix Market 'general' symmetry string.
-static constexpr char kMatrixMarketSymmetryGeneralString[] = "general";
-
-// The Matrix Market 'skew-symmetric' symmetry string.
-static constexpr char kMatrixMarketSymmetrySkewSymmetricString[] =
-    "skew-symmetric";
-
-// The Matrix Market 'symmetric' symmetry string.
-static constexpr char kMatrixMarketSymmetrySymmetricString[] = "symmetric";
-
-// The Matrix Market stamp string.
-static constexpr char kMatrixMarketStampString[] = "%%MatrixMarket";
-
 
 // A helper routine for freeing the memory of an std::vector.
 template<typename T>
 void SwapClearVector(std::vector<T>* vec);
-
 
 // Removes all duplicate entries from a sorted vector.
 template<typename T>
@@ -152,13 +106,13 @@ class CoordinateGraph {
   ~CoordinateGraph();
 
   // Returns the ground set size of the source vertices.
-  Int NumSources() const noexcept;
+  Int NumSources() const QUOTIENT_NOEXCEPT;
 
   // Returns the ground set size of the target vertices.
-  Int NumTargets() const noexcept;
+  Int NumTargets() const QUOTIENT_NOEXCEPT;
 
   // Returns the number of edges in the graph.
-  Int NumEdges() const noexcept;
+  Int NumEdges() const QUOTIENT_NOEXCEPT;
 
   // Removes all edges and changes the source and target vertex ground set
   // sizes to zero.
@@ -191,7 +145,7 @@ class CoordinateGraph {
   void FlushEdgeQueues();
 
   // Returns true if there are no edges queued for addition or removal.
-  bool EdgeQueuesAreEmpty() const noexcept;
+  bool EdgeQueuesAreEmpty() const QUOTIENT_NOEXCEPT;
 
   // Adds the edge (source, target) into the graph.
   //
@@ -208,100 +162,26 @@ class CoordinateGraph {
   void RemoveEdge(Int source, Int target);
 
   // Returns a reference to the edge with the given index.
-  const GraphEdge& Edge(Int edge_index) const noexcept;
+  const GraphEdge& Edge(Int edge_index) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the underlying vector of edges.
-  const std::vector<GraphEdge>& Edges() const noexcept;
+  const std::vector<GraphEdge>& Edges() const QUOTIENT_NOEXCEPT;
 
   // Returns the offset into the edge vector where edges from the given source
   // begin.
-  Int SourceEdgeOffset(Int source) const noexcept;
+  Int SourceEdgeOffset(Int source) const QUOTIENT_NOEXCEPT;
 
   // Returns the offset into the edge vector where the (source, target) edge
   // would be inserted.
-  Int EdgeOffset(Int source, Int target) const noexcept;
+  Int EdgeOffset(Int source, Int target) const QUOTIENT_NOEXCEPT;
 
   // Returns true if the (source, target) edge exists.
-  bool EdgeExists(Int source, Int target) const noexcept;
+  bool EdgeExists(Int source, Int target) const QUOTIENT_NOEXCEPT;
 
   // Returns the number of targets that the given source is connected to.
-  Int NumConnections(Int source) const noexcept;
+  Int NumConnections(Int source) const QUOTIENT_NOEXCEPT;
 
  private:
-
-  // A representation of the 'Object' options of a Matrix Market file.
-  enum MatrixMarketObject {
-    // The object represents a matrix and so both row and column indices should
-    // be provided.
-    kMatrixMarketObjectMatrix,
-
-    // The object represents a vector and so only row indices should be
-    // provided.
-    kMatrixMarketObjectVector,
-  };
-
-  // A representation of the 'Format' options of a Matrix Market file.
-  enum MatrixMarketFormat {
-    // The matrix is treated as dense and individual indices will not be
-    // provided.
-    kMatrixMarketFormatArray,
-
-    // The matrix is treated as sparse and individual indices will be
-    // provided.
-    kMatrixMarketFormatCoordinate,
-  };
-
-  // A representation of the 'Field' options of a Matrix Market file.
-  enum MatrixMarketField {
-    // The matrix contains real, double-precision entries.
-    kMatrixMarketFieldReal,
-
-    // The matrix contains complex, double-precision entries.
-    kMatrixMarketFieldComplex,
-
-    // The matrix contains integer entries.
-    kMatrixMarketFieldInteger,
-
-    // The matrix does not have explicitly specified numerical values.
-    kMatrixMarketFieldPattern,
-  };
-
-  // A representation of the 'Symmetry' options of a Matrix Market file.
-  enum MatrixMarketSymmetry {
-    // No symmetry is assumed.
-    kMatrixMarketSymmetryGeneral,
-
-    // The matrix is assumed symmetric.
-    kMatrixMarketSymmetrySymmetric,
-
-    // The matrix is assumed skew-symmetric.
-    kMatrixMarketSymmetrySkewSymmetric,
-
-    // The matrix is assumed Hermitian.
-    kMatrixMarketSymmetryHermitian,
-  };
-
-  // A representation of a Matrix Market file's metadata.
-  struct MatrixMarketDescription {
-    // Whether the file contains a matrix or a vector.
-    MatrixMarketObject object;
-
-    // Whether the corresponding matrix is assumed dense or sparse.
-    MatrixMarketFormat format;
-
-    // The type of numerical values associated with the matrix.
-    MatrixMarketField field;
-
-    // The assumed symmetry (if any) of the matrix.
-    MatrixMarketSymmetry symmetry;
-
-    // A trivial constructor.
-    MatrixMarketDescription();
-
-    // Builds the MatrixMarketDescription by parsing the header line of the
-    // Matrix Market file. Returns true if the parse was successful.
-    bool ParseFromHeaderLine(const std::string& header_line);
-  };
 
   // The ground set size for the source vertices.
   Int num_sources_;

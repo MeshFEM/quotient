@@ -47,9 +47,6 @@ namespace quotient {
 //
 class QuotientGraph {
  public:
-  // Trivial constructor.
-  QuotientGraph();
-
   // Initializes the quotient graph from a symmetric graph.
   QuotientGraph(
       const CoordinateGraph& graph, const MinimumDegreeControl& control);
@@ -58,83 +55,85 @@ class QuotientGraph {
   void Print() const;
 
   // Returns the number of vertices in the original graph.
-  Int NumVertices() const;
+  Int NumVertices() const QUOTIENT_NOEXCEPT;
 
   // Returns the number of vertices that have been eliminated from the graph.
-  Int NumEliminatedVertices() const;
+  Int NumEliminatedVertices() const QUOTIENT_NOEXCEPT;
 
   // Returns the ordered list of eliminated principal variables.
-  const std::vector<Int>& EliminationOrder() const;
+  const std::vector<Int>& EliminationOrder() const QUOTIENT_NOEXCEPT;
 
   // Fills 'postorder' with the postorder of the assembly tree.
-  void ComputePostorder(std::vector<Int>* postorder) const;
+  void ComputePostorder(std::vector<Int>* postorder) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the list containing the parent of each supernode.
-  const std::vector<Int>& AssemblyParents() const;
+  const std::vector<Int>& AssemblyParents() const QUOTIENT_NOEXCEPT;
 
   // Returns the number of times that supervariables have been falsely hashed
   // into the same bucket.
-  Int NumHashBucketCollisions() const;
+  Int NumHashBucketCollisions() const QUOTIENT_NOEXCEPT;
 
   // Returns the number of times that supervariables falsely had the same hash
   // value. This is much more rare than hash bucket collision.
-  Int NumHashCollisions() const;
+  Int NumHashCollisions() const QUOTIENT_NOEXCEPT;
 
   // Forms the set of members of the supernode with the given principal member.
-  std::vector<Int> FormSupernode(Int i) const;
+  std::vector<Int> FormSupernode(Int i) const QUOTIENT_NOEXCEPT;
 
   // Returns the size of the supernode with the given principal variable.
-  Int SupernodeSize(Int i) const;
+  Int SupernodeSize(Int i) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the element for the given principal member.
-  const std::vector<Int>& Element(Int i) const;
+  const std::vector<Int>& Element(Int i) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the element list of the given principal member.
-  std::vector<Int> ElementList(Int i) const;
+  std::vector<Int> ElementList(Int i) const QUOTIENT_NOEXCEPT;
 
   //  If control_.store_structures was true, then this routine overwrites
   // 'eliminated_structures' with the (sorted) structures of the eliminated
   // supernodes, in the order in which they were eliminated.
   void FormEliminatedStructures(
-      std::vector<std::vector<Int>>* eliminated_structures) const;
+      std::vector<std::vector<Int>>* eliminated_structures) const
+      QUOTIENT_NOEXCEPT;
 
   // Finds the next pivot supervariable, forms the corresponding element, and
   // updates the quotient graph. The return value is the principal member of
   // the selected pivot.
-  Int FindAndProcessPivot();
+  Int FindAndProcessPivot() QUOTIENT_NOEXCEPT;
 
   // Returns the number of members of the element list of the pivot.
-  Int NumPivotElements() const;
+  Int NumPivotElements() const QUOTIENT_NOEXCEPT;
 
   // Returns the number of degree updates required to process the current pivot.
-  Int NumPivotDegreeUpdates() const;
+  Int NumPivotDegreeUpdates() const QUOTIENT_NOEXCEPT;
 
   //Returns the number of degree updates required to process the current pivot
   // that will involve more than two elements in the element list.
-  Int NumPivotDegreeUpdatesWithMultipleElements() const;
+  Int NumPivotDegreeUpdatesWithMultipleElements() const QUOTIENT_NOEXCEPT;
 
   // Returns the number of nonzeros in the current pivot's columns of the
   // lower-triangular Cholesky factor.
-  Int NumPivotCholeskyNonzeros() const;
+  Int NumPivotCholeskyNonzeros() const QUOTIENT_NOEXCEPT;
 
   // Returns the number of floating-point operations required for a standard
   // Cholesky factorization to eliminate the current pivot.
-  double NumPivotCholeskyFlops() const;
+  double NumPivotCholeskyFlops() const QUOTIENT_NOEXCEPT;
 
   // Returns the number of aggressive absorptions that occurred.
-  Int NumAggressiveAbsorptions() const;
+  Int NumAggressiveAbsorptions() const QUOTIENT_NOEXCEPT;
 
   // Returns the number of dense rows that were preprocessed out.
-  Int NumDense() const;
+  Int NumDense() const QUOTIENT_NOEXCEPT;
 
   // Prints the current breakdown of the stage timings. The result will be
   // trivial unless QUOTIENT_ENABLE_TIMERS is defined.
-  std::vector<std::pair<std::string, double>> ComponentSeconds() const;
+  std::vector<std::pair<std::string, double>> ComponentSeconds() const
+      QUOTIENT_NOEXCEPT;
 
   // This routine should be called after eliminating the non-dense variables,
   // as it updates the assembly forest by combining the dense nodes into a
   // single supernode which becomes the parent of all non-dense roots.
-  void CombineDenseNodes();
+  void CombineDenseNodes() QUOTIENT_NOEXCEPT;
 
  private:
   // Bookkeeping data for the dense supernode (if it exists). It is used at the
@@ -315,7 +314,7 @@ class QuotientGraph {
 
   // Retrieve a variable with minimal (approximate) degree and set it as the
   // active pivot.
-  Int GetNextPivot();
+  Int GetNextPivot() QUOTIENT_NOEXCEPT;
 
   // Stores the element for the pivot:
   //
@@ -323,11 +322,11 @@ class QuotientGraph {
   //
   // It is assumed that the mask is of length 'num_vertices' and set to all
   // zeros on input.
-  void ComputePivotStructure();
+  void ComputePivotStructure() QUOTIENT_NOEXCEPT;
 
   // Compute the degree approximations of the supernodes adjacent to the
   // current pivot. Element absorption is performed during this call.
-  void ComputeDegreesAndHashes();
+  void ComputeDegreesAndHashes() QUOTIENT_NOEXCEPT;
 
   // Returns true if supernodes 'i' and 'j' are considered indistinguishable
   // with respect to their quotient graph representation. It is assumed that
@@ -351,7 +350,8 @@ class QuotientGraph {
   //
   // We therefore test for the equality of the element lists and adjacency
   // lists.
-  bool StructuralVariablesAreQuotientIndistinguishable(Int i, Int j) const;
+  bool StructuralVariablesAreQuotientIndistinguishable(Int i, Int j) const
+      QUOTIENT_NOEXCEPT;
 
   // Detects and merges pairs of supervariables in the pivot structure who are
   // indistinguishable with respect to the quotient graph.
@@ -363,10 +363,10 @@ class QuotientGraph {
   //
   // The test for indistinguishability does not depend upon the variable
   // supernodal structure and is thus invariant to supervariable merges.
-  void MergeVariables();
+  void MergeVariables() QUOTIENT_NOEXCEPT;
 
   // Performs the final cleanup for the processing of the pivot element.
-  void FinalizePivot();
+  void FinalizePivot() QUOTIENT_NOEXCEPT;
 
   // An implementation of Algorithm 2 from [ADD-96].
   // On exit, it holds |L_e \ L_p| for all elements e in the element list
@@ -378,15 +378,16 @@ class QuotientGraph {
   // On exit, all entries of 'node_flags_' corresponding to element indices
   // in the element list of a supernode in the structure L_p should be,
   // after removing the shift, non-negative and equal to |L_e \ L_p|.
-  void ExternalDegrees();
+  void ExternalDegrees() QUOTIENT_NOEXCEPT;
 
   // Sets all entries of 'node_flags_' that correspond to an element in the
   // element list of a supernode in the pivot structure, L_p.
-  void ResetExternalDegrees();
+  void ResetExternalDegrees() QUOTIENT_NOEXCEPT;
 
   // Appends the supernode with the given principal member and length into
   // a given vector.
-  void AppendSupernode(Int i, Int supernode_size, std::vector<Int>* vec) const;
+  void AppendSupernode(Int i, Int supernode_size, std::vector<Int>* vec) const
+      QUOTIENT_NOEXCEPT;
 
   // Uses the parents_ links for the assembly tree to contiguously fill a
   // subtree of the post-order rooted at 'index' using the iterator.
@@ -394,21 +395,21 @@ class QuotientGraph {
       Int index,
       const std::vector<Int>& children,
       const std::vector<Int>& child_offsets,
-      std::vector<Int>::iterator iter) const;
+      std::vector<Int>::iterator iter) const QUOTIENT_NOEXCEPT;
 
   // A definition of Ashcraft's hash function (as described in [ADD-96]).
-  UInt AshcraftVariableHash(Int i) const;
+  UInt AshcraftVariableHash(Int i) const QUOTIENT_NOEXCEPT;
 
   // An alternative hash that does not explicitly use modular arithmetic and
   // multiplies each index contribution by its position in the adjacency or
   // element list (with the hope of decreasing collisions).
-  UInt BasicVariableHash(Int i) const;
+  UInt BasicVariableHash(Int i) const QUOTIENT_NOEXCEPT;
 
   // Accumulates the sum of the supernode sizes in the adjacency list and the
   // hash of their indices. While doing so, the non-principal and redundant
   // members are removed (with the remainder packed at the given index).
   void PackCountAndHashAdjacencies(
-      Int i, Int num_elements, Int* degree, UInt* hash);
+      Int i, Int num_elements, Int* degree, UInt* hash) QUOTIENT_NOEXCEPT;
 
   // Computes the exact degree of supernode, say, i, using a short-cut of
   // Eq. (2) of [ADD-96] meant for the case where there is only one member of
@@ -416,7 +417,7 @@ class QuotientGraph {
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, UInt> ExactEmptyDegreeAndHash(Int i);
+  std::pair<Int, UInt> ExactEmptyDegreeAndHash(Int i) QUOTIENT_NOEXCEPT;
 
   // Computes the exact degree of supernode i using a short-cut of Eq. (2) of
   // [ADD-96] meant for the case where there are two members of the element
@@ -424,38 +425,38 @@ class QuotientGraph {
   //   d_i = |A_i \ supernode(i)| + |L_p \ supernode(i)| + |L_e \ L_p|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, UInt> ExactSingleDegreeAndHash(Int i);
+  std::pair<Int, UInt> ExactSingleDegreeAndHash(Int i) QUOTIENT_NOEXCEPT;
 
   // Computes the exact degree of supernode i using Eq. (2) of [ADD-96] in the
   // case of arbitrary members in element_lists[i].
   //   d_i = |A_i \ supernode(i)| + |(\cup_{e in E_i) L_e) \ supernode(i)|.
   //
   // NOTE: It is assumed that this supervariable is in the pivot structure.
-  std::pair<Int, UInt> ExactGenericDegreeAndHash(Int i);
+  std::pair<Int, UInt> ExactGenericDegreeAndHash(Int i) QUOTIENT_NOEXCEPT;
 
   // Updates the exact degrees and hashes of the principal members of the
   // supernodes in the pivot structure.
-  void ExactDegreesAndHashes();
+  void ExactDegreesAndHashes() QUOTIENT_NOEXCEPT;
 
   // Updates the Amestoy degrees and hashes of the principal members of the
   // supernodes in the pivot structure.
-  void AmestoyDegreesAndHashes();
+  void AmestoyDegreesAndHashes() QUOTIENT_NOEXCEPT;
 
   // Returns the degree and hash of supernode i in the current pivot structure.
-  std::pair<Int, UInt> GilbertDegreeAndHash(Int i);
+  std::pair<Int, UInt> GilbertDegreeAndHash(Int i) QUOTIENT_NOEXCEPT;
 
   // Updates the Gilbert degrees and hashes of the principal members of the
   // supernodes in the pivot structure.
-  void GilbertDegreesAndHashes();
+  void GilbertDegreesAndHashes() QUOTIENT_NOEXCEPT;
 
   // Updates the Ashcraft degrees and hashes of the principal members of the
   // supernodes in the pivot structure.
-  void AshcraftDegreesAndHashes();
+  void AshcraftDegreesAndHashes() QUOTIENT_NOEXCEPT;
 
   // Inserts the current pivot into the back of the element list of principal
   // variable 'i' by appending the first adjacency to the back of the adjacency
   // list then replacing the first adjacency with the pivot.
-  void InsertPivotElement(Int i);
+  void InsertPivotElement(Int i) QUOTIENT_NOEXCEPT;
 };
 
 // Pretty-prints an std::vector<T>.
