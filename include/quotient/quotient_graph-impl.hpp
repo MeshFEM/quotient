@@ -649,7 +649,13 @@ QuotientGraph::ExactGenericDegreeAndHash(Int i) {
 }
 
 inline void QuotientGraph::ExactDegreesAndHashes() {
-  for (const Int& i : elements_[pivot_]) {
+  const std::vector<Int>& pivot_element = elements_[pivot_];
+  const Int pivot_element_size = pivot_element.size();
+
+  #pragma omp parallel schedule(dynamic)
+  for (Int index = 0; index < pivot_element_size; ++index) {
+    const Int& i = pivot_element[index];
+
     std::pair<Int, UInt> degree_and_hash;
     const Int num_elements = edges_.element_list_sizes[i];
     if (num_elements == 0) {
@@ -665,10 +671,15 @@ inline void QuotientGraph::ExactDegreesAndHashes() {
 }
 
 inline void QuotientGraph::AmestoyDegreesAndHashes() {
+  const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int shift = node_flags_.shift;
   const Int pivot_degree = degree_lists_.degrees[pivot_];
+  const Int pivot_element_size = pivot_element.size();
   const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
-  for (const Int& i : elements_[pivot_]) {
+
+  #pragma omp parallel schedule(dynamic)
+  for (Int index = 0; index < pivot_element_size; ++index) {
+    const Int& i = pivot_element[index];
     Int degree = 0;
     UInt hash = 0;
 
@@ -721,7 +732,13 @@ inline void QuotientGraph::AmestoyDegreesAndHashes() {
 }
 
 inline void QuotientGraph::AshcraftDegreesAndHashes() {
-  for (const Int& i : elements_[pivot_]) {
+  const std::vector<Int>& pivot_element = elements_[pivot_];
+  const Int pivot_element_size = pivot_element.size();
+
+  #pragma omp parallel for schedule(dynamic)
+  for (Int index = 0; index < pivot_element_size; ++index) {
+    const Int& i = pivot_element[index];
+
     std::pair<Int, UInt> degree_and_hash;
     // Note that the list size is one *before* adding the pivot.
     if (edges_.element_list_sizes[i] == 1) {
@@ -774,9 +791,14 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i) {
 }
 
 inline void QuotientGraph::GilbertDegreesAndHashes() {
+  const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
   const Int pivot_degree = degree_lists_.degrees[pivot_];
-  for (const Int& i : elements_[pivot_]) {
+  const Int pivot_element_size = pivot_element.size();
+
+  #pragma omp parallel for schedule(dynamic)
+  for (Int index = 0; index < pivot_element_size; ++index) {
+    const Int& i = pivot_element[index];
     Int degree = 0;
     UInt hash = 0;
 
@@ -979,6 +1001,12 @@ inline void QuotientGraph::MergeVariables() {
           //
           // The element lists are unsorted but should always appear in the
           // same order.
+          //
+          // TODO(Jack Poulson): Consider whether it would make more sense to
+          // sort the adjacency lists and then do the trivial comparison. This
+          // would have a significant advantage if multithreaded parallelism
+          // were to be introduced into MergeVariables, as it would eliminate
+          // the need for each thread to have a separate 'flags' buffer.
           for (Int k = adjacency_list_i_beg; k < adjacency_list_i_end; ++k) {
             const Int index = edges_.lists[k];
             node_flags_.flags[index] = shift;
