@@ -652,7 +652,7 @@ inline void QuotientGraph::ExactDegreesAndHashes() {
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int pivot_element_size = pivot_element.size();
 
-  #pragma omp parallel schedule(dynamic)
+  OMP_PRAGMA(omp parallel schedule(dynamic))
   for (Int index = 0; index < pivot_element_size; ++index) {
     const Int& i = pivot_element[index];
 
@@ -677,7 +677,7 @@ inline void QuotientGraph::AmestoyDegreesAndHashes() {
   const Int pivot_element_size = pivot_element.size();
   const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
 
-  #pragma omp parallel schedule(dynamic)
+  OMP_PRAGMA(omp parallel schedule(dynamic))
   for (Int index = 0; index < pivot_element_size; ++index) {
     const Int& i = pivot_element[index];
     Int degree = 0;
@@ -735,7 +735,7 @@ inline void QuotientGraph::AshcraftDegreesAndHashes() {
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int pivot_element_size = pivot_element.size();
 
-  #pragma omp parallel for schedule(dynamic)
+  OMP_PRAGMA(omp parallel for schedule(dynamic))
   for (Int index = 0; index < pivot_element_size; ++index) {
     const Int& i = pivot_element[index];
 
@@ -796,7 +796,7 @@ inline void QuotientGraph::GilbertDegreesAndHashes() {
   const Int pivot_degree = degree_lists_.degrees[pivot_];
   const Int pivot_element_size = pivot_element.size();
 
-  #pragma omp parallel for schedule(dynamic)
+  OMP_PRAGMA(omp parallel for schedule(dynamic))
   for (Int index = 0; index < pivot_element_size; ++index) {
     const Int& i = pivot_element[index];
     Int degree = 0;

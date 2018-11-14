@@ -26,6 +26,12 @@ typedef uint64_t UInt;
 typedef unsigned UInt;
 #endif
 
+#ifdef _OPENMP
+# define OMP_PRAGMA(x) _Pragma(#x)
+#else
+# define OMP_PRAGMA(x)
+#endif
+
 } // namespace quotient
 
 #endif // ifndef QUOTIENT_CONFIG_H_

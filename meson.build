@@ -13,8 +13,17 @@ project(
   meson_version : '>=0.46.0',
   default_options : ['cpp_std=c++14'])
 include_dir = include_directories('include')
+cxx = meson.get_compiler('cpp')
 
 deps = []
+
+# Test if specify is installed.
+found_specify = cxx.has_header('specify.hpp')
+if not found_specify
+  specify_proj = subproject('specify')
+  specify_dep = specify_proj.get_variable('specify_dep')
+  deps += specify_dep
+endif
 
 # For controlling whether 32-bit or 64-bit integers are used. By default,
 # 64-bit integers are used.
@@ -43,12 +52,12 @@ endif
 # For controlling whether (still not implemented) OpenMP support is enabled.
 if get_option('enable-openmp')
   openmp_dep = dependency('openmp', version : '>=3.0')
-  deps.append(openmp_dep)
+  deps += openmp_dep
 elif get_option('disable-openmp')
   openmp_dep = false
 else
   openmp_dep = dependency('openmp', version : '>=3.0', required : false)
-  deps.append(openmp_dep)
+  deps += openmp_dep
 endif
 
 # Unit tests for the CoordinateGraph class.
@@ -82,6 +91,7 @@ matrix_market_minimum_degree_exe = executable(
     include_directories : include_dir,
     dependencies : deps)
 
+# For using quotient as a subproject.
 quotient_dep = declare_dependency(include_directories : include_dir)
 
 install_headers('include/quotient.hpp')
