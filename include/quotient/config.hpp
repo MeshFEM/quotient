@@ -8,7 +8,17 @@
 #ifndef QUOTIENT_CONFIG_H_
 #define QUOTIENT_CONFIG_H_
 
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+
 #include <cstdint>
+
+#ifdef _OPENMP
+# define OMP_PRAGMA(x) _Pragma(#x)
+#else
+# define OMP_PRAGMA(x)
+#endif
 
 namespace quotient {
 
@@ -24,12 +34,6 @@ typedef int Int;
 typedef uint64_t UInt;
 #else
 typedef unsigned UInt;
-#endif
-
-#ifdef _OPENMP
-# define OMP_PRAGMA(x) _Pragma(#x)
-#else
-# define OMP_PRAGMA(x)
 #endif
 
 } // namespace quotient

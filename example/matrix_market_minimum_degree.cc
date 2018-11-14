@@ -5,10 +5,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-#ifdef _OPENMP
-#include "omp.h"
-#endif
-
 #include <cmath>
 #include <cstdlib>
 #include <ctime>

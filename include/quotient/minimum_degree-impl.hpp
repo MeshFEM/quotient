@@ -8,10 +8,6 @@
 #ifndef QUOTIENT_MINIMUM_DEGREE_IMPL_H_
 #define QUOTIENT_MINIMUM_DEGREE_IMPL_H_
 
-#ifdef _OPENMP
-#include "omp.h"
-#endif
-
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
