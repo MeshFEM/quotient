@@ -262,10 +262,14 @@ inline bool ReadMatrixMarketArrayRealValue(
   }
   std::stringstream line_stream(line);
 
-  // Read the value.
-  if (!(line_stream >> *value)) {
-    std::cerr << "Could not extract dense entry." << std::endl;
-    return false;
+  if (description.field == kMatrixMarketFieldPattern) {
+    *value = 1.;
+  } else {
+    // Read the value.
+    if (!(line_stream >> *value)) {
+      std::cerr << "Could not extract dense entry." << std::endl;
+      return false;
+    }
   }
 
   return true;
@@ -290,16 +294,28 @@ inline bool ReadMatrixMarketArrayComplexValue(
   }
   std::stringstream line_stream(line);
 
-  // Read the real value.
-  if (!(line_stream >> *real_value)) {
-    std::cerr << "Could not extract dense entry." << std::endl;
-    return false;
-  }
 
-  // Read the imaginary value.
-  if (!(line_stream >> *imag_value)) {
-    std::cerr << "Could not extract dense entry." << std::endl;
-    return false;
+  if (description.field == kMatrixMarketFieldComplex) {
+    // Read the real value.
+    if (!(line_stream >> *real_value)) {
+      std::cerr << "Could not extract dense entry." << std::endl;
+      return false;
+    }
+    // Read the imaginary value.
+    if (!(line_stream >> *imag_value)) {
+      std::cerr << "Could not extract dense entry." << std::endl;
+      return false;
+    }
+  } else if (description.field == kMatrixMarketFieldReal) {
+    // Read the real value.
+    if (!(line_stream >> *real_value)) {
+      std::cerr << "Could not extract dense entry." << std::endl;
+      return false;
+    }
+    *imag_value = 0.;
+  } else {
+    *real_value = 1.;
+    *imag_value = 0.;
   }
 
   return true;
@@ -441,6 +457,12 @@ inline bool ReadMatrixMarketCoordinateComplexEntry(
   // Determine the value.
   if (description.field == kMatrixMarketFieldPattern) {
     *real_value = 1.;
+    *imag_value = 0.;
+  } else if (description.field == kMatrixMarketFieldReal) {
+    if (!(line_stream >> *real_value)) {
+      std::cerr << "Could not extract real value of entry." << std::endl;
+      return false;
+    }
     *imag_value = 0.;
   } else {
     if (!(line_stream >> *real_value)) {
