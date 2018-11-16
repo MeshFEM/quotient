@@ -10,7 +10,8 @@
 
 #include <vector>
 
-#include "quotient/config.hpp"
+#include "quotient/integers.hpp"
+#include "quotient/macros.hpp"
 
 namespace quotient {
 
@@ -33,10 +34,10 @@ struct HashLists {
   std::vector<Int> next_member;
 
   // Removes the given hash bucket.
-  void ClearBucket(Int bucket);
+  void ClearBucket(Int bucket) QUOTIENT_NOEXCEPT;
 
   // Adds in an occurrence of the specified index and hash.
-  void AddHash(Int index, std::size_t hash, Int bucket);
+  void AddHash(Int index, std::size_t hash, Int bucket) QUOTIENT_NOEXCEPT;
 };
 
 } // namespace quotient

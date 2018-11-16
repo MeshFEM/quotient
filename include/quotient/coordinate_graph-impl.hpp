@@ -15,8 +15,6 @@
 #include <sstream>
 #include <vector>
 
-#include "quotient/config.hpp"
-#include "quotient/macros.hpp"
 #include "quotient/coordinate_graph.hpp"
 
 namespace quotient {

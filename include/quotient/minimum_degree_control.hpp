@@ -8,8 +8,8 @@
 #ifndef QUOTIENT_MINIMUM_DEGREE_CONTROL_H_
 #define QUOTIENT_MINIMUM_DEGREE_CONTROL_H_
 
-#include "quotient/config.hpp"
 #include "quotient/degree_type.hpp"
+#include "quotient/integers.hpp"
 
 namespace quotient {
 

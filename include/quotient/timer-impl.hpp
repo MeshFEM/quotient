@@ -12,21 +12,24 @@
 #include <string>
 
 #include "quotient/macros.hpp"
+
 #include "quotient/timer.hpp"
 
 namespace quotient {
 
-inline Timer::Timer(const std::string& name)
+inline Timer::Timer(const std::string& name) QUOTIENT_NOEXCEPT
 : name_(name), running_(false), last_interval_seconds_(0), total_seconds_(0) { }
 
-inline const std::string& Timer::Name() const { return name_; }
+inline const std::string& Timer::Name() const QUOTIENT_NOEXCEPT {
+    return name_;
+}
 
-inline void Timer::Start() {
+inline void Timer::Start() QUOTIENT_NOEXCEPT {
   last_time_ = std::chrono::steady_clock::now();
   running_ = true;
 }
 
-inline double Timer::Stop() {
+inline double Timer::Stop() QUOTIENT_NOEXCEPT {
   QUOTIENT_ASSERT(running_, "The Timer was stopped when it was not running.");
   last_interval_seconds_ = SecondsSinceLastStart();
   total_seconds_ += last_interval_seconds_;
@@ -34,7 +37,7 @@ inline double Timer::Stop() {
   return last_interval_seconds_;
 }
 
-inline double Timer::SecondsSinceLastStart() const {
+inline double Timer::SecondsSinceLastStart() const QUOTIENT_NOEXCEPT {
   if (running_) {
     auto now = std::chrono::steady_clock::now();
     const std::chrono::duration<double> duration = now - last_time_;
@@ -43,14 +46,14 @@ inline double Timer::SecondsSinceLastStart() const {
   return last_interval_seconds_;
 }
 
-inline double Timer::TotalSeconds() const {
+inline double Timer::TotalSeconds() const QUOTIENT_NOEXCEPT {
   if (running_) {
     return total_seconds_ + SecondsSinceLastStart();
   }
   return total_seconds_;
 }
 
-inline void Timer::Reset(const std::string& name) {
+inline void Timer::Reset(const std::string& name) QUOTIENT_NOEXCEPT {
   name_ = name;
   total_seconds_ = 0;
   last_interval_seconds_ = 0;

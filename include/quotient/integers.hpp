@@ -5,27 +5,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-#ifndef QUOTIENT_CONFIG_H_
-#define QUOTIENT_CONFIG_H_
-
-#ifdef _OPENMP
-#include "omp.h"
-#endif
+#ifndef QUOTIENT_INTEGERS_H_
+#define QUOTIENT_INTEGERS_H_
 
 #include <cstdint>
-
-#ifdef _OPENMP
-# define OMP_PRAGMA(x) _Pragma(#x)
-#else
-# define OMP_PRAGMA(x)
-#endif
-
-#ifdef QUOTIENT_DEBUG
-# define QUOTIENT_NOEXCEPT
-#else
-// For now, we disable 'noexcept', even in release mode.
-# define QUOTIENT_NOEXCEPT
-#endif
 
 namespace quotient {
 
@@ -45,4 +28,4 @@ typedef unsigned UInt;
 
 } // namespace quotient
 
-#endif // ifndef QUOTIENT_CONFIG_H_
+#endif // ifndef QUOTIENT_INTEGERS_H_

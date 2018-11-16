@@ -10,10 +10,10 @@
 
 #include <vector>
 
-#include "quotient/config.hpp"
 #include "quotient/coordinate_graph.hpp"
 #include "quotient/degree_lists.hpp"
 #include "quotient/hash_lists.hpp"
+#include "quotient/integers.hpp"
 #include "quotient/minimum_degree_control.hpp"
 #include "quotient/timer.hpp"
 

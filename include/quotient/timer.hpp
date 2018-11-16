@@ -11,6 +11,8 @@
 #include <chrono>
 #include <string>
 
+#include "quotient/macros.hpp"
+
 namespace quotient {
 
 static constexpr char kDefaultTimerName[] = "[default]";
@@ -18,25 +20,25 @@ static constexpr char kDefaultTimerName[] = "[default]";
 class Timer {
  public:
   // Constructs a timer with the given name.
-  Timer(const std::string& name=kDefaultTimerName);
+  Timer(const std::string& name=kDefaultTimerName) QUOTIENT_NOEXCEPT;
 
   // Returns the name of the timer.
-  const std::string& Name() const;
+  const std::string& Name() const QUOTIENT_NOEXCEPT;
 
   // (Re)starts the timer.
-  void Start();
+  void Start() QUOTIENT_NOEXCEPT;
 
   // Stops the timer and returns the time in seconds since the last start.
-  double Stop();
+  double Stop() QUOTIENT_NOEXCEPT;
 
   // Returns the time in seconds since the last start.
-  double SecondsSinceLastStart() const;
+  double SecondsSinceLastStart() const QUOTIENT_NOEXCEPT;
 
   // Returns the total time that the timer has run since the last 'Reset'.
-  double TotalSeconds() const;
+  double TotalSeconds() const QUOTIENT_NOEXCEPT;
 
   // Resets the timer and changes its name to the specified value.
-  void Reset(const std::string& name=kDefaultTimerName);
+  void Reset(const std::string& name=kDefaultTimerName) QUOTIENT_NOEXCEPT;
 
  private:
   // The name of the timer.

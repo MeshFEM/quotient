@@ -13,12 +13,13 @@
 #include <unordered_map>
 #include <vector>
 
-#include "quotient/config.hpp"
+#include "quotient/integers.hpp"
 #include "quotient/macros.hpp"
 #include "quotient/coordinate_graph.hpp"
-#include "quotient/minimum_degree.hpp"
 #include "quotient/quotient_graph.hpp"
 #include "quotient/timer.hpp"
+
+#include "quotient/minimum_degree.hpp"
 
 namespace quotient {
 

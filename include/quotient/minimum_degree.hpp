@@ -11,8 +11,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "quotient/config.hpp"
 #include "quotient/coordinate_graph.hpp"
+#include "quotient/integers.hpp"
 #include "quotient/minimum_degree_control.hpp"
 
 namespace quotient {

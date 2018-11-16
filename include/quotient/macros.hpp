@@ -8,7 +8,27 @@
 #ifndef QUOTIENT_MACROS_H_
 #define QUOTIENT_MACROS_H_
 
+#ifdef _OPENMP
+#  include "omp.h"
+#endif
+
 namespace quotient {
+
+// A guard for OpenMP pragmas so that builds which have not enabled OpenMP
+// do not lead to compiler warnings.
+#ifdef _OPENMP
+#  define OMP_PRAGMA(x) _Pragma(#x)
+#else
+#  define OMP_PRAGMA(x)
+#endif
+
+// An attribute for routines which are known to not throw exceptions in
+// release mode.
+#ifdef QUOTIENT_DEBUG
+#  define QUOTIENT_NOEXCEPT
+#else
+#  define QUOTIENT_NOEXCEPT noexcept
+#endif
 
 #ifdef QUOTIENT_DEBUG
 #  define QUOTIENT_ASSERT(assertion, message) { \

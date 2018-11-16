@@ -11,7 +11,8 @@
 #include <memory>
 #include <vector>
 
-#include "quotient/config.hpp"
+#include "quotient/integers.hpp"
+#include "quotient/macros.hpp"
 #include "quotient/matrix_market.hpp"
 
 namespace quotient {
@@ -192,8 +193,8 @@ class CoordinateGraph {
   // The (lexicographically sorted) list of edges in the graph.
   std::vector<GraphEdge> edges_;
 
-  // A list of length num_sources_ + 1, where source_edge_offsets_[source]
-  // indicates the location in edges_ where the edge (source, 0) would be
+  // A list of length 'num_sources_ + 1', where 'source_edge_offsets_[source]'
+  // indicates the location in 'edges_' where the edge (source, 0) would be
   // inserted.
   std::vector<Int> source_edge_offsets_;
 

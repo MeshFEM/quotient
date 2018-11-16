@@ -10,7 +10,8 @@
 
 #include <vector>
 
-#include "quotient/config.hpp"
+#include "quotient/integers.hpp"
+#include "quotient/macros.hpp"
 
 namespace quotient {
 
@@ -41,18 +42,18 @@ struct DegreeLists {
   // found (and an index of minimal degree is returned).
   // If 'demand_smallest_index' is true, then the member of the linked list with
   // the smallest index is returned.
-  Int FindMinimalIndex(bool demand_smallest_index);
+  Int FindMinimalIndex(bool demand_smallest_index) QUOTIENT_NOEXCEPT;
 
   // Removes the current degree of occurrence with the given index.
-  void RemoveDegree(Int index);
+  void RemoveDegree(Int index) QUOTIENT_NOEXCEPT;
 
   // Adds in an occurrence of the specified index and degree.
-  void AddDegree(Int index, Int degree);
+  void AddDegree(Int index, Int degree) QUOTIENT_NOEXCEPT;
 
   // If the old degree was the same as the current degree, then this routine
   // removes the old occurrence and adds in the new occurrence. Otherwise,
   // it is a no-op.
-  void UpdateDegree(Int index, Int degree);
+  void UpdateDegree(Int index, Int degree) QUOTIENT_NOEXCEPT;
 };
 
 } // namespace quotient

@@ -8,13 +8,15 @@
 #ifndef QUOTIENT_HASH_LISTS_IMPL_H_
 #define QUOTIENT_HASH_LISTS_IMPL_H_
 
-#include "quotient/config.hpp"
+#include "quotient/integers.hpp"
 #include "quotient/macros.hpp"
+
 #include "quotient/hash_lists.hpp"
 
 namespace quotient {
 
-inline void HashLists::AddHash(Int index, std::size_t hash, Int bucket) {
+inline void HashLists::AddHash(Int index, std::size_t hash, Int bucket)
+    QUOTIENT_NOEXCEPT {
   hashes[index] = hash;
   buckets[index] = bucket;
 
@@ -23,7 +25,7 @@ inline void HashLists::AddHash(Int index, std::size_t hash, Int bucket) {
   heads[bucket] = index;
 }
 
-inline void HashLists::ClearBucket(Int bucket) {
+inline void HashLists::ClearBucket(Int bucket) QUOTIENT_NOEXCEPT {
   Int index = heads[bucket];
   heads[bucket] = -1;
   while (next_member[index] != -1) {
