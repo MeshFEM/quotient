@@ -67,169 +67,104 @@ inline std::unique_ptr<CoordinateGraph> CoordinateGraph::FromMatrixMarket(
   }
   
   // Fill the description of the Matrix Market data.
-  std::string line;
-  if (!std::getline(file, line)) {
-    std::cerr << "Could not read header line from Matrix Market file."
-              << std::endl;
-    return result;
-  }
   MatrixMarketDescription description;
-  if (!description.ParseFromHeaderLine(line)) {
-    std::cerr << "Could not parse header line from Matrix Market file."
-              << std::endl;
+  if (!ReadMatrixMarketDescription(file, &description)) {
     return result;
-  }
-  if (description.object == kMatrixMarketObjectVector) {
-    std::cerr << "The Matrix Market 'vector' object is incompatible with "
-                 "CoordinateGraph." << std::endl;
-    return result;
-  }
-
-  // Skip the comment lines.
-  while (file.peek() == kMatrixMarketCommentChar) {
-    std::getline(file, line);
   }
  
   result.reset(new CoordinateGraph);
   if (description.format == kMatrixMarketFormatArray) {
     // Read the size of the matrix.
-    Int matrix_height, matrix_width;
-    if (!std::getline(file, line)) {
-      std::cerr << "Could not extract the array size line." << std::endl;
+    Int num_rows, num_columns;
+    if (!ReadMatrixMarketArrayMetadata(
+        description, file, &num_rows, &num_columns)) {
       result.reset();
       return result;
     }
-    std::stringstream line_stream(line);
-    if (!(line_stream >> matrix_height)) {  
-      std::cerr << "Missing matrix height in Matrix Market file." << std::endl;
-      result.reset();
-      return result;
-    }
-    if (description.object == kMatrixMarketObjectMatrix) {
-      if (!(line_stream >> matrix_width)) {
-        std::cerr << "Missing matrix width in Matrix Market file." << std::endl;
-        result.reset();
-        return result;
-      }
-    } else {
-      matrix_width = 1;
-    }
-    
+
     // Fill a fully-connected graph.
-    result->AsymmetricResize(matrix_height, matrix_width);
-    result->ReserveEdgeAdditions(matrix_height * matrix_width);
-    for (Int source = 0; source < matrix_height; ++source) {
-      for (Int target = 0; target < matrix_width; ++target) {
-        result->QueueEdgeAddition(source, target);
+    result->AsymmetricResize(num_rows, num_columns);
+    result->ReserveEdgeAdditions(num_rows * num_columns);
+    for (Int row = 0; row < num_rows; ++row) {
+      for (Int column = 0; column < num_columns; ++column) {
+        result->QueueEdgeAddition(row, column);
       }
     }
     result->FlushEdgeQueues();
     return result;
   }
 
-  // Read in the number of matrix dimensions and the number of explicit
-  // nonzeros specified in the file.
-  Int matrix_height, matrix_width, num_explicit_nonzeros;
-  if (!std::getline(file, line)) {
-    std::cerr << "Could not extract the coordinate size line." << std::endl;
-    result.reset();
-    return result;
-  }
-  std::stringstream line_stream(line); 
-  if (!(line_stream >> matrix_height)) {
-    std::cerr << "Missing matrix height in Matrix Market file." << std::endl;
-    result.reset();
-    return result;
-  }
-  if (description.object == kMatrixMarketObjectMatrix) {
-    if (!(line_stream >> matrix_width)) {
-      std::cerr << "Missing matrix width in Matrix Market file." << std::endl;
-      result.reset();
-      return result;
-    }
-  } else {
-    matrix_width = 1;
-  }
-  if (!(line_stream >> num_explicit_nonzeros)) {
-    std::cerr << "Missing num_nonzeros in Matrix Market file." << std::endl;
+  // Read in the number of matrix dimensions and the number of entries specified
+  // in the file.
+  Int num_rows, num_columns, num_entries;
+  if (!ReadMatrixMarketCoordinateMetadata(
+      description, file, &num_rows, &num_columns, &num_entries)) {
     result.reset();
     return result;
   }
 
   // Fill in the edges.
-  Int num_skipped_edges = 0;
-  const Int num_nonzeros_bound =
-      description.symmetry == kMatrixMarketSymmetryGeneral ?
-      num_explicit_nonzeros : 2 * num_explicit_nonzeros;
-  result->AsymmetricResize(matrix_height, matrix_width);
-  result->ReserveEdgeAdditions(num_nonzeros_bound);
-  for (Int edge_index = 0; edge_index < num_explicit_nonzeros; ++edge_index) {
-    Int source, target;
-    if (!std::getline(file, line)) {
-      std::cerr << "Could not extract nonzero description from Matrix Market "
-                   "file." << std::endl;
-      result.reset();
-      return result;
-    }
-    std::stringstream line_stream(line);
-    if (!(line_stream >> source)) {
-      std::cerr << "Could not extract row index of nonzero." << std::endl;
-      result.reset();
-      return result;
-    }
-    --source; // Convert from 1-based to 0-based indexing.
-    if (description.object == kMatrixMarketObjectMatrix) {
-      if (!(line_stream >> target)) {
-        std::cerr << "Could not extract column index of nonzero." << std::endl;
+  Int num_skipped_entries = 0;
+  const Int num_entries_bound =
+      description.symmetry == kMatrixMarketSymmetryGeneral ? num_entries :
+      2 * num_entries;
+  result->AsymmetricResize(num_rows, num_columns);
+  result->ReserveEdgeAdditions(num_entries_bound);
+  for (Int edge_index = 0; edge_index < num_entries; ++edge_index) {
+    Int row, column;
+    if (description.field == kMatrixMarketFieldComplex) {
+      double real_value, imag_value; 
+      if (!ReadMatrixMarketCoordinateComplexEntry(
+          description, file, &row, &column, &real_value, &imag_value)) {
         result.reset();
         return result;
       }
-      --target; // Convert from 1-based to 0-based indexing.
+      if ((mask == kEntryMaskLowerTriangle && row < column) ||
+          (mask == kEntryMaskUpperTriangle && row > column)) {
+        continue;
+      }
+      if (skip_explicit_zeros && real_value == 0. && imag_value == 0.) {
+        ++num_skipped_entries;
+        continue;
+      }
+    } else if (description.field == kMatrixMarketFieldReal) {
+      double value;
+      if (!ReadMatrixMarketCoordinateRealEntry(
+          description, file, &row, &column, &value)) {
+        result.reset();
+        return result;
+      }
+      if ((mask == kEntryMaskLowerTriangle && row < column) ||
+          (mask == kEntryMaskUpperTriangle && row > column)) {
+        continue;
+      }
+      if (skip_explicit_zeros && value == 0.) {
+        ++num_skipped_entries;
+        continue;
+      }
     } else {
-      target = 0;
-    }
-    if ((mask == kEntryMaskLowerTriangle && source < target) ||
-        (mask == kEntryMaskUpperTriangle && source > target)) {
-      continue;
-    }
-
-    if (skip_explicit_zeros) {
-      // Skip this entry if it is numerically zero.
-      if (description.field == kMatrixMarketFieldReal) {
-        double value;
-        if (!(line_stream >> value)) {
-          std::cerr << "Could not extract real value of nonzero." << std::endl;
-        }
-        if (value == 0.) {
-          ++num_skipped_edges;
-          continue;
-        }
-      } else if (description.field == kMatrixMarketFieldComplex) {
-        double real_value, imag_value;
-        if (!(line_stream >> real_value)) {
-          std::cerr << "Could not extract real value of nonzero." << std::endl;
-        }
-        if (!(line_stream >> imag_value)) {
-          std::cerr << "Could not extract imag value of nonzero." << std::endl;
-        }
-        if (real_value == 0. && imag_value == 0.) {
-          ++num_skipped_edges;
-          continue;
-        }
+      if (!ReadMatrixMarketCoordinateIndices(
+          description, file, &row, &column)) {
+        result.reset();
+        return result;
+      }
+      if ((mask == kEntryMaskLowerTriangle && row < column) ||
+          (mask == kEntryMaskUpperTriangle && row > column)) {
+        continue;
       }
     }
 
-    result->QueueEdgeAddition(source, target);
-    if (source != target &&
+    result->QueueEdgeAddition(row, column);
+    if (row != column &&
         description.symmetry != kMatrixMarketSymmetryGeneral) {
-      result->QueueEdgeAddition(target, source);
+      result->QueueEdgeAddition(column, row);
     }
   }
   result->FlushEdgeQueues();
 
-  if (skip_explicit_zeros && num_skipped_edges > 0) {
-    std::cout << "Skipped " << num_skipped_edges << " explicitly zero edges."
-              << std::endl;
+  if (num_skipped_entries) {
+    std::cout << "Skipped " << num_skipped_entries
+              << " explicitly zero entries." << std::endl;
   }
 
   return result;

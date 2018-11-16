@@ -133,6 +133,72 @@ struct MatrixMarketDescription {
   bool ParseFromHeaderLine(const std::string& header_line);
 };
 
+
+// Reads the header line for a Matrix Market file. Returns true if successful.
+bool ReadMatrixMarketDescription(
+    std::ifstream& file, MatrixMarketDescription* description);
+
+// Reads the metadata (matrix height and width) for an array-format Matrix
+// Market file. Returns true if successful.
+bool ReadMatrixMarketArrayMetadata(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* num_rows,
+    Int* num_columns);
+
+// Reads the metadata for a coordinate-format Matrix Market file.
+// Returns true if successful.
+bool ReadMatrixMarketCoordinateMetadata(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* num_rows,
+    Int* num_columns,
+    Int* num_entries);
+
+// Reads a single real value from an array-format Matrix Market file.
+// Returns true if successful.
+bool ReadMatrixMarketArrayRealValue(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    double* value);
+
+// Reads a single complex value from an array-format Matrix Market file.
+// Returns true if successful.
+bool ReadMatrixMarketArrayComplexValue(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    double* real_value,
+    double* imag_value);
+
+// Reads the indices of a single value from a coordinate-format Matrix Market
+// file. Returns true if successful.
+bool ReadMatrixMarketCoordinateIndices(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* row,
+    Int* column);
+
+// Reads a single real entry from a coordinate-format Matrix Market file.
+// If the field was 'pattern', then a numerical value of '1' is set.
+// Returns true if successful.
+bool ReadMatrixMarketCoordinateRealEntry(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* row,
+    Int* column,
+    double* value);
+
+// Reads a single complex entry from a coordinate-format Matrix Market file.
+// If the field was 'pattern', then a numerical value of '1' is set.
+// Returns true if successful.
+bool ReadMatrixMarketCoordinateComplexEntry(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* row,
+    Int* column,
+    double* real_value,
+    double* imag_value);
+
 } // namespace quotient
 
 #include "quotient/matrix_market-impl.hpp"

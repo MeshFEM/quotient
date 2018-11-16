@@ -9,8 +9,10 @@
 #define QUOTIENT_MATRIX_MARKET_IMPL_H_
 
 #include <memory>
+#include <fstream>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 #include "quotient/matrix_market.hpp"
 
@@ -125,6 +127,330 @@ inline bool MatrixMarketDescription::ParseFromHeaderLine(
       symmetry == kMatrixMarketSymmetryHermitian) {
     std::cerr << "The hermitian symmetry technically requires complex data."
               << std::endl;
+  }
+
+  return true;
+}
+
+inline bool ReadMatrixMarketDescription(
+    std::ifstream& file, MatrixMarketDescription* description) {
+  // Get the first line of the file.
+  std::string line;
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not read header line from Matrix Market file."
+              << std::endl;
+    return false;
+  }
+
+  // Parse the first line of the file into the description.
+  if (!description->ParseFromHeaderLine(line)) {
+    std::cerr << "Could not parse header line from Matrix Market file."
+              << std::endl;
+    return false;
+  }
+
+  // Perform a preliminary consistency check.
+  if (description->object == kMatrixMarketObjectVector) {
+    std::cerr << "The Matrix Market 'vector' object is incompatible with "
+                 "CoordinateGraph." << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
+inline bool ReadMatrixMarketArrayMetadata(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* num_rows,
+    Int* num_columns) {
+  std::string line;
+
+  // Skip any comment lines.
+  while (file.peek() == kMatrixMarketCommentChar) {
+    std::getline(file, line);
+  }
+
+  // Get a stringstream for the relevant line of the file.
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not extract the array metadata line." << std::endl;
+    return false;
+  }
+  std::stringstream line_stream(line);
+
+  // Read the number of rows.
+  if (!(line_stream >> *num_rows)) {
+    std::cerr << "Missing matrix height in Matrix Market file."
+              << std::endl;
+    return false;
+  }
+
+  // Determine the number of columns.
+  if (description.object == kMatrixMarketObjectMatrix) {
+    if (!(line_stream >> *num_columns)) {
+      std::cerr << "Missing matrix width in Matrix Market file."
+                << std::endl;
+      return false;
+    }
+  } else {
+    *num_columns = 1;
+  }
+
+  return true;
+}
+
+inline bool ReadMatrixMarketCoordinateMetadata(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* num_rows,
+    Int* num_columns,
+    Int* num_entries) {
+  std::string line;
+
+  // Skip any comment lines.
+  while (file.peek() == kMatrixMarketCommentChar) {
+    std::getline(file, line);
+  }
+
+  // Get a stringstream for the relevant line of the file.
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not extract the coordinate metadata line." << std::endl;
+    return false;
+  }
+  std::stringstream line_stream(line);
+
+  // Read the number of rows.
+  if (!(line_stream >> *num_rows)) {
+    std::cerr << "Missing matrix height in Matrix Market file." << std::endl;
+    return false;
+  }
+
+  // Determine the number of columns.
+  if (description.object == kMatrixMarketObjectMatrix) {
+    if (!(line_stream >> *num_columns)) {
+      std::cerr << "Missing matrix width in Matrix Market file." << std::endl;
+      return false;
+    }
+  } else {
+    *num_columns = 1;
+  }
+
+  // Read the number of entries.
+  if (!(line_stream >> *num_entries)) {
+    std::cerr << "Missing num_nonzeros in Matrix Market file." << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
+inline bool ReadMatrixMarketArrayRealValue(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    double* value) {
+  std::string line;
+
+  // Skip any comment lines.
+  while (file.peek() == kMatrixMarketCommentChar) {
+    std::getline(file, line);
+  }
+
+  // Get a stringstream for the relevant line of the file.
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not extract dense entry." << std::endl;
+    return false;
+  }
+  std::stringstream line_stream(line);
+
+  // Read the value.
+  if (!(line_stream >> *value)) {
+    std::cerr << "Could not extract dense entry." << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
+inline bool ReadMatrixMarketArrayComplexValue(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    double* real_value,
+    double* imag_value) {
+  std::string line;
+
+  // Skip any comment lines.
+  while (file.peek() == kMatrixMarketCommentChar) {
+    std::getline(file, line);
+  }
+
+  // Get a stringstream for the relevant line of the file.
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not extract dense entry." << std::endl;
+    return false;
+  }
+  std::stringstream line_stream(line);
+
+  // Read the real value.
+  if (!(line_stream >> *real_value)) {
+    std::cerr << "Could not extract dense entry." << std::endl;
+    return false;
+  }
+
+  // Read the imaginary value.
+  if (!(line_stream >> *imag_value)) {
+    std::cerr << "Could not extract dense entry." << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
+inline bool ReadMatrixMarketCoordinateIndices(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* row,
+    Int* column) {
+  std::string line;
+
+  // Skip any comment lines.
+  while (file.peek() == kMatrixMarketCommentChar) {
+    std::getline(file, line);
+  }
+
+  // Get a stringstream for the relevant line.
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not extract entry description from Matrix Market "
+                 "file." << std::endl;
+    return false;
+  }
+  std::stringstream line_stream(line);
+
+  // Read the row index.
+  if (!(line_stream >> *row)) {
+    std::cerr << "Could not extract row index of entry." << std::endl;
+    return false;
+  }
+  --(*row); // Convert from 1-based to 0-based indexing.
+
+  // Determine the column index.
+  if (description.object == kMatrixMarketObjectMatrix) {
+    if (!(line_stream >> *column)) {
+      std::cerr << "Could not extract column index of entry." << std::endl;
+      return false;
+    }
+    --(*column); // Convert from 1-based to 0-based indexing.
+  } else {
+    *column = 0;
+  }
+
+  return true;
+}
+
+inline bool ReadMatrixMarketCoordinateRealEntry(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* row,
+    Int* column,
+    double* value) {
+  std::string line;
+
+  // Skip any comment lines.
+  while (file.peek() == kMatrixMarketCommentChar) {
+    std::getline(file, line);
+  }
+
+  // Get a stringstream for the relevant line.
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not extract entry description from Matrix Market "
+                 "file." << std::endl;
+    return false;
+  }
+  std::stringstream line_stream(line);
+
+  // Read the row index.
+  if (!(line_stream >> *row)) {
+    std::cerr << "Could not extract row index of entry." << std::endl;
+    return false;
+  }
+  --(*row); // Convert from 1-based to 0-based indexing.
+
+  // Determine the column index.
+  if (description.object == kMatrixMarketObjectMatrix) {
+    if (!(line_stream >> *column)) {
+      std::cerr << "Could not extract column index of entry." << std::endl;
+      return false;
+    }
+    --(*column); // Convert from 1-based to 0-based indexing.
+  } else {
+    *column = 0;
+  }
+
+  // Determine the value.
+  if (description.field == kMatrixMarketFieldPattern) {
+    *value = 1.;
+  } else {
+    if (!(line_stream >> *value)) {
+      std::cerr << "Could not extract value of entry." << std::endl;
+      return false;
+    }
+  }
+
+  return true;
+}
+
+inline bool ReadMatrixMarketCoordinateComplexEntry(
+    const MatrixMarketDescription& description,
+    std::ifstream& file,
+    Int* row,
+    Int* column,
+    double* real_value,
+    double* imag_value) {
+  std::string line;
+
+  // Skip any comment lines.
+  while (file.peek() == kMatrixMarketCommentChar) {
+    std::getline(file, line);
+  }
+
+  // Get a stringstream for the relevant line.
+  if (!std::getline(file, line)) {
+    std::cerr << "Could not extract entry description from Matrix Market "
+                 "file." << std::endl;
+    return false;
+  }
+  std::stringstream line_stream(line);
+
+  // Read the row index.
+  if (!(line_stream >> *row)) {
+    std::cerr << "Could not extract row index of entry." << std::endl;
+    return false;
+  }
+  --(*row); // Convert from 1-based to 0-based indexing.
+
+  // Determine the column index.
+  if (description.object == kMatrixMarketObjectMatrix) {
+    if (!(line_stream >> *column)) {
+      std::cerr << "Could not extract column index of entry." << std::endl;
+      return false;
+    }
+    --(*column); // Convert from 1-based to 0-based indexing.
+  } else {
+    *column = 0;
+  }
+
+  // Determine the value.
+  if (description.field == kMatrixMarketFieldPattern) {
+    *real_value = 1.;
+    *imag_value = 0.;
+  } else {
+    if (!(line_stream >> *real_value)) {
+      std::cerr << "Could not extract real value of entry." << std::endl;
+      return false;
+    }
+    if (!(line_stream >> *imag_value)) {
+      std::cerr << "Could not extract imag value of entry." << std::endl;
+      return false;
+    }
   }
 
   return true;
