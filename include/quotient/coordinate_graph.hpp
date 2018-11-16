@@ -183,7 +183,6 @@ class CoordinateGraph {
   Int NumConnections(Int source) const QUOTIENT_NOEXCEPT;
 
  private:
-
   // The ground set size for the source vertices.
   Int num_sources_;
 
