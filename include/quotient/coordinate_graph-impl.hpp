@@ -207,15 +207,15 @@ inline void CoordinateGraph::ToMatrixMarket(const std::string& filename) const {
 inline CoordinateGraph::~CoordinateGraph() { }
 
 inline Int CoordinateGraph::NumSources() const QUOTIENT_NOEXCEPT {
-    return num_sources_;
+  return num_sources_;
 }
 
 inline Int CoordinateGraph::NumTargets() const QUOTIENT_NOEXCEPT {
-    return num_targets_;
+  return num_targets_;
 }
 
 inline Int CoordinateGraph::NumEdges() const QUOTIENT_NOEXCEPT {
-    return edges_.size();
+  return edges_.size();
 }
 
 inline void CoordinateGraph::Empty(bool free_resources) {
