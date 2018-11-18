@@ -12,8 +12,6 @@
 #  include "omp.h"
 #endif
 
-namespace quotient {
-
 // A guard for OpenMP pragmas so that builds which have not enabled OpenMP
 // do not lead to compiler warnings.
 #ifdef _OPENMP
@@ -48,7 +46,5 @@ namespace quotient {
 #  define QUOTIENT_HASH_COMBINE(hash, update) \
        hash += update
 #endif
-
-} // namespace quotient
 
 #endif // ifndef QUOTIENT_MACROS_H_
