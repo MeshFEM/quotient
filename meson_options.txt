@@ -9,29 +9,35 @@
 option('use-64bit',
     type : 'boolean',
     value : true,
+    yield : true,
     description : 'use 64-bit integers for representing the graph?')
 
 option('strong-hashes',
     type : 'boolean',
     value : false,
+    yield : true,
     description : 'use a more expensive, but better supervariable hash?')
 
 option('enable-timers',
     type : 'boolean',
     value : false,
+    yield : true,
     description : 'enable code for timing the components of QuotientGraph?')
 
 option('enable-debug',
     type : 'boolean',
     value : false,
+    yield : true,
     description : 'enable extra debugging assertions?')
 
 option('enable-openmp',
     type : 'boolean',
     value : false,
+    yield : true,
     description : 'demand OpenMP support?')
 
 option('disable-openmp',
     type : 'boolean',
     value : true,
+    yield : true,
     description : 'disable OpenMP support?')
