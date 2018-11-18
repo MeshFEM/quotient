@@ -320,19 +320,16 @@ inline void CoordinateGraph::FlushEdgeRemovalQueue(
     EraseDuplicatesInSortedVector(&edges_to_remove_);
 
     const Int num_edges = edges_.size();
-    Int num_removed = 0;
+    Int num_packed = 0;
     for (Int index = 0; index < num_edges; ++index) { 
       auto iter = std::lower_bound(
         edges_to_remove_.begin(), edges_to_remove_.end(), edges_[index]);
       if (iter == edges_to_remove_.end() || *iter != edges_[index]) {
         // The current edge should be kept, so pack it from the left.
-        edges_[index - num_removed] = edges_[index];
-      } else {
-        // The current edge should be skipped.
-        ++num_removed;
+        edges_[num_packed++] = edges_[index];
       }
     }
-    edges_.resize(num_edges - num_removed);
+    edges_.resize(num_packed);
     SwapClearVector(&edges_to_remove_);
   }
 
