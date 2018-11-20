@@ -13,9 +13,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "quotient/coordinate_graph.hpp"
 #include "quotient/integers.hpp"
 #include "quotient/macros.hpp"
-#include "quotient/coordinate_graph.hpp"
 #include "quotient/quotient_graph.hpp"
 #include "quotient/timer.hpp"
 
@@ -23,7 +23,7 @@
 
 namespace quotient {
 
-inline MinimumDegreeResult::MinimumDegreeResult() { }
+inline MinimumDegreeResult::MinimumDegreeResult() {}
 
 inline Int MinimumDegreeResult::NumStrictlyLowerCholeskyNonzeros() const {
   return num_cholesky_nonzeros - supernode_sizes.size();
@@ -45,8 +45,8 @@ inline Int MinimumDegreeResult::LargestSupernodeSize() const {
   return supernode_sizes[LargestSupernode()];
 }
 
-inline double
-MinimumDegreeResult::FractionOfPivotsWithMultipleElements() const {
+inline double MinimumDegreeResult::FractionOfPivotsWithMultipleElements()
+    const {
   Int num_pivots_with_multiple_elements = 0;
   for (const Int& pivot_element_list_size : pivot_element_list_sizes) {
     if (pivot_element_list_size > 2) {
@@ -54,16 +54,15 @@ MinimumDegreeResult::FractionOfPivotsWithMultipleElements() const {
     }
   }
   return num_pivots_with_multiple_elements /
-      (1. * pivot_element_list_sizes.size());
+         (1. * pivot_element_list_sizes.size());
 }
 
-inline double
-MinimumDegreeResult::FractionOfDegreeUpdatesWithMultipleElements() const {
+inline double MinimumDegreeResult::FractionOfDegreeUpdatesWithMultipleElements()
+    const {
   return num_degree_updates_with_multiple_elements / (1. * num_degree_updates);
 }
 
-inline std::vector<Int>
-MinimumDegreeResult::Permutation() const {
+inline std::vector<Int> MinimumDegreeResult::Permutation() const {
   const Int num_vertices = postorder.size();
 #ifdef QUOTIENT_DEBUG
   std::vector<Int> permutation(num_vertices, -1);
@@ -79,7 +78,7 @@ MinimumDegreeResult::Permutation() const {
 #ifdef QUOTIENT_DEBUG
   for (Int index = 0; index < num_vertices; ++index) {
     QUOTIENT_ASSERT(permutation[index] != -1,
-        "Permutation was only partially filled.");
+                    "Permutation was only partially filled.");
   }
 #endif
 
@@ -107,10 +106,10 @@ inline void MinimumDegreeResult::AssemblyForestToDot(
   file << "}\n";
 }
 
-inline MinimumDegreeResult MinimumDegree(
-  const CoordinateGraph& graph, const MinimumDegreeControl& control) {
+inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
+                                         const MinimumDegreeControl& control) {
   QUOTIENT_ASSERT(graph.NumSources() == graph.NumTargets(),
-      "MinimumDegree requires a symmetric input graph.");
+                  "MinimumDegree requires a symmetric input graph.");
   const Int num_orig_vertices = graph.NumSources();
 
   // Initialize a data structure that will eventually contain the results of
@@ -181,6 +180,6 @@ inline MinimumDegreeResult MinimumDegree(
   return analysis;
 }
 
-} // namespace quotient
+}  // namespace quotient
 
-#endif // ifndef QUOTIENT_MINIMUM_DEGREE_IMPL_H_
+#endif  // ifndef QUOTIENT_MINIMUM_DEGREE_IMPL_H_

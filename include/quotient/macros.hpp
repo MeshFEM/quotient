@@ -9,7 +9,7 @@
 #define QUOTIENT_MACROS_H_
 
 #ifdef _OPENMP
-#  include "omp.h"
+#include "omp.h"
 #endif
 
 #include <iostream>
@@ -17,36 +17,37 @@
 // A guard for OpenMP pragmas so that builds which have not enabled OpenMP
 // do not lead to compiler warnings.
 #ifdef _OPENMP
-#  define OMP_PRAGMA(x) _Pragma(#x)
+#define OMP_PRAGMA(x) _Pragma(#x)
 #else
-#  define OMP_PRAGMA(x)
+#define OMP_PRAGMA(x)
 #endif
 
 // An attribute for routines which are known to not throw exceptions in
 // release mode.
 #ifdef QUOTIENT_DEBUG
-#  define QUOTIENT_NOEXCEPT
+#define QUOTIENT_NOEXCEPT
 #else
-#  define QUOTIENT_NOEXCEPT noexcept
+#define QUOTIENT_NOEXCEPT noexcept
 #endif
 
 #ifdef QUOTIENT_DEBUG
-#  define QUOTIENT_ASSERT(assertion, message) { \
-       if (!(assertion)) { \
-         std::cerr << (message) << std::endl; \
-       } }
+#define QUOTIENT_ASSERT(assertion, message) \
+  {                                         \
+    if (!(assertion)) {                     \
+      std::cerr << (message) << std::endl;  \
+    }                                       \
+  }
 #else
-#  define QUOTIENT_ASSERT(condition, message)
+#define QUOTIENT_ASSERT(condition, message)
 #endif
 
 // In most scenarios, it seems that the cost of the stronger hash is not
 // worth the increased cost of maintaining the hash.
 #ifdef QUOTIENT_STRONG_HASHES
-#  define QUOTIENT_HASH_COMBINE(hash, update) \
-       hash ^= (update) + 0x9e3779b9 + (hash << 6) + (hash >> 2)
+#define QUOTIENT_HASH_COMBINE(hash, update) \
+  hash ^= (update) + 0x9e3779b9 + (hash << 6) + (hash >> 2)
 #else
-#  define QUOTIENT_HASH_COMBINE(hash, update) \
-       hash += update
+#define QUOTIENT_HASH_COMBINE(hash, update) hash += update
 #endif
 
-#endif // ifndef QUOTIENT_MACROS_H_
+#endif  // ifndef QUOTIENT_MACROS_H_

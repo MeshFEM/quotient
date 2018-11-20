@@ -14,4 +14,4 @@
 #include "quotient/minimum_degree.hpp"
 #include "quotient/timer.hpp"
 
-#endif // ifndef QUOTIENT_H_
+#endif  // ifndef QUOTIENT_H_

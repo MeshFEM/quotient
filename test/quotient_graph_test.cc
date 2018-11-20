@@ -7,8 +7,9 @@
  */
 #define CATCH_CONFIG_MAIN
 #include <vector>
-#include "quotient.hpp"
 #include "catch.hpp"
+
+#include "quotient.hpp"
 
 using quotient::Int;
 

@@ -20,7 +20,7 @@ enum DegreeType {
   // In the notation of [ADD-96],
   //   \bar{d_i}^k = min(
   //     n - k,
-  //     \bar{d_i}^{k - 1} + |L_p \ supernode(i)|, 
+  //     \bar{d_i}^{k - 1} + |L_p \ supernode(i)|,
   //     |A_i \ supernode(i)| + |L_p \ supernode(i)| +
   //         \sum_{e in E_i \ {p}} |L_e \ L_p|).
   kAmestoyDegree,
@@ -34,6 +34,6 @@ enum DegreeType {
   kGilbertDegree,
 };
 
-} // namespace quotient
+}  // namespace quotient
 
-#endif // ifndef QUOTIENT_DEGREE_TYPE_H_
+#endif  // ifndef QUOTIENT_DEGREE_TYPE_H_

@@ -20,7 +20,7 @@ static constexpr char kDefaultTimerName[] = "[default]";
 class Timer {
  public:
   // Constructs a timer with the given name.
-  Timer(const std::string& name=kDefaultTimerName) QUOTIENT_NOEXCEPT;
+  Timer(const std::string& name = kDefaultTimerName) QUOTIENT_NOEXCEPT;
 
   // Returns the name of the timer.
   const std::string& Name() const QUOTIENT_NOEXCEPT;
@@ -38,7 +38,7 @@ class Timer {
   double TotalSeconds() const QUOTIENT_NOEXCEPT;
 
   // Resets the timer and changes its name to the specified value.
-  void Reset(const std::string& name=kDefaultTimerName) QUOTIENT_NOEXCEPT;
+  void Reset(const std::string& name = kDefaultTimerName) QUOTIENT_NOEXCEPT;
 
  private:
   // The name of the timer.
@@ -54,11 +54,11 @@ class Timer {
   double last_interval_seconds_;
 
   // The total number of seconds the timer has run since the last 'Reset'.
-  double total_seconds_; 
+  double total_seconds_;
 };
 
-} // namespace quotient
+}  // namespace quotient
 
 #include "quotient/timer-impl.hpp"
 
-#endif // ifndef QUOTIENT_TIMER_H_
+#endif  // ifndef QUOTIENT_TIMER_H_

@@ -26,6 +26,6 @@ typedef uint64_t UInt;
 typedef unsigned UInt;
 #endif
 
-} // namespace quotient
+}  // namespace quotient
 
-#endif // ifndef QUOTIENT_INTEGERS_H_
+#endif  // ifndef QUOTIENT_INTEGERS_H_

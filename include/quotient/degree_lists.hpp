@@ -56,8 +56,8 @@ struct DegreeLists {
   void UpdateDegree(Int index, Int degree) QUOTIENT_NOEXCEPT;
 };
 
-} // namespace quotient
+}  // namespace quotient
 
 #include "quotient/degree_lists-impl.hpp"
 
-#endif // ifndef QUOTIENT_DEGREE_LISTS_H_
+#endif  // ifndef QUOTIENT_DEGREE_LISTS_H_

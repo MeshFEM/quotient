@@ -32,15 +32,13 @@ enum EntryMask {
   kEntryMaskUpperTriangle,
 };
 
-
 // A helper routine for freeing the memory of an std::vector.
-template<typename T>
+template <typename T>
 void SwapClearVector(std::vector<T>* vec);
 
 // Removes all duplicate entries from a sorted vector.
-template<typename T>
+template <typename T>
 void EraseDuplicatesInSortedVector(std::vector<T>* vec);
-
 
 // A coordinate-format graph data structure that supports different source
 // and target set sizes. The primary storage is a lexicographically sorted
@@ -96,9 +94,8 @@ class CoordinateGraph {
 
   // Builds and returns a CoordinateGraph from a Matrix Market description.
   static std::unique_ptr<CoordinateGraph> FromMatrixMarket(
-      const std::string& filename,
-      bool skip_explicit_zeros,
-      EntryMask mask=kEntryMaskFull);
+      const std::string& filename, bool skip_explicit_zeros,
+      EntryMask mask = kEntryMaskFull);
 
   // Writes a copy of the CoordinateGraph to a Matrix Market file.
   void ToMatrixMarket(const std::string& filename) const;
@@ -221,8 +218,8 @@ class CoordinateGraph {
   void UpdateSourceEdgeOffsets();
 };
 
-} // namespace quotient
+}  // namespace quotient
 
 #include "quotient/coordinate_graph-impl.hpp"
 
-#endif // ifndef QUOTIENT_COORDINATE_GRAPH_H_
+#endif  // ifndef QUOTIENT_COORDINATE_GRAPH_H_

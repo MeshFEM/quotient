@@ -117,11 +117,11 @@ struct MinimumDegreeResult {
 //
 // The input graph must be explicitly symmetric.
 //
-MinimumDegreeResult MinimumDegree(
-  const CoordinateGraph& graph, const MinimumDegreeControl& control);
+MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
+                                  const MinimumDegreeControl& control);
 
-} // namespace quotient
+}  // namespace quotient
 
 #include "quotient/minimum_degree-impl.hpp"
 
-#endif // ifndef QUOTIENT_MINIMUM_DEGREE_H_
+#endif  // ifndef QUOTIENT_MINIMUM_DEGREE_H_

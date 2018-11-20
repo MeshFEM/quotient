@@ -16,9 +16,9 @@
 
 namespace quotient {
 
-template<typename T>
-void PrintVector(
-    const std::vector<T>& vec, const std::string& msg, std::ostream& os) {
+template <typename T>
+void PrintVector(const std::vector<T>& vec, const std::string& msg,
+                 std::ostream& os) {
   os << msg << ": ";
   for (UInt i = 0; i < vec.size(); ++i) {
     os << vec[i] << " ";
@@ -26,6 +26,6 @@ void PrintVector(
   os << "\n";
 }
 
-} // namespace quotient
+}  // namespace quotient
 
-#endif // ifndef QUOTIENT_IO_UTILS_IMPL_H_
+#endif  // ifndef QUOTIENT_IO_UTILS_IMPL_H_

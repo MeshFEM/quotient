@@ -7,8 +7,9 @@
  */
 #define CATCH_CONFIG_MAIN
 #include <vector>
-#include "quotient.hpp"
 #include "catch.hpp"
+
+#include "quotient.hpp"
 
 using quotient::Int;
 
@@ -77,9 +78,8 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
     std::sort(analysis.supernodes[i].begin(), analysis.supernodes[i].end());
   }
   for (std::size_t i = 0; i < analysis.eliminated_structures.size(); ++i) {
-    std::sort(
-        analysis.eliminated_structures[i].begin(),
-        analysis.eliminated_structures[i].end());
+    std::sort(analysis.eliminated_structures[i].begin(),
+              analysis.eliminated_structures[i].end());
   }
 
   // Because of the ordering of the hash bucket, we will prefer the last member
@@ -93,37 +93,21 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   // See the comment at the top of this test for why we do not expect any
   // nontrivial supernodes.
   const std::vector<std::vector<Int>> kExpectedSupernodes{
-      {0},
-      {1},
-      {2},
-      {3},
-      {4},
-      {5},
-      {},
-      {},
-      {6, 7, 8},
-      {9},
+      {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9},
   };
 
   // This structure is defined directly (modulo translation from 1-based to
   // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
   const std::vector<std::vector<Int>> kExpectedEliminatedStructures{
-      {3, 5},
-      {4, 5, 8},
-      {4, 5, 6},
-      {5, 6, 7},
-      {5, 6, 8},
-      {6, 7, 8},
-      {9},
-      {},
+      {3, 5}, {4, 5, 8}, {4, 5, 6}, {5, 6, 7}, {5, 6, 8}, {6, 7, 8}, {9}, {},
   };
 
   const Int kExpectedNumAggressiveAbsorptions = 0;
 
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
-  REQUIRE(
-      analysis.num_aggressive_absorptions == kExpectedNumAggressiveAbsorptions);
+  REQUIRE(analysis.num_aggressive_absorptions ==
+          kExpectedNumAggressiveAbsorptions);
   REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
 }
 
@@ -155,9 +139,8 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
     std::sort(analysis.supernodes[i].begin(), analysis.supernodes[i].end());
   }
   for (std::size_t i = 0; i < analysis.eliminated_structures.size(); ++i) {
-    std::sort(
-        analysis.eliminated_structures[i].begin(),
-        analysis.eliminated_structures[i].end());
+    std::sort(analysis.eliminated_structures[i].begin(),
+              analysis.eliminated_structures[i].end());
   }
 
   const std::vector<Int> kExpectedEliminationOrder{
@@ -167,19 +150,13 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   // See the comment at the top of this test for why we do not expect any
   // nontrivial supernodes.
   const std::vector<std::vector<Int>> kExpectedSupernodes{
-      {0},
-      {1},
-      {2},
-      {3},
+      {0}, {1}, {2}, {3},
   };
 
   // This structure is defined directly (modulo translation from 1-based to
   // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
   const std::vector<std::vector<Int>> kExpectedEliminatedStructures{
-      {2, 3},
-      {2, 3},
-      {3},
-      {},
+      {2, 3}, {2, 3}, {3}, {},
   };
 
   // [ADD-96] discusses the aggressive absorption, 0 into 1.
@@ -187,7 +164,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
 
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
   REQUIRE(analysis.supernodes == kExpectedSupernodes);
-  REQUIRE(
-      analysis.num_aggressive_absorptions == kExpectedNumAggressiveAbsorptions);
+  REQUIRE(analysis.num_aggressive_absorptions ==
+          kExpectedNumAggressiveAbsorptions);
   REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
 }

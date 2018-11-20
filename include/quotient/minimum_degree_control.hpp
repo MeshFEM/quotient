@@ -55,6 +55,6 @@ struct MinimumDegreeControl {
   bool store_structures = false;
 };
 
-} // namespace quotient
+}  // namespace quotient
 
-#endif // ifndef QUOTIENT_MINIMUM_DEGREE_CONTROL_H_
+#endif  // ifndef QUOTIENT_MINIMUM_DEGREE_CONTROL_H_

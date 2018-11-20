@@ -40,8 +40,8 @@ struct HashLists {
   void AddHash(Int index, std::size_t hash, Int bucket) QUOTIENT_NOEXCEPT;
 };
 
-} // namespace quotient
+}  // namespace quotient
 
 #include "quotient/hash_lists-impl.hpp"
 
-#endif // ifndef QUOTIENT_HASH_LISTS_H_
+#endif  // ifndef QUOTIENT_HASH_LISTS_H_

@@ -18,11 +18,11 @@ namespace quotient {
 inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index)
     QUOTIENT_NOEXCEPT {
   while (degree_lower_bound < Int(heads.size()) &&
-      heads[degree_lower_bound] == -1) {
+         heads[degree_lower_bound] == -1) {
     ++degree_lower_bound;
   }
   QUOTIENT_ASSERT(degree_lower_bound != Int(heads.size()),
-      "Could not find a minimal degree.");
+                  "Could not find a minimal degree.");
 
   Int index = heads[degree_lower_bound];
   if (demand_smallest_index) {
@@ -39,7 +39,8 @@ inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index)
   while (heads[degree] == -1) {
     ++degree;
   }
-  QUOTIENT_ASSERT(degree == degree_lower_bound,
+  QUOTIENT_ASSERT(
+      degree == degree_lower_bound,
       "True minimal degree was different from result from FindMinimalIndex.");
 #endif
 
@@ -85,6 +86,6 @@ inline void DegreeLists::UpdateDegree(Int index, Int degree) QUOTIENT_NOEXCEPT {
   AddDegree(index, degree);
 }
 
-} // namespace quotient
+}  // namespace quotient
 
-#endif // ifndef QUOTIENT_DEGREE_LISTS_IMPL_H_
+#endif  // ifndef QUOTIENT_DEGREE_LISTS_IMPL_H_

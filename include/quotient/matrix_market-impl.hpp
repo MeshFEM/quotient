@@ -8,9 +8,9 @@
 #ifndef QUOTIENT_MATRIX_MARKET_IMPL_H_
 #define QUOTIENT_MATRIX_MARKET_IMPL_H_
 
-#include <memory>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -18,7 +18,7 @@
 
 namespace quotient {
 
-inline MatrixMarketDescription::MatrixMarketDescription() { }
+inline MatrixMarketDescription::MatrixMarketDescription() {}
 
 inline bool MatrixMarketDescription::ParseFromHeaderLine(
     const std::string& header_line) {
@@ -53,7 +53,7 @@ inline bool MatrixMarketDescription::ParseFromHeaderLine(
   }
 
   // Determine the type of object.
-  if (object_string == kMatrixMarketObjectMatrixString) { 
+  if (object_string == kMatrixMarketObjectMatrixString) {
     object = kMatrixMarketObjectMatrix;
   } else if (object_string == kMatrixMarketObjectVectorString) {
     object = kMatrixMarketObjectVector;
@@ -120,7 +120,8 @@ inline bool MatrixMarketDescription::ParseFromHeaderLine(
     // from http://people.sc.fsu.edu/~jburkardt/data/mm/mm.html, we disallow
     // patterned skew-symmetry.
     std::cerr << "The 'pattern' field and 'skew-symmetric' symmetry are "
-                 "incompatible." << std::endl;
+                 "incompatible."
+              << std::endl;
     return false;
   }
   if (field != kMatrixMarketFieldComplex &&
@@ -132,8 +133,8 @@ inline bool MatrixMarketDescription::ParseFromHeaderLine(
   return true;
 }
 
-inline bool ReadMatrixMarketDescription(
-    std::ifstream& file, MatrixMarketDescription* description) {
+inline bool ReadMatrixMarketDescription(std::ifstream& file,
+                                        MatrixMarketDescription* description) {
   // Get the first line of the file.
   std::string line;
   if (!std::getline(file, line)) {
@@ -152,7 +153,8 @@ inline bool ReadMatrixMarketDescription(
   // Perform a preliminary consistency check.
   if (description->object == kMatrixMarketObjectVector) {
     std::cerr << "The Matrix Market 'vector' object is incompatible with "
-                 "CoordinateGraph." << std::endl;
+                 "CoordinateGraph."
+              << std::endl;
     return false;
   }
 
@@ -160,10 +162,8 @@ inline bool ReadMatrixMarketDescription(
 }
 
 inline bool ReadMatrixMarketArrayMetadata(
-    const MatrixMarketDescription& description,
-    std::ifstream& file,
-    Int* num_rows,
-    Int* num_columns) {
+    const MatrixMarketDescription& description, std::ifstream& file,
+    Int* num_rows, Int* num_columns) {
   std::string line;
 
   // Skip any comment lines.
@@ -180,16 +180,14 @@ inline bool ReadMatrixMarketArrayMetadata(
 
   // Read the number of rows.
   if (!(line_stream >> *num_rows)) {
-    std::cerr << "Missing matrix height in Matrix Market file."
-              << std::endl;
+    std::cerr << "Missing matrix height in Matrix Market file." << std::endl;
     return false;
   }
 
   // Determine the number of columns.
   if (description.object == kMatrixMarketObjectMatrix) {
     if (!(line_stream >> *num_columns)) {
-      std::cerr << "Missing matrix width in Matrix Market file."
-                << std::endl;
+      std::cerr << "Missing matrix width in Matrix Market file." << std::endl;
       return false;
     }
   } else {
@@ -200,11 +198,8 @@ inline bool ReadMatrixMarketArrayMetadata(
 }
 
 inline bool ReadMatrixMarketCoordinateMetadata(
-    const MatrixMarketDescription& description,
-    std::ifstream& file,
-    Int* num_rows,
-    Int* num_columns,
-    Int* num_entries) {
+    const MatrixMarketDescription& description, std::ifstream& file,
+    Int* num_rows, Int* num_columns, Int* num_entries) {
   std::string line;
 
   // Skip any comment lines.
@@ -245,8 +240,7 @@ inline bool ReadMatrixMarketCoordinateMetadata(
 }
 
 inline bool ReadMatrixMarketArrayRealValue(
-    const MatrixMarketDescription& description,
-    std::ifstream& file,
+    const MatrixMarketDescription& description, std::ifstream& file,
     double* value) {
   std::string line;
 
@@ -276,10 +270,8 @@ inline bool ReadMatrixMarketArrayRealValue(
 }
 
 inline bool ReadMatrixMarketArrayComplexValue(
-    const MatrixMarketDescription& description,
-    std::ifstream& file,
-    double* real_value,
-    double* imag_value) {
+    const MatrixMarketDescription& description, std::ifstream& file,
+    double* real_value, double* imag_value) {
   std::string line;
 
   // Skip any comment lines.
@@ -293,7 +285,6 @@ inline bool ReadMatrixMarketArrayComplexValue(
     return false;
   }
   std::stringstream line_stream(line);
-
 
   if (description.field == kMatrixMarketFieldComplex) {
     // Read the real value.
@@ -322,9 +313,7 @@ inline bool ReadMatrixMarketArrayComplexValue(
 }
 
 inline bool ReadMatrixMarketCoordinateIndices(
-    const MatrixMarketDescription& description,
-    std::ifstream& file,
-    Int* row,
+    const MatrixMarketDescription& description, std::ifstream& file, Int* row,
     Int* column) {
   std::string line;
 
@@ -336,7 +325,8 @@ inline bool ReadMatrixMarketCoordinateIndices(
   // Get a stringstream for the relevant line.
   if (!std::getline(file, line)) {
     std::cerr << "Could not extract entry description from Matrix Market "
-                 "file." << std::endl;
+                 "file."
+              << std::endl;
     return false;
   }
   std::stringstream line_stream(line);
@@ -346,7 +336,7 @@ inline bool ReadMatrixMarketCoordinateIndices(
     std::cerr << "Could not extract row index of entry." << std::endl;
     return false;
   }
-  --(*row); // Convert from 1-based to 0-based indexing.
+  --(*row);  // Convert from 1-based to 0-based indexing.
 
   // Determine the column index.
   if (description.object == kMatrixMarketObjectMatrix) {
@@ -354,7 +344,7 @@ inline bool ReadMatrixMarketCoordinateIndices(
       std::cerr << "Could not extract column index of entry." << std::endl;
       return false;
     }
-    --(*column); // Convert from 1-based to 0-based indexing.
+    --(*column);  // Convert from 1-based to 0-based indexing.
   } else {
     *column = 0;
   }
@@ -363,11 +353,8 @@ inline bool ReadMatrixMarketCoordinateIndices(
 }
 
 inline bool ReadMatrixMarketCoordinateRealEntry(
-    const MatrixMarketDescription& description,
-    std::ifstream& file,
-    Int* row,
-    Int* column,
-    double* value) {
+    const MatrixMarketDescription& description, std::ifstream& file, Int* row,
+    Int* column, double* value) {
   std::string line;
 
   // Skip any comment lines.
@@ -378,7 +365,8 @@ inline bool ReadMatrixMarketCoordinateRealEntry(
   // Get a stringstream for the relevant line.
   if (!std::getline(file, line)) {
     std::cerr << "Could not extract entry description from Matrix Market "
-                 "file." << std::endl;
+                 "file."
+              << std::endl;
     return false;
   }
   std::stringstream line_stream(line);
@@ -388,7 +376,7 @@ inline bool ReadMatrixMarketCoordinateRealEntry(
     std::cerr << "Could not extract row index of entry." << std::endl;
     return false;
   }
-  --(*row); // Convert from 1-based to 0-based indexing.
+  --(*row);  // Convert from 1-based to 0-based indexing.
 
   // Determine the column index.
   if (description.object == kMatrixMarketObjectMatrix) {
@@ -396,7 +384,7 @@ inline bool ReadMatrixMarketCoordinateRealEntry(
       std::cerr << "Could not extract column index of entry." << std::endl;
       return false;
     }
-    --(*column); // Convert from 1-based to 0-based indexing.
+    --(*column);  // Convert from 1-based to 0-based indexing.
   } else {
     *column = 0;
   }
@@ -415,12 +403,8 @@ inline bool ReadMatrixMarketCoordinateRealEntry(
 }
 
 inline bool ReadMatrixMarketCoordinateComplexEntry(
-    const MatrixMarketDescription& description,
-    std::ifstream& file,
-    Int* row,
-    Int* column,
-    double* real_value,
-    double* imag_value) {
+    const MatrixMarketDescription& description, std::ifstream& file, Int* row,
+    Int* column, double* real_value, double* imag_value) {
   std::string line;
 
   // Skip any comment lines.
@@ -431,7 +415,8 @@ inline bool ReadMatrixMarketCoordinateComplexEntry(
   // Get a stringstream for the relevant line.
   if (!std::getline(file, line)) {
     std::cerr << "Could not extract entry description from Matrix Market "
-                 "file." << std::endl;
+                 "file."
+              << std::endl;
     return false;
   }
   std::stringstream line_stream(line);
@@ -441,7 +426,7 @@ inline bool ReadMatrixMarketCoordinateComplexEntry(
     std::cerr << "Could not extract row index of entry." << std::endl;
     return false;
   }
-  --(*row); // Convert from 1-based to 0-based indexing.
+  --(*row);  // Convert from 1-based to 0-based indexing.
 
   // Determine the column index.
   if (description.object == kMatrixMarketObjectMatrix) {
@@ -449,7 +434,7 @@ inline bool ReadMatrixMarketCoordinateComplexEntry(
       std::cerr << "Could not extract column index of entry." << std::endl;
       return false;
     }
-    --(*column); // Convert from 1-based to 0-based indexing.
+    --(*column);  // Convert from 1-based to 0-based indexing.
   } else {
     *column = 0;
   }
@@ -478,6 +463,6 @@ inline bool ReadMatrixMarketCoordinateComplexEntry(
   return true;
 }
 
-} // namespace quotient
+}  // namespace quotient
 
-#endif // ifndef QUOTIENT_MATRIX_MARKET_IMPL_H_
+#endif  // ifndef QUOTIENT_MATRIX_MARKET_IMPL_H_

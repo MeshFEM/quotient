@@ -18,10 +18,13 @@
 namespace quotient {
 
 inline Timer::Timer(const std::string& name) QUOTIENT_NOEXCEPT
-: name_(name), running_(false), last_interval_seconds_(0), total_seconds_(0) { }
+    : name_(name),
+      running_(false),
+      last_interval_seconds_(0),
+      total_seconds_(0) {}
 
 inline const std::string& Timer::Name() const QUOTIENT_NOEXCEPT {
-    return name_;
+  return name_;
 }
 
 inline void Timer::Start() QUOTIENT_NOEXCEPT {
@@ -60,6 +63,6 @@ inline void Timer::Reset(const std::string& name) QUOTIENT_NOEXCEPT {
   running_ = false;
 }
 
-} // namespace quotient
+}  // namespace quotient
 
-#endif // ifndef QUOTIENT_TIMER_IMPL_H_
+#endif  // ifndef QUOTIENT_TIMER_IMPL_H_

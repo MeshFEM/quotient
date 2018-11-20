@@ -7,8 +7,9 @@
  */
 #define CATCH_CONFIG_MAIN
 #include <vector>
-#include "quotient.hpp"
 #include "catch.hpp"
+
+#include "quotient.hpp"
 
 TEST_CASE("Simple example", "[simple]") {
   quotient::CoordinateGraph graph;
@@ -34,7 +35,7 @@ TEST_CASE("Simple example", "[simple]") {
   graph.RemoveEdge(2, 0);
   graph.RemoveEdge(0, 2);
   graph.RemoveEdge(0, 2);
-  
+
   REQUIRE(edges.size() == 3);
   REQUIRE(edges[0] == quotient::GraphEdge(0, 1));
   REQUIRE(edges[1] == quotient::GraphEdge(0, 4));
@@ -80,7 +81,7 @@ TEST_CASE("Batch example", "[batch]") {
   graph.FlushEdgeQueues();
 
   const std::vector<quotient::GraphEdge>& edges = graph.Edges();
-  
+
   REQUIRE(edges.size() == 3);
   REQUIRE(edges[0] == quotient::GraphEdge(0, 1));
   REQUIRE(edges[1] == quotient::GraphEdge(0, 4));
@@ -107,50 +108,18 @@ TEST_CASE("Matrix Matrix general", "[MM-general]") {
   constexpr char kCoordinateSymmetricSmall[] =
       "../test/matrix_market/coordinate-symmetric-small.mtx";
 
-  const std::vector<quotient::GraphEdge> kExpectedEdges {
-    {0, 3},
-    {0, 5},
-    {1, 4},
-    {1, 5},
-    {1, 8},
-    {2, 4},
-    {2, 5},
-    {2, 6},
-    {3, 0},
-    {3, 6},
-    {3, 7},
-    {4, 1},
-    {4, 2},
-    {4, 6},
-    {4, 8},
-    {5, 0},
-    {5, 1},
-    {5, 2},
-    {6, 2},
-    {6, 3},
-    {6, 4},
-    {6, 7},
-    {6, 8},
-    {6, 9},
-    {7, 3},
-    {7, 6},
-    {7, 8},
-    {7, 9},
-    {8, 1},
-    {8, 4},
-    {8, 6},
-    {8, 7},
-    {8, 9},
-    {9, 6},
-    {9, 7},
-    {9, 8},
+  const std::vector<quotient::GraphEdge> kExpectedEdges{
+      {0, 3}, {0, 5}, {1, 4}, {1, 5}, {1, 8}, {2, 4}, {2, 5}, {2, 6}, {3, 0},
+      {3, 6}, {3, 7}, {4, 1}, {4, 2}, {4, 6}, {4, 8}, {5, 0}, {5, 1}, {5, 2},
+      {6, 2}, {6, 3}, {6, 4}, {6, 7}, {6, 8}, {6, 9}, {7, 3}, {7, 6}, {7, 8},
+      {7, 9}, {8, 1}, {8, 4}, {8, 6}, {8, 7}, {8, 9}, {9, 6}, {9, 7}, {9, 8},
   };
 
   const bool skip_explicit_zeros = false;
   const quotient::EntryMask mask = quotient::kEntryMaskFull;
   std::unique_ptr<quotient::CoordinateGraph> graph =
-      quotient::CoordinateGraph::FromMatrixMarket(
-          kCoordinateGeneralSmall, skip_explicit_zeros, mask);
+      quotient::CoordinateGraph::FromMatrixMarket(kCoordinateGeneralSmall,
+                                                  skip_explicit_zeros, mask);
   REQUIRE(graph != nullptr);
   REQUIRE(graph->Edges() == kExpectedEdges);
 

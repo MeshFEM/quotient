@@ -14,12 +14,12 @@
 namespace quotient {
 
 // Pretty-prints an std::vector<T>.
-template<typename T>
-void PrintVector(
-    const std::vector<T>& vec, const std::string& msg, std::ostream& os);
+template <typename T>
+void PrintVector(const std::vector<T>& vec, const std::string& msg,
+                 std::ostream& os);
 
-} // namespace quotient
+}  // namespace quotient
 
 #include "quotient/io_utils-impl.hpp"
 
-#endif // ifndef QUOTIENT_IO_UTILS_H_
+#endif  // ifndef QUOTIENT_IO_UTILS_H_

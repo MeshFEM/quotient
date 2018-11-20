@@ -31,8 +31,8 @@ struct SufficientStatistics {
 };
 
 // Pretty prints the SufficientStatistics structure.
-void PrintSufficientStatistics(
-    const SufficientStatistics& stats, const std::string& label) {
+void PrintSufficientStatistics(const SufficientStatistics& stats,
+                               const std::string& label) {
   if (stats.mean != std::numeric_limits<double>::infinity()) {
     std::cout << label << ": median=" << stats.median << ", mean=" << stats.mean
               << ", stddev=" << stats.standard_deviation << std::endl;
@@ -79,25 +79,24 @@ struct AMDExperiment {
 };
 
 // Pretty prints the AMDExperiment structure.
-void PrintAMDExperiment(
-    const AMDExperiment& experiment, const std::string& label) {
+void PrintAMDExperiment(const AMDExperiment& experiment,
+                        const std::string& label) {
   std::cout << label << ":\n";
-  PrintSufficientStatistics(
-      experiment.largest_supernode_size, "  largest_supernode_size");
+  PrintSufficientStatistics(experiment.largest_supernode_size,
+                            "  largest_supernode_size");
   PrintSufficientStatistics(experiment.num_nonzeros, "  num_nonzeros");
-  PrintSufficientStatistics(
-      experiment.num_strictly_lower_nonzeros, "  num_strictly_lower_nonzeros");
+  PrintSufficientStatistics(experiment.num_strictly_lower_nonzeros,
+                            "  num_strictly_lower_nonzeros");
   PrintSufficientStatistics(experiment.num_flops, "  num_flops");
-  PrintSufficientStatistics(
-      experiment.num_degree_updates, "  num_degree_updates");
-  PrintSufficientStatistics(
-      experiment.num_aggressive_absorptions, "  num_aggressive_absorptions");
-  PrintSufficientStatistics(
-      experiment.num_hash_bucket_collisions, "  num_hash_bucket_collisions");
-  PrintSufficientStatistics(
-      experiment.num_hash_collisions, "  num_hash_collisions");
-  PrintSufficientStatistics(
-      experiment.elapsed_seconds, "  elapsed_seconds");
+  PrintSufficientStatistics(experiment.num_degree_updates,
+                            "  num_degree_updates");
+  PrintSufficientStatistics(experiment.num_aggressive_absorptions,
+                            "  num_aggressive_absorptions");
+  PrintSufficientStatistics(experiment.num_hash_bucket_collisions,
+                            "  num_hash_bucket_collisions");
+  PrintSufficientStatistics(experiment.num_hash_collisions,
+                            "  num_hash_collisions");
+  PrintSufficientStatistics(experiment.elapsed_seconds, "  elapsed_seconds");
   PrintSufficientStatistics(
       experiment.fraction_of_pivots_with_multiple_elements,
       "  fraction of pivots w/ multi elements");
@@ -107,7 +106,7 @@ void PrintAMDExperiment(
 }
 
 // Returns the median of a given vector.
-template<typename T>
+template <typename T>
 double Median(const std::vector<T>& vec) {
   const std::size_t num_entries = vec.size();
   if (num_entries == 0) {
@@ -124,14 +123,14 @@ double Median(const std::vector<T>& vec) {
 }
 
 // Returns the mean of a given vector.
-template<typename T>
+template <typename T>
 double Mean(const std::vector<T>& vec) {
   const std::size_t num_entries = vec.size();
   if (num_entries == 0) {
     return std::numeric_limits<double>::infinity();
   }
 
-  double mean = 0.; 
+  double mean = 0.;
   for (std::size_t index = 0; index < vec.size(); ++index) {
     mean += vec[index] / num_entries;
   }
@@ -158,7 +157,7 @@ void UpdateScaledSquare(double update, double* scale, double* scaled_square) {
 }
 
 // Returns the standard deviation of a given vector with a given mean.
-template<typename T>
+template <typename T>
 double StandardDeviation(const std::vector<T>& vec, double mean) {
   const std::size_t num_entries = vec.size();
   if (num_entries == 0) {
@@ -167,7 +166,7 @@ double StandardDeviation(const std::vector<T>& vec, double mean) {
 
   double scale = 0;
   double scaled_variance = 1.;
-  for (std::size_t index = 0; index < vec.size(); ++index) { 
+  for (std::size_t index = 0; index < vec.size(); ++index) {
     const double difference_from_mean = static_cast<double>(vec[index] - mean);
     UpdateScaledSquare(difference_from_mean, &scale, &scaled_variance);
   }
@@ -176,7 +175,7 @@ double StandardDeviation(const std::vector<T>& vec, double mean) {
 }
 
 // Returns the SufficientStatistics properties for a given vector.
-template<typename T>
+template <typename T>
 SufficientStatistics GetSufficientStatistics(const std::vector<T>& vec) {
   SufficientStatistics stats;
   stats.median = Median(vec);
@@ -187,22 +186,17 @@ SufficientStatistics GetSufficientStatistics(const std::vector<T>& vec) {
 
 // Returns the AMDExperiment statistics for a single Matrix Market input matrix.
 AMDExperiment RunMatrixMarketAMDTest(
-    const std::string& filename,
-    bool skip_explicit_zeros,
-    quotient::EntryMask mask,
-    const quotient::MinimumDegreeControl& control,
-    bool force_symmetry,
-    int num_random_permutations,
-    bool print_progress,
-    bool write_permuted_graphs,
-    bool write_assembly_forests) {
+    const std::string& filename, bool skip_explicit_zeros,
+    quotient::EntryMask mask, const quotient::MinimumDegreeControl& control,
+    bool force_symmetry, int num_random_permutations, bool print_progress,
+    bool write_permuted_graphs, bool write_assembly_forests) {
   if (print_progress) {
     std::cout << "Reading CoordinateGraph from " << filename << "..."
               << std::endl;
   }
   std::unique_ptr<quotient::CoordinateGraph> graph =
-      quotient::CoordinateGraph::FromMatrixMarket(
-          filename, skip_explicit_zeros, mask);
+      quotient::CoordinateGraph::FromMatrixMarket(filename, skip_explicit_zeros,
+                                                  mask);
   if (!graph) {
     std::cerr << "Could not open " << filename << "." << std::endl;
     AMDExperiment experiment;
@@ -228,7 +222,7 @@ AMDExperiment RunMatrixMarketAMDTest(
 
     Int densest_row_size = 0;
     Int densest_row_index = -1;
-    for (Int i = 0; i < graph->NumSources(); ++i ) {
+    for (Int i = 0; i < graph->NumSources(); ++i) {
       if (graph->NumConnections(i) > densest_row_size) {
         densest_row_size = graph->NumConnections(i);
         densest_row_index = i;
@@ -293,7 +287,7 @@ AMDExperiment RunMatrixMarketAMDTest(
     }
 #ifdef QUOTIENT_ENABLE_TIMERS
     for (const std::pair<std::string, double>& pairing :
-        analysis.elapsed_seconds) {
+         analysis.elapsed_seconds) {
       std::cout << "    " << pairing.first << ": " << pairing.second
                 << " seconds." << std::endl;
     }
@@ -306,8 +300,8 @@ AMDExperiment RunMatrixMarketAMDTest(
       permuted_graph.Resize(graph->NumSources());
       permuted_graph.ReserveEdgeAdditions(graph->NumEdges());
       for (const std::pair<Int, Int>& edge : graph->Edges()) {
-        permuted_graph.QueueEdgeAddition(
-            permutation[edge.first], permutation[edge.second]);
+        permuted_graph.QueueEdgeAddition(permutation[edge.first],
+                                         permutation[edge.second]);
       }
       permuted_graph.FlushEdgeQueues();
       const std::string new_filename =
@@ -334,8 +328,8 @@ AMDExperiment RunMatrixMarketAMDTest(
     permuted_graph.Resize(graph->NumSources());
     permuted_graph.ReserveEdgeAdditions(graph->NumEdges());
     for (const std::pair<Int, Int>& edge : graph->Edges()) {
-      permuted_graph.QueueEdgeAddition(
-          permutation[edge.first], permutation[edge.second]);
+      permuted_graph.QueueEdgeAddition(permutation[edge.first],
+                                       permutation[edge.second]);
     }
     permuted_graph.FlushEdgeQueues();
 
@@ -344,11 +338,11 @@ AMDExperiment RunMatrixMarketAMDTest(
 
   AMDExperiment experiment;
   experiment.num_nonzeros = GetSufficientStatistics(num_nonzeros);
-  experiment.num_strictly_lower_nonzeros = GetSufficientStatistics(
-      num_strictly_lower_nonzeros);
+  experiment.num_strictly_lower_nonzeros =
+      GetSufficientStatistics(num_strictly_lower_nonzeros);
   experiment.num_flops = GetSufficientStatistics(num_flops);
-  experiment.largest_supernode_size = GetSufficientStatistics(
-      largest_supernode_sizes);
+  experiment.largest_supernode_size =
+      GetSufficientStatistics(largest_supernode_sizes);
   experiment.num_degree_updates = GetSufficientStatistics(num_degree_updates);
   experiment.num_aggressive_absorptions =
       GetSufficientStatistics(num_aggressive_absorptions);
@@ -370,64 +364,33 @@ AMDExperiment RunMatrixMarketAMDTest(
 // to loosely reproduce Fig. 2.
 //
 // It is worth noting that the LHR34 results from the paper appear to be
-// incorrect, as the results shown in 
+// incorrect, as the results shown in
 //
 //   https://www.cise.ufl.edu/research/sparse/matrices/Mallya/lhr34.html
 //
 // agree with the results observed from this code's implementation.
 //
 std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
-    const std::string& matrix_market_directory,
-    bool skip_explicit_zeros,
-    quotient::EntryMask mask,
-    const quotient::MinimumDegreeControl& control,
-    int num_random_permutations,
-    bool print_progress,
-    bool write_permuted_graphs,
-    bool write_assembly_forests) {
+    const std::string& matrix_market_directory, bool skip_explicit_zeros,
+    quotient::EntryMask mask, const quotient::MinimumDegreeControl& control,
+    int num_random_permutations, bool print_progress,
+    bool write_permuted_graphs, bool write_assembly_forests) {
   const std::vector<std::string> matrix_names{
-      "appu",
-      "bbmat",
-      "bcsstk30",
-      "bcsstk31",
-      "bcsstk32",
-      "bcsstk33",
-      "crystk02",
-      "crystk03",
-      "ct20stif",
-      "ex11",
-      "ex19",
-      "ex40",
-      "finan512",
-      "lhr34",
-      "lhr71",
-      "nasasrb",
-      "olafu",
-      "orani678",
-      "psmigr_1",
-      "raefsky1",
-      "raefsky3",
-      "raefsky4",
-      "rim",
-      "venkat01",
-      "wang3",
-      "wang4",
+      "appu",     "bbmat",    "bcsstk30", "bcsstk31", "bcsstk32", "bcsstk33",
+      "crystk02", "crystk03", "ct20stif", "ex11",     "ex19",     "ex40",
+      "finan512", "lhr34",    "lhr71",    "nasasrb",  "olafu",    "orani678",
+      "psmigr_1", "raefsky1", "raefsky3", "raefsky4", "rim",      "venkat01",
+      "wang3",    "wang4",
   };
   const bool force_symmetry = true;
 
   std::unordered_map<std::string, AMDExperiment> experiments;
   for (const std::string& matrix_name : matrix_names) {
     const std::string filename = matrix_market_directory + "/" + matrix_name +
-        "/" + matrix_name + ".mtx";
+                                 "/" + matrix_name + ".mtx";
     experiments[matrix_name] = RunMatrixMarketAMDTest(
-        filename,
-        skip_explicit_zeros,
-        mask,
-        control,
-        force_symmetry,
-        num_random_permutations,
-        print_progress,
-        write_permuted_graphs,
+        filename, skip_explicit_zeros, mask, control, force_symmetry,
+        num_random_permutations, print_progress, write_permuted_graphs,
         write_assembly_forests);
   }
 
@@ -440,23 +403,21 @@ int main(int argc, char** argv) {
       "filename", "The location of a Matrix Market file.", "");
   const bool skip_explicit_zeros = parser.OptionalInput<bool>(
       "skip_explicit_zeros", "Skip explicitly zero entries?", true);
-  const int entry_mask_int = parser.OptionalInput<int>(
-      "entry_mask_int",
-      "The quotient::EntryMask integer.\n"
-      "0:full, 1:lower-triangle, 2:upper-triangle",
-      0);
-  const int degree_type_int = parser.OptionalInput<int>(
-      "degree_type_int",
-      "The degree approximation type.\n"
-      "0:exact, 1:Amestoy, 2:Ashcraft, 3:Gilbert",
-      1);
+  const int entry_mask_int =
+      parser.OptionalInput<int>("entry_mask_int",
+                                "The quotient::EntryMask integer.\n"
+                                "0:full, 1:lower-triangle, 2:upper-triangle",
+                                0);
+  const int degree_type_int =
+      parser.OptionalInput<int>("degree_type_int",
+                                "The degree approximation type.\n"
+                                "0:exact, 1:Amestoy, 2:Ashcraft, 3:Gilbert",
+                                1);
   const bool allow_supernodes = parser.OptionalInput<bool>(
-      "allow_supernodes",
-      "Allow variables to be merged into supernodes?",
+      "allow_supernodes", "Allow variables to be merged into supernodes?",
       true);
   const bool aggressive_absorption = parser.OptionalInput<bool>(
-      "aggressive_absorption",
-      "Eliminate elements with aggressive absorption?",
+      "aggressive_absorption", "Eliminate elements with aggressive absorption?",
       true);
   const Int min_dense_threshold = parser.OptionalInput<Int>(
       "min_dense_threshold",
@@ -470,11 +431,9 @@ int main(int argc, char** argv) {
       "determining if a row is dense. The actual threshold will be: "
       "max(min_dense_threshold, dense_sqrt_multiple * sqrt(n))",
       10.f);
-  const bool store_pivot_element_list_sizes =
-      parser.OptionalInput<bool>(
-          "store_pivot_element_list_sizes",
-          "Store the length of each pivot's element list?",
-          false);
+  const bool store_pivot_element_list_sizes = parser.OptionalInput<bool>(
+      "store_pivot_element_list_sizes",
+      "Store the length of each pivot's element list?", false);
   const bool store_num_degree_updates_with_multiple_elements =
       parser.OptionalInput<bool>(
           "store_num_degree_updates_with_multiple_elements",
@@ -482,56 +441,47 @@ int main(int argc, char** argv) {
           "more than two members in its element list?",
           false);
   const bool store_structures = parser.OptionalInput<bool>(
-      "store_structure",
-      "Store the original structures for each pivot?",
+      "store_structure", "Store the original structures for each pivot?",
       false);
-  const int num_random_permutations = parser.OptionalInput<int>(
-      "num_random_permutations",
-      "The number of random permutations to test "
-      "(in addition to the original order).",
-      21);
+  const int num_random_permutations =
+      parser.OptionalInput<int>("num_random_permutations",
+                                "The number of random permutations to test "
+                                "(in addition to the original order).",
+                                21);
   const bool force_symmetry = parser.OptionalInput<bool>(
-      "force_symmetry",
-      "Use the nonzero pattern of A + A'?",
-      true);
+      "force_symmetry", "Use the nonzero pattern of A + A'?", true);
   const bool print_progress = parser.OptionalInput<bool>(
-      "print_progress",
-      "Print the progress of the experiments?",
-      false);
+      "print_progress", "Print the progress of the experiments?", false);
   const bool write_permuted_graphs = parser.OptionalInput<bool>(
-      "write_permuted_graphs",
-      "Write the permuted graphs to file?",
-      false);
+      "write_permuted_graphs", "Write the permuted graphs to file?", false);
   const bool write_assembly_forests = parser.OptionalInput<bool>(
-      "write_assembly_forests",
-      "Write out dot files for the assembly forests?",
+      "write_assembly_forests", "Write out dot files for the assembly forests?",
       false);
   const std::string matrix_market_directory = parser.OptionalInput<std::string>(
       "matrix_market_directory",
       "The directory where the ADD96 matrix market .tar.gz's were unpacked",
       "");
   const bool randomly_seed = parser.OptionalInput<bool>(
-      "randomly_seed",
-      "Randomly seed the pseudo-random number generator?",
+      "randomly_seed", "Randomly seed the pseudo-random number generator?",
       false);
 #ifdef _OPENMP
   const int num_omp_threads = parser.OptionalInput<int>(
       "num_omp_threads",
-      "The desired number of OpenMP threads. Uses default if <= 0.",
-      1);
+      "The desired number of OpenMP threads. Uses default if <= 0.", 1);
 #endif
   if (!parser.OK()) {
     return 0;
   }
   if (filename.empty() && matrix_market_directory.empty()) {
     std::cerr << "One of 'filename' or 'matrix_market_directory' must be "
-                 "specified.\n" << std::endl;
+                 "specified.\n"
+              << std::endl;
     parser.PrintReport();
     return 0;
   }
 
-  const quotient::EntryMask mask = static_cast<quotient::EntryMask>(
-      entry_mask_int);
+  const quotient::EntryMask mask =
+      static_cast<quotient::EntryMask>(entry_mask_int);
 
 #ifdef _OPENMP
   if (num_omp_threads > 0) {
@@ -565,28 +515,16 @@ int main(int argc, char** argv) {
 
   if (!matrix_market_directory.empty()) {
     const std::unordered_map<std::string, AMDExperiment> experiments =
-        RunADD96Tests(
-            matrix_market_directory,
-            skip_explicit_zeros,
-            mask,
-            control,
-            num_random_permutations,
-            print_progress,
-            write_permuted_graphs,
-            write_assembly_forests);
+        RunADD96Tests(matrix_market_directory, skip_explicit_zeros, mask,
+                      control, num_random_permutations, print_progress,
+                      write_permuted_graphs, write_assembly_forests);
     for (const std::pair<std::string, AMDExperiment>& pairing : experiments) {
-      PrintAMDExperiment(pairing.second, pairing.first);  
+      PrintAMDExperiment(pairing.second, pairing.first);
     }
   } else {
     const AMDExperiment experiment = RunMatrixMarketAMDTest(
-        filename,
-        skip_explicit_zeros,
-        mask,
-        control,
-        force_symmetry,
-        num_random_permutations,
-        print_progress,
-        write_permuted_graphs,
+        filename, skip_explicit_zeros, mask, control, force_symmetry,
+        num_random_permutations, print_progress, write_permuted_graphs,
         write_assembly_forests);
     PrintAMDExperiment(experiment, filename);
   }

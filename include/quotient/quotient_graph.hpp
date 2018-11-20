@@ -49,8 +49,8 @@ namespace quotient {
 class QuotientGraph {
  public:
   // Initializes the quotient graph from a symmetric graph.
-  QuotientGraph(
-      const CoordinateGraph& graph, const MinimumDegreeControl& control);
+  QuotientGraph(const CoordinateGraph& graph,
+                const MinimumDegreeControl& control);
 
   // Pretty-prints the QuotientGraph.
   void Print() const;
@@ -108,7 +108,7 @@ class QuotientGraph {
   // Returns the number of degree updates required to process the current pivot.
   Int NumPivotDegreeUpdates() const QUOTIENT_NOEXCEPT;
 
-  //Returns the number of degree updates required to process the current pivot
+  // Returns the number of degree updates required to process the current pivot
   // that will involve more than two elements in the element list.
   Int NumPivotDegreeUpdatesWithMultipleElements() const QUOTIENT_NOEXCEPT;
 
@@ -234,7 +234,7 @@ class QuotientGraph {
 
     // The element list of variable 'i' will start at index
     // `element_list_offsets[i]` of 'lists'.
-    std::vector<Int> element_list_offsets; 
+    std::vector<Int> element_list_offsets;
 
     // The length of the element list of variable i.
     std::vector<Int> element_list_sizes;
@@ -387,14 +387,13 @@ class QuotientGraph {
 
   // Appends the supernode with the given principal member and length into
   // a given vector.
-  void AppendSupernode(Int i, Int supernode_size, std::vector<Int>* vec) const
-      QUOTIENT_NOEXCEPT;
+  void AppendSupernode(Int i, Int supernode_size,
+                       std::vector<Int>* vec) const QUOTIENT_NOEXCEPT;
 
   // Uses the parents_ links for the assembly tree to contiguously fill a
   // subtree of the post-order rooted at 'index' using the iterator.
   std::vector<Int>::iterator PreorderTree(
-      Int index,
-      const std::vector<Int>& children,
+      Int index, const std::vector<Int>& children,
       const std::vector<Int>& child_offsets,
       std::vector<Int>::iterator iter) const QUOTIENT_NOEXCEPT;
 
@@ -409,8 +408,8 @@ class QuotientGraph {
   // Accumulates the sum of the supernode sizes in the adjacency list and the
   // hash of their indices. While doing so, the non-principal and redundant
   // members are removed (with the remainder packed at the given index).
-  void PackCountAndHashAdjacencies(
-      Int i, Int num_elements, Int* degree, UInt* hash) QUOTIENT_NOEXCEPT;
+  void PackCountAndHashAdjacencies(Int i, Int num_elements, Int* degree,
+                                   UInt* hash) QUOTIENT_NOEXCEPT;
 
   // Computes the exact degree of supernode, say, i, using a short-cut of
   // Eq. (2) of [ADD-96] meant for the case where there is only one member of
@@ -460,8 +459,8 @@ class QuotientGraph {
   void InsertPivotElement(Int i) QUOTIENT_NOEXCEPT;
 };
 
-} // namespace quotient
+}  // namespace quotient
 
 #include "quotient/quotient_graph-impl.hpp"
 
-#endif // ifndef QUOTIENT_QUOTIENT_GRAPH_H_
+#endif  // ifndef QUOTIENT_QUOTIENT_GRAPH_H_

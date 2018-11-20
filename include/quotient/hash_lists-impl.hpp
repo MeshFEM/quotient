@@ -15,8 +15,8 @@
 
 namespace quotient {
 
-inline void HashLists::AddHash(Int index, std::size_t hash, Int bucket)
-    QUOTIENT_NOEXCEPT {
+inline void HashLists::AddHash(Int index, std::size_t hash,
+                               Int bucket) QUOTIENT_NOEXCEPT {
   hashes[index] = hash;
   buckets[index] = bucket;
 
@@ -35,6 +35,6 @@ inline void HashLists::ClearBucket(Int bucket) QUOTIENT_NOEXCEPT {
   }
 }
 
-} // namespace quotient
+}  // namespace quotient
 
-#endif // ifndef QUOTIENT_HASH_LISTS_IMPL_H_
+#endif  // ifndef QUOTIENT_HASH_LISTS_IMPL_H_
