@@ -8,6 +8,9 @@
 #ifndef QUOTIENT_MATRIX_MARKET_H_
 #define QUOTIENT_MATRIX_MARKET_H_
 
+#include <fstream>
+#include <string>
+
 #include "quotient/integers.hpp"
 
 namespace quotient {

@@ -11,6 +11,7 @@
 #include <ostream>
 #include <vector>
 
+#include "quotient/integers.hpp"
 #include "quotient/io_utils.hpp"
 
 namespace quotient {

@@ -12,6 +12,8 @@
 #  include "omp.h"
 #endif
 
+#include <iostream>
+
 // A guard for OpenMP pragmas so that builds which have not enabled OpenMP
 // do not lead to compiler warnings.
 #ifdef _OPENMP
