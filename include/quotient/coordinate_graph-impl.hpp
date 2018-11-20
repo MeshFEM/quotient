@@ -39,7 +39,7 @@ inline CoordinateGraph::CoordinateGraph(const CoordinateGraph& graph) {
   *this = graph;
 }
 
-inline const CoordinateGraph& CoordinateGraph::operator=(
+inline CoordinateGraph& CoordinateGraph::operator=(
     const CoordinateGraph& graph) {
   if (&graph == this) {
     return *this;

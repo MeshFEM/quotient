@@ -92,7 +92,7 @@ class CoordinateGraph {
   CoordinateGraph(const CoordinateGraph& graph);
 
   // The assignment operator.
-  const CoordinateGraph& operator=(const CoordinateGraph& graph);
+  CoordinateGraph& operator=(const CoordinateGraph& graph);
 
   // Builds and returns a CoordinateGraph from a Matrix Market description.
   static std::unique_ptr<CoordinateGraph> FromMatrixMarket(

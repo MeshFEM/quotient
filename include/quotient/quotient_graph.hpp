@@ -27,7 +27,7 @@ namespace quotient {
 //   SYMMETRIC_INDEX(j),
 // which, due to the macro being an involution, allows us to recover j via
 //   j = SYMMETRIC_INDEX(SYMMETRIC_INDEX(j)).
-#define SYMMETRIC_INDEX(index) -(index + 1)
+#define SYMMETRIC_INDEX(index) (-((index) + 1))
 
 // A data structure representing the "quotient graph" interpretation of the
 // original graph after eliminating a sequence of vertices. This is the

@@ -385,7 +385,7 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
     bool print_progress,
     bool write_permuted_graphs,
     bool write_assembly_forests) {
-  const std::vector<std::string> kMatrixNames{
+  const std::vector<std::string> matrix_names{
       "appu",
       "bbmat",
       "bcsstk30",
@@ -416,7 +416,7 @@ std::unordered_map<std::string, AMDExperiment> RunADD96Tests(
   const bool force_symmetry = true;
 
   std::unordered_map<std::string, AMDExperiment> experiments;
-  for (const std::string& matrix_name : kMatrixNames) {
+  for (const std::string& matrix_name : matrix_names) {
     const std::string filename = matrix_market_directory + "/" + matrix_name +
         "/" + matrix_name + ".mtx";
     experiments[matrix_name] = RunMatrixMarketAMDTest(
