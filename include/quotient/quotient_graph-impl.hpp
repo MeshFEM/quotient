@@ -39,16 +39,6 @@ static constexpr char kMergeVariables[] = "MergeVariables";
 static constexpr char kFinalizePivot[] = "FinalizePivot";
 #endif
 
-template<typename T>
-void PrintVector(const std::vector<T>& vec, const std::string& msg) {
-  std::cout << msg << ": ";
-  for (UInt i = 0; i < vec.size(); ++i) {
-    std::cout << vec[i] << " ";
-  }
-  std::cout << "\n";
-}
-
-
 inline QuotientGraph::QuotientGraph(
     const CoordinateGraph& graph,
     const MinimumDegreeControl& control)
@@ -241,8 +231,8 @@ inline void QuotientGraph::Print() const {
     }
     std::cout << "Supernode " << i << "\n";
     const std::vector<Int> supernode = FormSupernode(i);
-    PrintVector(supernode, "  members");
-    PrintVector(elements_[i], "  elements");
+    PrintVector(supernode, "  members", std::cout);
+    PrintVector(elements_[i], "  elements", std::cout);
 
     std::cout << "  element list: ";
     const Int element_list_beg = edges_.element_list_offsets[i];

@@ -14,6 +14,7 @@
 #include "quotient/degree_lists.hpp"
 #include "quotient/hash_lists.hpp"
 #include "quotient/integers.hpp"
+#include "quotient/io_utils.hpp"
 #include "quotient/minimum_degree_control.hpp"
 #include "quotient/timer.hpp"
 
@@ -458,11 +459,6 @@ class QuotientGraph {
   // list then replacing the first adjacency with the pivot.
   void InsertPivotElement(Int i) QUOTIENT_NOEXCEPT;
 };
-
-// Pretty-prints an std::vector<T>.
-// TODO(Jack Poulson): Find a better location for this utility function.
-template<typename T>
-void PrintVector(const std::vector<T>& vec, const std::string& msg);
 
 } // namespace quotient
 
