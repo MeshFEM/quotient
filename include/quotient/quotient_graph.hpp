@@ -52,9 +52,6 @@ class QuotientGraph {
   QuotientGraph(const CoordinateGraph& graph,
                 const MinimumDegreeControl& control);
 
-  // Pretty-prints the QuotientGraph.
-  void Print() const;
-
   // Returns the number of vertices in the original graph.
   Int NumVertices() const QUOTIENT_NOEXCEPT;
 
@@ -89,13 +86,6 @@ class QuotientGraph {
 
   // Returns a reference to the element list of the given principal member.
   std::vector<Int> ElementList(Int i) const QUOTIENT_NOEXCEPT;
-
-  //  If control_.store_structures was true, then this routine overwrites
-  // 'eliminated_structures' with the (sorted) structures of the eliminated
-  // supernodes, in the order in which they were eliminated.
-  void FormEliminatedStructures(
-      std::vector<std::vector<Int>>* eliminated_structures) const
-      QUOTIENT_NOEXCEPT;
 
   // Finds the next pivot supervariable, forms the corresponding element, and
   // updates the quotient graph. The return value is the principal member of
@@ -163,13 +153,6 @@ class QuotientGraph {
     // marked as their parent in the tree, while dense supernode member 'i' has
     // its parent equal to SYMMETRIC_INDEX(i).
     std::vector<Int> signed_supernode_sizes;
-
-    // A list of length 'num_vertices' such that each supernode is
-    // traversed from the principal member to the final member in a continuous
-    // manner by following the 'next_index' paths.
-    //
-    // The values are undefined on tail indices of supernodes.
-    std::vector<Int> next_index;
 
     // A (possibly empty) dense supernode.
     DenseSupernode dense_supernode;
@@ -300,14 +283,6 @@ class QuotientGraph {
   // The ordered list of principal members of eliminated supernodes.
   std::vector<Int> elimination_order_;
 
-  // An (optional) list of length 'num_vertices' of element nonzero
-  // structures. The 'element' index of the list, 'structures[element]', will
-  // be created when supernode 'element' is converted from a variable to an
-  // element.
-  //
-  // The structure list also contains non-principal members.
-  std::vector<std::vector<Int>> structures_;
-
 #ifdef QUOTIENT_ENABLE_TIMERS
   // A map from the stage name to the associated timer.
   mutable std::unordered_map<std::string, Timer> timers_;
@@ -384,11 +359,6 @@ class QuotientGraph {
   // Sets all entries of 'node_flags_' that correspond to an element in the
   // element list of a supernode in the pivot structure, L_p.
   void ResetExternalDegrees() QUOTIENT_NOEXCEPT;
-
-  // Appends the supernode with the given principal member and length into
-  // a given vector.
-  void AppendSupernode(Int i, Int supernode_size,
-                       std::vector<Int>* vec) const QUOTIENT_NOEXCEPT;
 
   // Uses the parents_ links for the assembly tree to contiguously fill a
   // subtree of the post-order rooted at 'index' using the iterator.

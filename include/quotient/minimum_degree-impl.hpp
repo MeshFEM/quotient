@@ -148,12 +148,6 @@ inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
   analysis.num_cholesky_flops += std::pow(1. * num_dense, 3.) / 3.;
 
   // Extract the relevant information from the QuotientGraph.
-  if (control.store_supernodes) {
-    analysis.supernodes.resize(num_orig_vertices);
-    for (Int i = 0; i < num_orig_vertices; ++i) {
-      analysis.supernodes[i] = quotient_graph.FormSupernode(i);
-    }
-  }
   analysis.supernode_sizes.resize(num_orig_vertices);
   for (Int i = 0; i < num_orig_vertices; ++i) {
     analysis.supernode_sizes[i] = quotient_graph.SupernodeSize(i);
@@ -161,9 +155,6 @@ inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
   analysis.elimination_order = quotient_graph.EliminationOrder();
   quotient_graph.ComputePostorder(&analysis.postorder);
   analysis.assembly_parents = quotient_graph.AssemblyParents();
-  if (control.store_structures) {
-    quotient_graph.FormEliminatedStructures(&analysis.eliminated_structures);
-  }
   analysis.num_hash_collisions = quotient_graph.NumHashCollisions();
   analysis.num_hash_bucket_collisions =
       quotient_graph.NumHashBucketCollisions();

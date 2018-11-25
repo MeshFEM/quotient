@@ -50,9 +50,6 @@ struct MinimumDegreeControl {
 
   // Return the explicit list of supernodes (in the original ordering)?
   bool store_supernodes = false;
-
-  // Whether or not to create and store the nonzeros structures of each pivot.
-  bool store_structures = false;
 };
 
 }  // namespace quotient

@@ -70,17 +70,8 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   quotient::MinimumDegreeControl control;
   control.degree_type = quotient::kExactDegree;
   control.force_minimal_pivot_indices = true;
-  control.store_supernodes = true;
-  control.store_structures = true;
   quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
-  for (std::size_t i = 0; i < analysis.supernodes.size(); ++i) {
-    std::sort(analysis.supernodes[i].begin(), analysis.supernodes[i].end());
-  }
-  for (std::size_t i = 0; i < analysis.eliminated_structures.size(); ++i) {
-    std::sort(analysis.eliminated_structures[i].begin(),
-              analysis.eliminated_structures[i].end());
-  }
 
   // Because of the ordering of the hash bucket, we will prefer the last member
   // as the key. But there are several equally-valid solutions (the
@@ -90,25 +81,23 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
       0, 1, 2, 3, 4, 5, 8, 9,
   };
 
-  // See the comment at the top of this test for why we do not expect any
-  // nontrivial supernodes.
-  const std::vector<std::vector<Int>> kExpectedSupernodes{
-      {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9},
-  };
+  // The expected supernodes are:
+  //  {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9}.
 
   // This structure is defined directly (modulo translation from 1-based to
-  // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
-  const std::vector<std::vector<Int>> kExpectedEliminatedStructures{
-      {3, 5}, {4, 5, 8}, {4, 5, 6}, {5, 6, 7}, {5, 6, 8}, {6, 7, 8}, {9}, {},
-  };
+  // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]:
+  //  {3, 5}, {4, 5, 8}, {4, 5, 6}, {5, 6, 7}, {5, 6, 8}, {6, 7, 8}, {9}, {}.
+
+  const std::vector<Int> kExpectedSupernodeSizes{1, 1, 1, 1, 1, 1, 0, 0, 3, 1};
 
   const Int kExpectedNumAggressiveAbsorptions = 0;
 
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
-  REQUIRE(analysis.supernodes == kExpectedSupernodes);
+  REQUIRE(analysis.supernode_sizes == kExpectedSupernodeSizes);
   REQUIRE(analysis.num_aggressive_absorptions ==
           kExpectedNumAggressiveAbsorptions);
-  REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
+
+  // TODO(Jack Poulson): Test the parents list and permutation.
 }
 
 // Please see the beginning of Section 5 of [ADD-96].
@@ -131,40 +120,35 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   control.allow_supernodes = false;
   control.force_minimal_pivot_indices = true;
   control.aggressive_absorption = true;
-  control.store_supernodes = true;
-  control.store_structures = true;
   quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
-  for (std::size_t i = 0; i < analysis.supernodes.size(); ++i) {
-    std::sort(analysis.supernodes[i].begin(), analysis.supernodes[i].end());
-  }
-  for (std::size_t i = 0; i < analysis.eliminated_structures.size(); ++i) {
-    std::sort(analysis.eliminated_structures[i].begin(),
-              analysis.eliminated_structures[i].end());
-  }
 
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3,
   };
 
+  // The expected supernodes are:
+  //   {0}, {1}, {2}, {3}.
+  //
   // See the comment at the top of this test for why we do not expect any
   // nontrivial supernodes.
-  const std::vector<std::vector<Int>> kExpectedSupernodes{
-      {0}, {1}, {2}, {3},
+  const std::vector<Int> kExpectedSupernodeSizes{
+      1, 1, 1, 1,
   };
 
   // This structure is defined directly (modulo translation from 1-based to
-  // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96].
-  const std::vector<std::vector<Int>> kExpectedEliminatedStructures{
-      {2, 3}, {2, 3}, {3}, {},
-  };
+  // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]. The
+  // elimination structures are:
+  //  {2, 3}, {2, 3}, {3}, {}.
+  //
 
   // [ADD-96] discusses the aggressive absorption, 0 into 1.
   const Int kExpectedNumAggressiveAbsorptions = 1;
 
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
-  REQUIRE(analysis.supernodes == kExpectedSupernodes);
+  REQUIRE(analysis.supernode_sizes == kExpectedSupernodeSizes);
   REQUIRE(analysis.num_aggressive_absorptions ==
           kExpectedNumAggressiveAbsorptions);
-  REQUIRE(analysis.eliminated_structures == kExpectedEliminatedStructures);
+
+  // TODO(Jack Poulson): Test the parents list and permutation.
 }

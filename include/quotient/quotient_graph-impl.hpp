@@ -49,7 +49,6 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph,
 
   // Initialize the assembly tree.
   assembly_.signed_supernode_sizes.resize(num_vertices_, 1);
-  assembly_.next_index.resize(num_vertices_, -1);
   assembly_.dense_supernode.size = 0;
   assembly_.dense_supernode.principal_member = -1;
   assembly_.parent_or_tail.resize(num_vertices_);
@@ -149,9 +148,6 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph,
   hash_info_.lists.next_member.resize(num_vertices_, -1);
 
   // Trivially initialize the lower-triangular nonzero structures.
-  if (control_.store_structures) {
-    structures_.resize(num_vertices_);
-  }
   elements_.resize(num_vertices_);
 
   // The absorbed elements will be maintained as 0, the unabsorbed will be
@@ -223,44 +219,6 @@ inline Int QuotientGraph::NumHashCollisions() const QUOTIENT_NOEXCEPT {
   return hash_info_.num_collisions;
 }
 
-inline void QuotientGraph::Print() const {
-  for (Int i = 0; i < num_vertices_; ++i) {
-    if (!assembly_.signed_supernode_sizes[i]) {
-      continue;
-    }
-    std::cout << "Supernode " << i << "\n";
-    const std::vector<Int> supernode = FormSupernode(i);
-    PrintVector(supernode, "  members", std::cout);
-    PrintVector(elements_[i], "  elements", std::cout);
-
-    std::cout << "  element list: ";
-    const Int element_list_beg = edges_.element_list_offsets[i];
-    const Int element_list_end =
-        element_list_beg + edges_.element_list_sizes[i];
-    for (Int k = element_list_beg; k < element_list_end; ++k) {
-      std::cout << edges_.lists[k] << " ";
-    }
-    std::cout << "\n";
-
-    std::cout << "  adjacency list: ";
-    const Int adjacency_list_end =
-        element_list_end + edges_.adjacency_list_sizes[i];
-    for (Int k = element_list_end; k < adjacency_list_end; ++k) {
-      std::cout << edges_.lists[k] << " ";
-    }
-    std::cout << "\n";
-    std::cout << "\n";
-  }
-}
-
-inline std::vector<Int> QuotientGraph::FormSupernode(Int i) const
-    QUOTIENT_NOEXCEPT {
-  const Int supernode_size = SupernodeSize(i);
-  std::vector<Int> supernode;
-  AppendSupernode(i, supernode_size, &supernode);
-  return supernode;
-}
-
 inline Int QuotientGraph::SupernodeSize(Int i) const QUOTIENT_NOEXCEPT {
   if (assembly_.signed_supernode_sizes[i]) {
     // This is a traditional supernode (but it might be eliminated).
@@ -292,16 +250,6 @@ inline std::vector<Int> QuotientGraph::ElementList(Int i) const
     element_list.push_back(edges_.lists[k]);
   }
   return element_list;
-}
-
-inline void QuotientGraph::FormEliminatedStructures(
-    std::vector<std::vector<Int>>* eliminated_structures) const
-    QUOTIENT_NOEXCEPT {
-  eliminated_structures->resize(elimination_order_.size());
-  for (UInt index = 0; index < elimination_order_.size(); ++index) {
-    std::vector<Int>& eliminated_structure = (*eliminated_structures)[index];
-    eliminated_structure = structures_[elimination_order_[index]];
-  }
 }
 
 inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
@@ -391,25 +339,6 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
 
   degree_lists_.degrees[pivot_] = pivot_degree;
   node_flags_.max_degree = std::max(node_flags_.max_degree, pivot_degree);
-
-  if (control_.store_structures) {
-    // We fill in the non-dense portion of the structure now and the dense
-    // portion after eliminating all non-dense variables.
-    //
-    // TODO(Jack Poulson): Test if switching from 'reserve' and 'push_back' to
-    // 'resize' and explicit assignment is noticeably faster.
-    structures_[pivot_].reserve(pivot_degree + assembly_.dense_supernode.size);
-    for (const Int& i : pivot_element) {
-      Int index = i;
-      Int next_index = assembly_.next_index[index];
-      structures_[pivot_].push_back(index);
-      while (next_index >= 0) {
-        index = next_index;
-        next_index = assembly_.next_index[index];
-        structures_[pivot_].push_back(index);
-      }
-    }
-  }
 
   QUOTIENT_STOP_TIMER(timers_, kComputePivotStructure);
 }
@@ -1034,10 +963,8 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
           //
           // Recall that the supernode sizes of principal variables in the
           // pivot structure have been negated.
-          const Int tail_index_i = SYMMETRIC_INDEX(assembly_.parent_or_tail[i]);
           const Int tail_index_j = SYMMETRIC_INDEX(assembly_.parent_or_tail[j]);
           assembly_.parent_or_tail[j] = i;
-          assembly_.next_index[tail_index_i] = j;
           assembly_.parent_or_tail[i] = SYMMETRIC_INDEX(tail_index_j);
           assembly_.signed_supernode_sizes[i] -= absorbed_size;
           assembly_.signed_supernode_sizes[j] = 0;
@@ -1111,33 +1038,13 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
   QUOTIENT_STOP_TIMER(timers_, kFinalizePivot);
 }
 
-inline void QuotientGraph::AppendSupernode(
-    Int i, Int supernode_size, std::vector<Int>* vec) const QUOTIENT_NOEXCEPT {
-  if (!supernode_size) {
-    return;
-  }
-  // TODO(Jack Poulson): Test if switching from 'reserve' and 'push_back' to
-  // 'resize' and explicit assignment is noticeably faster.
-  vec->reserve(vec->size() + supernode_size);
-
-  Int index = i;
-  Int next_index = assembly_.next_index[index];
-  vec->push_back(index);
-
-  while (next_index >= 0) {
-    index = next_index;
-    next_index = assembly_.next_index[index];
-    vec->push_back(index);
-  }
-}
-
 inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
     QUOTIENT_NOEXCEPT {
   // Reconstruct the child links from the parent links in a contiguous array
   // (similar to the CSR format) by first counting the number of children of
   // each node.
   std::vector<Int> child_offsets(num_vertices_ + 1, 0);
-  for (const Int& i : elimination_order_) {
+  for (Int i = 0; i < num_vertices_; ++i) {
     if (assembly_.parent_or_tail[i] >= 0) {
       ++child_offsets[assembly_.parent_or_tail[i]];
     }
@@ -1152,7 +1059,7 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
   // Pack the children into a buffer.
   std::vector<Int> children(num_total_children);
   auto offsets_copy = child_offsets;
-  for (const Int& i : elimination_order_) {
+  for (Int i = 0; i < num_vertices_; ++i) {
     const Int parent = assembly_.parent_or_tail[i];
     if (parent >= 0) {
       children[offsets_copy[parent]++] = i;
@@ -1204,18 +1111,9 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
     const Int element = stack.back();
     stack.pop_back();
 
-    // Push the supernode into the preorder.
-    {
-      Int index = element;
-      Int next_index = assembly_.next_index[index];
-      *(iter++) = index;
-
-      while (next_index >= 0) {
-        index = next_index;
-        next_index = assembly_.next_index[index];
-        *(iter++) = index;
-      }
-    }
+    // Push the node into the preorder.
+    Int index = element;
+    *(iter++) = index;
 
     // Push the children onto the stack.
     for (Int index = child_offsets[element]; index < child_offsets[element + 1];
@@ -1306,19 +1204,16 @@ inline void QuotientGraph::CombineDenseNodes() QUOTIENT_NOEXCEPT {
   }
 
   // Absorb all of the dense nodes into the principal member.
-  Int last_dense = -1;
   for (Int i = 0; i < num_vertices_; ++i) {
     if (!assembly_.signed_supernode_sizes[i] &&
         assembly_.parent_or_tail[i] < 0) {
       if (i == assembly_.dense_supernode.principal_member) {
         assembly_.signed_supernode_sizes[i] = -assembly_.dense_supernode.size;
       } else {
-        assembly_.next_index[last_dense] = i;
         assembly_.parent_or_tail[i] =
             assembly_.dense_supernode.principal_member;
         assembly_.signed_supernode_sizes[i] = 0;
       }
-      last_dense = i;
     }
   }
 
@@ -1329,21 +1224,6 @@ inline void QuotientGraph::CombineDenseNodes() QUOTIENT_NOEXCEPT {
         i != assembly_.dense_supernode.principal_member &&
         assembly_.parent_or_tail[i] < 0) {
       assembly_.parent_or_tail[i] = assembly_.dense_supernode.principal_member;
-    }
-  }
-
-  if (control_.store_structures) {
-    // Append the dense supernode to each structure.
-    for (std::vector<Int>& structure : structures_) {
-      Int index = assembly_.dense_supernode.principal_member;
-      Int next_index = assembly_.next_index[index];
-      structure.push_back(index);
-
-      while (next_index >= 0) {
-        index = next_index;
-        next_index = assembly_.next_index[index];
-        structure.push_back(index);
-      }
     }
   }
 }

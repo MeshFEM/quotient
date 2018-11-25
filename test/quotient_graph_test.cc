@@ -70,24 +70,22 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   quotient::MinimumDegreeControl control;
   control.degree_type = quotient::kExactDegree;
   control.force_minimal_pivot_indices = true;
-  control.store_structures = true;
 
   quotient::QuotientGraph quotient_graph(graph, control);
   const Int first_pivot = quotient_graph.FindAndProcessPivot();
-  const std::vector<Int> first_supernode =
-      quotient_graph.FormSupernode(first_pivot);
+  const Int first_supernode_size = quotient_graph.SupernodeSize(first_pivot);
   const std::vector<Int>& first_element = quotient_graph.Element(first_pivot);
   const Int first_cholesky_nonzeros = quotient_graph.NumPivotCholeskyNonzeros();
   const double first_cholesky_flops = quotient_graph.NumPivotCholeskyFlops();
 
   const Int kExpectedFirstPivot = 0;
-  const std::vector<Int> kExpectedFirstSupernode{0};
+  const Int kExpectedFirstSupernodeSize = 1;
   const std::vector<Int> kExpectedFirstElement{3, 5};
   const Int kExpectedFirstCholeskyNonzeros = 3;
   const double kExpectedFirstCholeskyFlops = 1. / 3. + 4.;
 
   REQUIRE(first_pivot == kExpectedFirstPivot);
-  REQUIRE(first_supernode == kExpectedFirstSupernode);
+  REQUIRE(first_supernode_size == kExpectedFirstSupernodeSize);
   REQUIRE(first_element == kExpectedFirstElement);
   REQUIRE(first_cholesky_nonzeros == kExpectedFirstCholeskyNonzeros);
   REQUIRE(first_cholesky_flops == kExpectedFirstCholeskyFlops);
