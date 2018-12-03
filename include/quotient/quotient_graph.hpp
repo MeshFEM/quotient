@@ -363,8 +363,9 @@ class QuotientGraph {
   // Uses the parents_ links for the assembly tree to contiguously fill a
   // subtree of the post-order rooted at 'index' using the iterator.
   std::vector<Int>::iterator PreorderTree(
-      Int index, const std::vector<Int>& children,
-      const std::vector<Int>& child_offsets,
+      Int index, const std::vector<Int>& nonprincipal_members,
+      const std::vector<Int>& nonprincipal_offsets,
+      const std::vector<Int>& children, const std::vector<Int>& child_offsets,
       std::vector<Int>::iterator iter) const QUOTIENT_NOEXCEPT;
 
   // A definition of Ashcraft's hash function (as described in [ADD-96]).

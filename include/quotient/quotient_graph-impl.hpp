@@ -1040,15 +1040,52 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
 
 inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
     QUOTIENT_NOEXCEPT {
+
+  auto supernode_principal = [&](Int index) {
+    while (!assembly_.signed_supernode_sizes[index]) {
+      QUOTIENT_ASSERT(assembly_.parent_or_tail[index] >= 0,
+          "Negative member of assembly_.parent_or_tail while computing "
+          "supernode principal.");
+      index = assembly_.parent_or_tail[index];
+    }
+    QUOTIENT_ASSERT(assembly_.parent_or_tail[index] >= 0,
+        "Negative member of assembly_.parent_or_tail at supernode principal.");
+    return index;
+  };
+
+  // Fill the supernode non-principal member lists.
+  std::vector<Int> nonprincipal_offsets(num_vertices_ + 1, 0);
+  Int num_nonprincipal_members = 0;
+  for (Int i = 0; i < num_vertices_; ++i) {
+    nonprincipal_offsets[i] = num_nonprincipal_members;
+    const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+    QUOTIENT_ASSERT(supernode_size >= 0, "Supernode size was negative.");
+    if (supernode_size) {
+      num_nonprincipal_members += supernode_size - 1;
+    }
+  }
+  nonprincipal_offsets[num_vertices_] = num_nonprincipal_members;
+  auto offsets_copy = nonprincipal_offsets;
+  std::vector<Int> nonprincipal_members(num_nonprincipal_members);
+  for (Int i = 0; i < num_vertices_; ++i) {
+    const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+    if (!supernode_size) {
+      const Int principal = supernode_principal(i);
+      nonprincipal_members[offsets_copy[principal]++] = i;
+    }
+  }
+
   // Reconstruct the child links from the parent links in a contiguous array
   // (similar to the CSR format) by first counting the number of children of
   // each node.
   std::vector<Int> child_offsets(num_vertices_ + 1, 0);
-  for (Int i = 0; i < num_vertices_; ++i) {
+  for (const Int& i : elimination_order_) {
     if (assembly_.parent_or_tail[i] >= 0) {
-      ++child_offsets[assembly_.parent_or_tail[i]];
+      const Int parent = supernode_principal(assembly_.parent_or_tail[i]);
+      ++child_offsets[parent];
     }
   }
+
   Int num_total_children = 0;
   for (Int i = 0; i <= num_vertices_; ++i) {
     const Int num_children = child_offsets[i];
@@ -1058,10 +1095,10 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
 
   // Pack the children into a buffer.
   std::vector<Int> children(num_total_children);
-  auto offsets_copy = child_offsets;
-  for (Int i = 0; i < num_vertices_; ++i) {
-    const Int parent = assembly_.parent_or_tail[i];
-    if (parent >= 0) {
+  offsets_copy = child_offsets;
+  for (const Int& i : elimination_order_) {
+    if (assembly_.parent_or_tail[i] >= 0) {
+      const Int parent = supernode_principal(assembly_.parent_or_tail[i]);
       children[offsets_copy[parent]++] = i;
     }
   }
@@ -1076,7 +1113,9 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
       // This element was absorbed into another element.
       continue;
     }
-    iter = PreorderTree(i, children, child_offsets, iter);
+    iter = PreorderTree(
+        i, nonprincipal_members, nonprincipal_offsets, children, child_offsets,
+        iter);
   }
 
   // Reverse the preordering (to form a postordering) in-place.
@@ -1098,8 +1137,9 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
 }
 
 inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
-    Int root, const std::vector<Int>& children,
-    const std::vector<Int>& child_offsets,
+    Int root, const std::vector<Int>& nonprincipal_members,
+    const std::vector<Int>& nonprincipal_offsets,
+    const std::vector<Int>& children, const std::vector<Int>& child_offsets,
     std::vector<Int>::iterator iter) const QUOTIENT_NOEXCEPT {
   std::vector<Int> stack;
   stack.reserve(num_vertices_);
@@ -1111,9 +1151,14 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
     const Int element = stack.back();
     stack.pop_back();
 
-    // Push the node into the preorder.
+    // Push the supernode into the preorder.
     Int index = element;
     *(iter++) = index;
+    const Int nonprincipal_beg = nonprincipal_offsets[index];
+    const Int nonprincipal_end = nonprincipal_offsets[index + 1];
+    for (Int j = nonprincipal_beg; j < nonprincipal_end; ++j) {
+      (*iter++) = nonprincipal_members[j];
+    }
 
     // Push the children onto the stack.
     for (Int index = child_offsets[element]; index < child_offsets[element + 1];
