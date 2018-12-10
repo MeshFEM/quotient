@@ -1048,8 +1048,6 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
           "supernode principal.");
       index = assembly_.parent_or_tail[index];
     }
-    QUOTIENT_ASSERT(assembly_.parent_or_tail[index] >= 0,
-        "Negative member of assembly_.parent_or_tail at supernode principal.");
     return index;
   };
 
