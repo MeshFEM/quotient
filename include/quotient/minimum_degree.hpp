@@ -17,26 +17,14 @@
 
 namespace quotient {
 
-// The result of running the MinimumDegree reordering algorithm. It contains
-// the ordered list of eliminated principal vertices, the list of supernodes,
-// and the supernodal nonzero structure of each principal column.
+// Statistics from running the MinimumDegree reordering algorithm.
 struct MinimumDegreeResult {
   // The recommended elimination order of the supernodes (with each supernode
   // represented by its principal member).
   std::vector<Int> elimination_order;
 
-  // The list of supernodes. Entry 'i' is nonempty if and only if 'i' is the
-  // principal member of the supernode, in which case 'supernodes[i]' contains
-  // the sorted list of members of the supernode.
-  std::vector<std::vector<Int>> supernodes;
-
   // The list, of length num_original_vertices, of supernode sizes.
   std::vector<Int> supernode_sizes;
-
-  // The structures of the eliminated supernodes. Entry 'index' corresponds to
-  // the structure of supernode 'elimination_order[index]'. This will only be
-  // formed if 'MinimumDegreeControl.store_structures' was true.
-  std::vector<std::vector<Int>> eliminated_structures;
 
   // The postordering of the assembly forest.
   std::vector<Int> postorder;
