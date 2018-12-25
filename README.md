@@ -54,7 +54,7 @@ ninja test
 ```
 
 ### Testing performance
-Again assuming [meson](http://mesonbuild.com), [Catch2](https://github.com/catchorg/Catch2), and [specify](https://gitlab.com/hodge_star/specify) are already installed:
+Assuming [meson](http://mesonbuild.com) and [specify](https://gitlab.com/hodge_star/specify) are already installed:
 
 The default is for Quotient to use 64-bit integers, but there is a noticeable performance difference relative to 32-bit integers due to the work primarily consisting of memory-bound index manipulation. A release-mode 64-bit version can be built with:
 ```
