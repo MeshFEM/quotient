@@ -16,7 +16,11 @@ include_dir = include_directories('include')
 cxx = meson.get_compiler('cpp')
 
 deps = []
+test_deps = []
 cxx_args = []
+
+# Add Catch
+test_deps += subproject('catch2').get_variable('catch2_dep')
 
 # Test if specify is installed.
 found_specify = cxx.has_header('specify.hpp')
@@ -66,7 +70,7 @@ coordinate_graph_test_exe = executable(
     'coordinate_graph_test',
     ['test/coordinate_graph_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : deps,
+    dependencies : deps + test_deps,
     cpp_args : cxx_args)
 test('CoordinateGraph tests', coordinate_graph_test_exe)
 
@@ -75,7 +79,7 @@ quotient_graph_test_exe = executable(
     'quotient_graph_test',
     ['test/quotient_graph_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : deps,
+    dependencies : deps + test_deps,
     cpp_args : cxx_args)
 test('QuotientGraph tests', quotient_graph_test_exe)
 
@@ -84,7 +88,7 @@ minimum_degree_test_exe = executable(
     'minimum_degree_test',
     ['test/minimum_degree_test.cc', 'include/quotient.hpp'],
     include_directories : include_dir,
-    dependencies : deps,
+    dependencies : deps + test_deps,
     cpp_args : cxx_args)
 test('MinimumDegree tests', minimum_degree_test_exe)
 
