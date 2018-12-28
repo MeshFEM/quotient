@@ -578,7 +578,7 @@ inline void QuotientGraph::ExactDegreesAndHashes() QUOTIENT_NOEXCEPT {
   const std::vector<Int>& pivot_element = elements_[pivot_];
   const Int pivot_element_size = pivot_element.size();
 
-  OMP_PRAGMA(omp parallel schedule(dynamic))
+  OMP_PRAGMA(omp parallel for schedule(dynamic))
   for (Int index = 0; index < pivot_element_size; ++index) {
     const Int& i = pivot_element[index];
 
@@ -603,7 +603,7 @@ inline void QuotientGraph::AmestoyDegreesAndHashes() QUOTIENT_NOEXCEPT {
   const Int pivot_element_size = pivot_element.size();
   const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
 
-  OMP_PRAGMA(omp parallel schedule(dynamic))
+  OMP_PRAGMA(omp parallel for schedule(dynamic))
   for (Int index = 0; index < pivot_element_size; ++index) {
     const Int& i = pivot_element[index];
     Int degree = 0;
