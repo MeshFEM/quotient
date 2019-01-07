@@ -63,29 +63,14 @@ inline double MinimumDegreeResult::FractionOfDegreeUpdatesWithMultipleElements()
 }
 
 inline std::vector<Int> MinimumDegreeResult::Permutation() const {
-  const Int num_vertices = postorder.size();
-#ifdef QUOTIENT_DEBUG
-  std::vector<Int> permutation(num_vertices, -1);
-#else
-  std::vector<Int> permutation(num_vertices);
-#endif
-
-  // Fill the permutation with the inverse of the postordering.
-  for (Int index = 0; index < num_vertices; ++index) {
-    permutation[postorder[index]] = index;
-  }
-
-#ifdef QUOTIENT_DEBUG
-  for (Int index = 0; index < num_vertices; ++index) {
-    QUOTIENT_ASSERT(permutation[index] != -1,
-                    "Permutation was only partially filled.");
-  }
-#endif
-
   return permutation;
 }
 
-inline void MinimumDegreeResult::AssemblyForestToDot(
+inline std::vector<Int> MinimumDegreeResult::InversePermutation() const {
+  return inverse_permutation;
+}
+
+inline void MinimumDegreeResult::PermutedAssemblyForestToDot(
     const std::string& filename) const {
   std::ofstream file(filename);
   if (!file.is_open()) {
@@ -94,13 +79,12 @@ inline void MinimumDegreeResult::AssemblyForestToDot(
   }
 
   file << "digraph g{\n";
-  for (const Int& i : postorder) {
-    // Skip empty and root nodes.
-    if (!supernode_sizes[i] || assembly_parents[i] <= 0) {
+  for (std::size_t i = 0; i < permuted_assembly_parents.size(); ++i) {
+    if (permuted_assembly_parents[i] < 0) {
       continue;
     }
     std::ostringstream os;
-    os << "  " << assembly_parents[i] << " -> " << i << ";\n";
+    os << "  " << permuted_assembly_parents[i] << " -> " << i << ";\n";
     file << os.str();
   }
   file << "}\n";
@@ -147,14 +131,23 @@ inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
   analysis.num_cholesky_nonzeros += ((num_dense + 1) * num_dense) / 2;
   analysis.num_cholesky_flops += std::pow(1. * num_dense, 3.) / 3.;
 
-  // Extract the relevant information from the QuotientGraph.
-  analysis.supernode_sizes.resize(num_orig_vertices);
+  // Compute the inverse of the permutation using the post-ordering.
+  quotient_graph.ComputePostorder(&analysis.inverse_permutation);
+
+  // TODO(Jack Poulson): Call an InvertPermutation utility function.
+  analysis.permutation.resize(num_orig_vertices);
   for (Int i = 0; i < num_orig_vertices; ++i) {
-    analysis.supernode_sizes[i] = quotient_graph.SupernodeSize(i);
+    analysis.permutation[analysis.inverse_permutation[i]] = i;
   }
-  analysis.elimination_order = quotient_graph.EliminationOrder();
-  quotient_graph.ComputePostorder(&analysis.postorder);
-  analysis.assembly_parents = quotient_graph.AssemblyParents();
+
+  // Compute a map from the permuted indices to the containing supernode.
+  quotient_graph.PermutedMemberToSupernode(
+      analysis.inverse_permutation, &analysis.permuted_member_to_supernode);
+
+  quotient_graph.PermutedAssemblyParents(analysis.permutation,
+                                         analysis.permuted_member_to_supernode,
+                                         &analysis.permuted_assembly_parents);
+
   analysis.num_hash_collisions = quotient_graph.NumHashCollisions();
   analysis.num_hash_bucket_collisions =
       quotient_graph.NumHashBucketCollisions();
@@ -167,6 +160,17 @@ inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
     analysis.elapsed_seconds[pairing.first] = pairing.second;
   }
 #endif
+
+  // Extract the relevant information from the QuotientGraph.
+  // DEPRECATED.
+  analysis.supernode_sizes.resize(num_orig_vertices);
+  for (Int i = 0; i < num_orig_vertices; ++i) {
+    analysis.supernode_sizes[i] = quotient_graph.SupernodeSize(i);
+  }
+
+  // DEPRECATED.
+  const std::vector<Int>& elimination_order = quotient_graph.EliminationOrder();
+  analysis.elimination_order = elimination_order;
 
   return analysis;
 }

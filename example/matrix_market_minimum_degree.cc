@@ -311,7 +311,7 @@ AMDExperiment RunMatrixMarketAMDTest(
 
     if (write_assembly_forests) {
       const std::string new_filename = filename + ".gv";
-      analysis.AssemblyForestToDot(new_filename);
+      analysis.PermutedAssemblyForestToDot(new_filename);
     }
 
     if (instance == num_random_permutations) {

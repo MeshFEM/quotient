@@ -124,7 +124,10 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
       quotient::MinimumDegree(graph, control);
 
   const std::vector<Int> kExpectedEliminationOrder{
-      0, 1, 2, 3,
+      0,
+      1,
+      2,
+      3,
   };
 
   // The expected supernodes are:
@@ -133,7 +136,10 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   // See the comment at the top of this test for why we do not expect any
   // nontrivial supernodes.
   const std::vector<Int> kExpectedSupernodeSizes{
-      1, 1, 1, 1,
+      1,
+      1,
+      1,
+      1,
   };
 
   // This structure is defined directly (modulo translation from 1-based to

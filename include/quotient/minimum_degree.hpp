@@ -19,18 +19,18 @@ namespace quotient {
 
 // Statistics from running the MinimumDegree reordering algorithm.
 struct MinimumDegreeResult {
-  // The recommended elimination order of the supernodes (with each supernode
-  // represented by its principal member).
-  std::vector<Int> elimination_order;
+  // The MD permutation.
+  std::vector<Int> permutation;
 
-  // The list, of length num_original_vertices, of supernode sizes.
-  std::vector<Int> supernode_sizes;
+  // The inverse of the MD permutation. It corresponds to the postordering of
+  // the assembly forest.
+  std::vector<Int> inverse_permutation;
 
-  // The postordering of the assembly forest.
-  std::vector<Int> postorder;
+  // A map from the permuted supernode indices to the
+  std::vector<Int> permuted_member_to_supernode;
 
-  // The parent of each supernode in the assembly forest.
-  std::vector<Int> assembly_parents;
+  // The parent of each supernode in the permuted assembly forest.
+  std::vector<Int> permuted_assembly_parents;
 
   // The number of aggressive absorptions that occurred.
   Int num_aggressive_absorptions;
@@ -68,6 +68,15 @@ struct MinimumDegreeResult {
   std::unordered_map<std::string, double> elapsed_seconds;
 #endif
 
+  // The recommended elimination order of the supernodes (with each supernode
+  // represented by its principal member).
+  // DEPRECATED.
+  std::vector<Int> elimination_order;
+
+  // The list, of length num_original_vertices, of supernode sizes.
+  // DEPRECATED.
+  std::vector<Int> supernode_sizes;
+
   // A trivial constructor.
   MinimumDegreeResult();
 
@@ -92,11 +101,15 @@ struct MinimumDegreeResult {
   // Returns the permutation implied by the postordering of the assembly tree.
   std::vector<Int> Permutation() const;
 
+  // Returns the inverse permutation implied by the postordering of the
+  // assembly tree.
+  std::vector<Int> InversePermutation() const;
+
   // Writes a dot file (usually ".gv") for the assembly forest implied by the
   // postordering. One can subsequently generate a PNG of the forest using:
   //   dot -Tpng filename -o output.png
   // But beware that the call to dot might take 15 minutes or more.
-  void AssemblyForestToDot(const std::string& filename) const;
+  void PermutedAssemblyForestToDot(const std::string& filename) const;
 };
 
 // Returns a supernodal reordering and the corresponding supernodal nonzero

@@ -64,8 +64,18 @@ class QuotientGraph {
   // Fills 'postorder' with the postorder of the assembly tree.
   void ComputePostorder(std::vector<Int>* postorder) const QUOTIENT_NOEXCEPT;
 
-  // Returns a reference to the list containing the parent of each supernode.
-  const std::vector<Int>& AssemblyParents() const QUOTIENT_NOEXCEPT;
+  // Overwrites 'permuted_member_to_supernode' with a map from the permuted
+  // vertex indices to the containing permuted supernode index.
+  void PermutedMemberToSupernode(
+      const std::vector<Int>& inverse_permutation,
+      std::vector<Int>* permuted_member_to_supernode) const QUOTIENT_NOEXCEPT;
+
+  // Overwrites 'permuted_assembly_parents' with the uplinks of the permuted
+  // supernodal assembly forest.
+  void PermutedAssemblyParents(
+      const std::vector<Int>& permutation,
+      const std::vector<Int>& permuted_member_to_supernode,
+      std::vector<Int>* permuted_assembly_parents) const QUOTIENT_NOEXCEPT;
 
   // Returns the number of times that supervariables have been falsely hashed
   // into the same bucket.

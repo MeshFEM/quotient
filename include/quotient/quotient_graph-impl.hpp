@@ -1036,10 +1036,10 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
 
 inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
     QUOTIENT_NOEXCEPT {
-
   auto supernode_principal = [&](Int index) {
     while (!assembly_.signed_supernode_sizes[index]) {
-      QUOTIENT_ASSERT(assembly_.parent_or_tail[index] >= 0,
+      QUOTIENT_ASSERT(
+          assembly_.parent_or_tail[index] >= 0,
           "Negative member of assembly_.parent_or_tail while computing "
           "supernode principal.");
       index = assembly_.parent_or_tail[index];
@@ -1107,9 +1107,8 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
       // This element was absorbed into another element.
       continue;
     }
-    iter = PreorderTree(
-        i, nonprincipal_members, nonprincipal_offsets, children, child_offsets,
-        iter);
+    iter = PreorderTree(i, nonprincipal_members, nonprincipal_offsets, children,
+                        child_offsets, iter);
   }
 
   // Reverse the preordering (to form a postordering) in-place.
@@ -1164,9 +1163,51 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
   return iter;
 }
 
-inline const std::vector<Int>& QuotientGraph::AssemblyParents() const
-    QUOTIENT_NOEXCEPT {
-  return assembly_.parent_or_tail;
+inline void QuotientGraph::PermutedMemberToSupernode(
+    const std::vector<Int>& inverse_permutation,
+    std::vector<Int>* permuted_member_to_supernode) const {
+  const Int num_indices = inverse_permutation.size();
+  permuted_member_to_supernode->clear();
+  permuted_member_to_supernode->resize(num_indices);
+
+  Int permuted_supernode = -1;
+  for (Int i_perm = 0; i_perm < num_indices; ++i_perm) {
+    const Int i = inverse_permutation[i_perm];
+    if (assembly_.signed_supernode_sizes[i]) {
+      // 'i' is a principal variable of an absorbed element.
+      const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+      QUOTIENT_ASSERT(supernode_size > 0, "Supernode size was negative.");
+      (*permuted_member_to_supernode)[i_perm] = ++permuted_supernode;
+    } else {
+      (*permuted_member_to_supernode)[i_perm] = permuted_supernode;
+    }
+  }
+}
+
+inline void QuotientGraph::PermutedAssemblyParents(
+    const std::vector<Int>& permutation,
+    const std::vector<Int>& permuted_member_to_supernode,
+    std::vector<Int>* permuted_assembly_parents) const QUOTIENT_NOEXCEPT {
+  const Int num_supernodes = elimination_order_.size();
+  permuted_assembly_parents->clear();
+  permuted_assembly_parents->resize(num_supernodes);
+  for (Int index = 0; index < num_supernodes; ++index) {
+    const Int original_principal = elimination_order_[index];
+    const Int original_parent = assembly_.parent_or_tail[original_principal];
+
+    const Int permuted_principal = permutation[original_principal];
+    const Int permuted_parent =
+        original_parent >= 0 ? permutation[original_parent] : original_parent;
+
+    const Int permuted_principal_supernode =
+        permuted_member_to_supernode[permuted_principal];
+    const Int permuted_parent_supernode =
+        permuted_parent >= 0 ? permuted_member_to_supernode[permuted_parent]
+                             : permuted_parent;
+
+    (*permuted_assembly_parents)[permuted_principal_supernode] =
+        permuted_parent_supernode;
+  }
 }
 
 inline void QuotientGraph::ExternalDegrees() QUOTIENT_NOEXCEPT {
