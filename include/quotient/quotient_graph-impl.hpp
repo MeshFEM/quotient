@@ -1165,7 +1165,7 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
 
 inline void QuotientGraph::PermutedMemberToSupernode(
     const std::vector<Int>& inverse_permutation,
-    std::vector<Int>* permuted_member_to_supernode) const {
+    std::vector<Int>* permuted_member_to_supernode) const QUOTIENT_NOEXCEPT {
   const Int num_indices = inverse_permutation.size();
   permuted_member_to_supernode->clear();
   permuted_member_to_supernode->resize(num_indices);
@@ -1175,8 +1175,8 @@ inline void QuotientGraph::PermutedMemberToSupernode(
     const Int i = inverse_permutation[i_perm];
     if (assembly_.signed_supernode_sizes[i]) {
       // 'i' is a principal variable of an absorbed element.
-      const Int supernode_size = -assembly_.signed_supernode_sizes[i];
-      QUOTIENT_ASSERT(supernode_size > 0, "Supernode size was negative.");
+      QUOTIENT_ASSERT(assembly_.signed_supernode_sizes[i] < 0,
+                      "Supernode size was negative.");
       (*permuted_member_to_supernode)[i_perm] = ++permuted_supernode;
     } else {
       (*permuted_member_to_supernode)[i_perm] = permuted_supernode;
