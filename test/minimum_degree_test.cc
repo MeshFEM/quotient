@@ -13,6 +13,33 @@
 
 using quotient::Int;
 
+// Tests for the equality (ignoring set ordering) of a tuple of sets and their
+// concatenation in a vector.
+template <typename T>
+bool SetTuplesAreEqual(const std::vector<std::vector<T>>& set_tuple,
+                       const std::vector<T>& concatenation) {
+  Int offset = 0;
+  for (const std::vector<T>& set : set_tuple) {
+    // Get a sorted copy of this set.
+    std::vector<T> set_copy(set);
+    std::sort(set_copy.begin(), set_copy.end());
+
+    // Get a sorted copy of the corresponding portion of the set concatenations.
+    const Int set_size = set.size();
+    std::vector<T> concat_copy(concatenation.begin() + offset,
+                               concatenation.begin() + offset + set_size);
+    std::sort(concat_copy.begin(), concat_copy.end());
+
+    // Compare the two sets.
+    if (set_copy != concat_copy) {
+      return false;
+    }
+
+    offset += set_size;
+  }
+  return true;
+}
+
 // A reproduction of Figs. 1 and 2 from [ADD-96].
 //
 // The Amestoy external degree bound produces an overestimate for index
@@ -77,27 +104,55 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   // as the key. But there are several equally-valid solutions (the
   // only nontrivial supervariable should be {6, 7, 8}, but the principal
   // member can vary).
+  //
+  // The expected supernodes are:
+  //
+  //  {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9}.
+  //
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3, 4, 5, 8, 9,
   };
+  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
 
-  // The expected supernodes are:
-  //  {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9}.
+  /* This structure is defined directly (modulo translation from 1-based to
+     0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]:
 
-  // This structure is defined directly (modulo translation from 1-based to
-  // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]:
-  //  {3, 5}, {4, 5, 8}, {4, 5, 6}, {5, 6, 7}, {5, 6, 8}, {6, 7, 8}, {9}, {}.
+      {3, 5}, {4, 5, 8}, {4, 5, 6}, {5, 6, 7}, {5, 6, 8}, {6, 7, 8}, {9}, {}.
 
-  const std::vector<Int> kExpectedSupernodeSizes{1, 1, 1, 1, 1, 1, 0, 0, 3, 1};
+     The parents array is thus:
+
+      3, 4, 4, 5, 5, 6, 9, ROOT.
+
+     The resulting assembly tree is:
+
+                    9
+                    |
+                {6, 7, 8}
+                    |
+                    5
+                   / \
+                 3     4
+                 |    / \
+                 0   1   2
+
+     This implies a lexicographic postordering of:
+
+       0, 3, 1, 2, 4, 5, 6, 7, 8, 9.
+  */
+  const std::vector<std::vector<Int>> kExpectedInversePermutation{
+      {0}, {3}, {1}, {2}, {4}, {5}, {6, 7, 8}, {9},
+  };
+  REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
+                            analysis.inverse_permutation));
 
   const Int kExpectedNumAggressiveAbsorptions = 0;
-
-  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
-  REQUIRE(analysis.supernode_sizes == kExpectedSupernodeSizes);
   REQUIRE(analysis.num_aggressive_absorptions ==
           kExpectedNumAggressiveAbsorptions);
 
-  // TODO(Jack Poulson): Test the parents list and permutation.
+  // TODO(Jack Poulson): Test the permuted supernode sizes.
+  // const std::vector<Int> kExpectedSupernodeSizes{
+  //    1, 1, 1, 1, 1, 1, 0, 0, 3, 1};
+  // REQUIRE(analysis.supernode_sizes == kExpectedSupernodeSizes);
 }
 
 // Please see the beginning of Section 5 of [ADD-96].
@@ -129,32 +184,41 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
       2,
       3,
   };
+  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
 
-  // The expected supernodes are:
-  //   {0}, {1}, {2}, {3}.
-  //
-  // See the comment at the top of this test for why we do not expect any
-  // nontrivial supernodes.
-  const std::vector<Int> kExpectedSupernodeSizes{
-      1,
-      1,
-      1,
-      1,
+  /* This structure is defined directly (modulo translation from 1-based to
+     0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]. The
+     elimination structures are:
+
+      {2, 3}, {2, 3}, {3}, {}.
+
+     The resulting parents array is:
+
+      2, 2, 3, ROOT.
+
+     Thus, the assembly tree is:
+
+        3
+        |
+        2
+       / \
+      0   1
+
+     This implies a lexicographic postordering of:
+
+     0, 1, 2, 3.
+  */
+  const std::vector<std::vector<Int>> kExpectedInversePermutation{
+      {0},
+      {1},
+      {2},
+      {3},
   };
-
-  // This structure is defined directly (modulo translation from 1-based to
-  // 0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]. The
-  // elimination structures are:
-  //  {2, 3}, {2, 3}, {3}, {}.
-  //
+  REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
+                            analysis.inverse_permutation));
 
   // [ADD-96] discusses the aggressive absorption, 0 into 1.
   const Int kExpectedNumAggressiveAbsorptions = 1;
-
-  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
-  REQUIRE(analysis.supernode_sizes == kExpectedSupernodeSizes);
   REQUIRE(analysis.num_aggressive_absorptions ==
           kExpectedNumAggressiveAbsorptions);
-
-  // TODO(Jack Poulson): Test the parents list and permutation.
 }

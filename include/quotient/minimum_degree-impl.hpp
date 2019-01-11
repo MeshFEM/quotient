@@ -26,23 +26,23 @@ namespace quotient {
 inline MinimumDegreeResult::MinimumDegreeResult() {}
 
 inline Int MinimumDegreeResult::NumStrictlyLowerCholeskyNonzeros() const {
-  return num_cholesky_nonzeros - supernode_sizes.size();
+  return num_cholesky_nonzeros - permuted_supernode_sizes.size();
 }
 
 inline Int MinimumDegreeResult::LargestSupernode() const {
   Int largest_supernode = -1;
   Int largest_supernode_size = 0;
-  for (std::size_t i = 0; i < supernode_sizes.size(); ++i) {
-    if (supernode_sizes[i] > largest_supernode_size) {
+  for (std::size_t i = 0; i < permuted_supernode_sizes.size(); ++i) {
+    if (permuted_supernode_sizes[i] > largest_supernode_size) {
       largest_supernode = i;
-      largest_supernode_size = supernode_sizes[i];
+      largest_supernode_size = permuted_supernode_sizes[i];
     }
   }
   return largest_supernode;
 }
 
 inline Int MinimumDegreeResult::LargestSupernodeSize() const {
-  return supernode_sizes[LargestSupernode()];
+  return permuted_supernode_sizes[LargestSupernode()];
 }
 
 inline double MinimumDegreeResult::FractionOfPivotsWithMultipleElements()
@@ -131,16 +131,13 @@ inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
   analysis.num_cholesky_nonzeros += ((num_dense + 1) * num_dense) / 2;
   analysis.num_cholesky_flops += std::pow(1. * num_dense, 3.) / 3.;
 
-  // Compute the inverse of the permutation using the post-ordering.
+  // Compute the permutation using the post-ordering.
   quotient_graph.ComputePostorder(&analysis.inverse_permutation);
-
-  // TODO(Jack Poulson): Call an InvertPermutation utility function.
-  analysis.permutation.resize(num_orig_vertices);
-  for (Int i = 0; i < num_orig_vertices; ++i) {
-    analysis.permutation[analysis.inverse_permutation[i]] = i;
-  }
+  InvertPermutation(analysis.inverse_permutation, &analysis.permutation);
 
   // Compute a map from the permuted indices to the containing supernode.
+  quotient_graph.PermutedSupernodeSizes(analysis.inverse_permutation,
+                                        &analysis.permuted_supernode_sizes);
   quotient_graph.PermutedMemberToSupernode(
       analysis.inverse_permutation, &analysis.permuted_member_to_supernode);
 
@@ -161,18 +158,20 @@ inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
   }
 #endif
 
-  // Extract the relevant information from the QuotientGraph.
-  // DEPRECATED.
-  analysis.supernode_sizes.resize(num_orig_vertices);
-  for (Int i = 0; i < num_orig_vertices; ++i) {
-    analysis.supernode_sizes[i] = quotient_graph.SupernodeSize(i);
-  }
-
-  // DEPRECATED.
-  const std::vector<Int>& elimination_order = quotient_graph.EliminationOrder();
-  analysis.elimination_order = elimination_order;
+  // Extract the elimination order.
+  analysis.elimination_order = quotient_graph.EliminationOrder();
 
   return analysis;
+}
+
+inline void InvertPermutation(const std::vector<Int>& permutation,
+                              std::vector<Int>* inverse_permutation) {
+  const Int num_indices = permutation.size();
+  inverse_permutation->clear();
+  inverse_permutation->resize(num_indices);
+  for (Int index = 0; index < num_indices; ++index) {
+    (*inverse_permutation)[permutation[index]] = index;
+  }
 }
 
 }  // namespace quotient

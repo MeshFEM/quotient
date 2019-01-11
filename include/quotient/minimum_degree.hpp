@@ -26,11 +26,18 @@ struct MinimumDegreeResult {
   // the assembly forest.
   std::vector<Int> inverse_permutation;
 
-  // A map from the permuted supernode indices to the
+  // The sizes of the supernodes in the permuted ordering.
+  std::vector<Int> permuted_supernode_sizes;
+
+  // A map from the permuted indices to the containing supernode index.
   std::vector<Int> permuted_member_to_supernode;
 
   // The parent of each supernode in the permuted assembly forest.
   std::vector<Int> permuted_assembly_parents;
+
+  // The recommended elimination order of the supernodes (with each supernode
+  // represented by its principal member).
+  std::vector<Int> elimination_order;
 
   // The number of aggressive absorptions that occurred.
   Int num_aggressive_absorptions;
@@ -67,15 +74,6 @@ struct MinimumDegreeResult {
   // A map from the stage names to the corresponding elapsed seconds.
   std::unordered_map<std::string, double> elapsed_seconds;
 #endif
-
-  // The recommended elimination order of the supernodes (with each supernode
-  // represented by its principal member).
-  // DEPRECATED.
-  std::vector<Int> elimination_order;
-
-  // The list, of length num_original_vertices, of supernode sizes.
-  // DEPRECATED.
-  std::vector<Int> supernode_sizes;
 
   // A trivial constructor.
   MinimumDegreeResult();
@@ -120,6 +118,10 @@ struct MinimumDegreeResult {
 //
 MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
                                   const MinimumDegreeControl& control);
+
+// Forms the inverse of a given permutation.
+void InvertPermutation(const std::vector<Int>& permutation,
+                       std::vector<Int>* inverse_permutation);
 
 }  // namespace quotient
 

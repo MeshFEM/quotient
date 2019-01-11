@@ -64,6 +64,12 @@ class QuotientGraph {
   // Fills 'postorder' with the postorder of the assembly tree.
   void ComputePostorder(std::vector<Int>* postorder) const QUOTIENT_NOEXCEPT;
 
+  // Overwrites 'permuted_supernode_sizes' with the sizes of the supernodes
+  // in their permuted order.
+  void PermutedSupernodeSizes(const std::vector<Int>& inverse_permutation,
+                              std::vector<Int>* permuted_supernode_sizes) const
+      QUOTIENT_NOEXCEPT;
+
   // Overwrites 'permuted_member_to_supernode' with a map from the permuted
   // vertex indices to the containing permuted supernode index.
   void PermutedMemberToSupernode(
