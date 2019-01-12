@@ -40,12 +40,12 @@ bool SetTuplesAreEqual(const std::vector<std::vector<T>>& set_tuple,
   return true;
 }
 
-// A reproduction of Figs. 1 and 2 from [ADD-96].
-//
-// The Amestoy external degree bound produces an overestimate for index
-// 5 (6 with 1-based indexing) just before the third pivot is selected.
-// This helps lead to a deviation between Figs. 1-2 and the AMD results.
-//
+/* A reproduction of Figs. 1 and 2 from [ADD-96].
+
+   The Amestoy external degree bound produces an overestimate for index
+   5 (6 with 1-based indexing) just before the third pivot is selected.
+   This helps lead to a deviation between Figs. 1-2 and the AMD results.
+*/
 TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   quotient::CoordinateGraph graph;
   graph.Resize(10);
@@ -100,15 +100,15 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
 
-  // Because of the ordering of the hash bucket, we will prefer the last member
-  // as the key. But there are several equally-valid solutions (the
-  // only nontrivial supervariable should be {6, 7, 8}, but the principal
-  // member can vary).
-  //
-  // The expected supernodes are:
-  //
-  //  {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9}.
-  //
+  /* Because of the ordering of the hash bucket, we will prefer the last member
+     as the key. But there are several equally-valid solutions (the
+     only nontrivial supervariable should be {6, 7, 8}, but the principal
+     member can vary).
+
+     The expected supernodes are:
+
+      {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9}.
+  */
   const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3, 4, 5, 8, 9,
   };
@@ -137,7 +137,7 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
 
      This implies a lexicographic postordering of:
 
-       0, 3, 1, 2, 4, 5, 6, 7, 8, 9.
+       {0}, {3}, {1}, {2}, {4}, {5}, {6, 7, 8}, {9}.
   */
   const std::vector<std::vector<Int>> kExpectedInversePermutation{
       {0}, {3}, {1}, {2}, {4}, {5}, {6, 7, 8}, {9},
@@ -145,14 +145,43 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
                             analysis.inverse_permutation));
 
+  /* The inverse of the lexicographic postordering is:
+
+      {0}, {2}, {3}, {1}, {4}, {5}, {6, 7, 8}, {9}.
+
+    The corresponding permuted supernodal assembly tree is:
+
+                     7
+                     |
+                     6
+                     |
+                     5
+                    / \
+                  1     4
+                  |    / \
+                  0   2   3
+
+    so the permuted supernodal assembly parents are:
+
+      1, 5, 4, 4, 5, 6, 7, ROOT.
+  */
+  const std::vector<std::vector<Int>> kExpectedPermutation{
+      {0}, {2}, {3}, {1}, {4}, {5}, {6, 7, 8}, {9},
+  };
+  REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
+  const std::vector<Int> kExpectedPermutedSupernodeSizes{
+      1, 1, 1, 1, 1, 1, 3, 1,
+  };
+  REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
+  const std::vector<Int> kExpectedPermutedAssemblyParents{
+      1, 5, 4, 4, 5, 6, 7, -1,
+  };
+  REQUIRE(kExpectedPermutedAssemblyParents ==
+          analysis.permuted_assembly_parents);
+
   const Int kExpectedNumAggressiveAbsorptions = 0;
   REQUIRE(analysis.num_aggressive_absorptions ==
           kExpectedNumAggressiveAbsorptions);
-
-  // TODO(Jack Poulson): Test the permuted supernode sizes.
-  // const std::vector<Int> kExpectedSupernodeSizes{
-  //    1, 1, 1, 1, 1, 1, 0, 0, 3, 1};
-  // REQUIRE(analysis.supernode_sizes == kExpectedSupernodeSizes);
 }
 
 // Please see the beginning of Section 5 of [ADD-96].
@@ -196,13 +225,24 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
 
       2, 2, 3, ROOT.
 
-     Thus, the assembly tree is:
+     Thus, the assembly tree would be:
 
         3
         |
         2
        / \
       0   1
+
+     but aggressive absorption causes 1 to be absorbed into 0. The result is an
+     assembly tree
+
+        3
+        |
+        2
+        |
+        1
+        |
+        0
 
      This implies a lexicographic postordering of:
 
@@ -216,6 +256,47 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   };
   REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
                             analysis.inverse_permutation));
+
+  /* The inverse of the lexicographic postordering is:
+
+      {0}, {1}, {2}, {3}.
+
+    The corresponding permuted supernodal assembly tree is:
+
+        3
+        |
+        2
+        |
+        1
+        |
+        0
+
+    so the permuted supernodal assembly parents are:
+
+      1, 2, 3, ROOT.
+  */
+  const std::vector<std::vector<Int>> kExpectedPermutation{
+      {0},
+      {1},
+      {2},
+      {3},
+  };
+  REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
+  const std::vector<Int> kExpectedPermutedSupernodeSizes{
+      1,
+      1,
+      1,
+      1,
+  };
+  REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
+  const std::vector<Int> kExpectedPermutedAssemblyParents{
+      1,
+      2,
+      3,
+      -1,
+  };
+  REQUIRE(kExpectedPermutedAssemblyParents ==
+          analysis.permuted_assembly_parents);
 
   // [ADD-96] discusses the aggressive absorption, 0 into 1.
   const Int kExpectedNumAggressiveAbsorptions = 1;

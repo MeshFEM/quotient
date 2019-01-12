@@ -1144,18 +1144,20 @@ inline std::vector<Int>::iterator QuotientGraph::PreorderTree(
     const Int element = stack.back();
     stack.pop_back();
 
-    // Push the supernode into the preorder.
-    Int index = element;
-    *(iter++) = index;
-    const Int nonprincipal_beg = nonprincipal_offsets[index];
-    const Int nonprincipal_end = nonprincipal_offsets[index + 1];
-    for (Int j = nonprincipal_beg; j < nonprincipal_end; ++j) {
+    // Push the supernode into the preorder in reverse order so that, when we
+    // later call std::reverse to generate a postorder, the principal member of
+    // the supernode comes first.
+    const Int nonprincipal_beg = nonprincipal_offsets[element];
+    const Int nonprincipal_end = nonprincipal_offsets[element + 1];
+    for (Int j = nonprincipal_end - 1; j >= nonprincipal_beg; --j) {
       (*iter++) = nonprincipal_members[j];
     }
+    *(iter++) = element;
 
     // Push the children onto the stack.
-    for (Int index = child_offsets[element]; index < child_offsets[element + 1];
-         ++index) {
+    const Int child_beg = child_offsets[element];
+    const Int child_end = child_offsets[element + 1];
+    for (Int index = child_beg; index < child_end; ++index) {
       stack.push_back(children[index]);
     }
   }
@@ -1177,6 +1179,7 @@ inline void QuotientGraph::PermutedSupernodeSizes(
                     "Supernode size was negative.");
     const Int supernode_size = -assembly_.signed_supernode_sizes[i];
     (*permuted_supernode_sizes)[index] = supernode_size;
+
     i_perm += supernode_size;
   }
 }
@@ -1197,6 +1200,7 @@ inline void QuotientGraph::PermutedMemberToSupernode(
                       "Supernode size was negative.");
       (*permuted_member_to_supernode)[i_perm] = ++permuted_supernode;
     } else {
+      QUOTIENT_ASSERT(permuted_supernode >= 0, "Invalid permuted ordering.");
       (*permuted_member_to_supernode)[i_perm] = permuted_supernode;
     }
   }
@@ -1215,13 +1219,13 @@ inline void QuotientGraph::PermutedAssemblyParents(
 
     const Int permuted_principal = permutation[original_principal];
     const Int permuted_parent =
-        original_parent >= 0 ? permutation[original_parent] : original_parent;
+        original_parent >= 0 ? permutation[original_parent] : -1;
 
     const Int permuted_principal_supernode =
         permuted_member_to_supernode[permuted_principal];
     const Int permuted_parent_supernode =
         permuted_parent >= 0 ? permuted_member_to_supernode[permuted_parent]
-                             : permuted_parent;
+                             : -1;
 
     (*permuted_assembly_parents)[permuted_principal_supernode] =
         permuted_parent_supernode;
