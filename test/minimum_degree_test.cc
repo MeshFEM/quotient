@@ -303,3 +303,109 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   REQUIRE(analysis.num_aggressive_absorptions ==
           kExpectedNumAggressiveAbsorptions);
 }
+
+// Please see the beginning of Section 5 of [ADD-96].
+TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
+  quotient::CoordinateGraph graph;
+  graph.Resize(4);
+
+  graph.AddEdge(0, 2);
+  graph.AddEdge(0, 3);
+  graph.AddEdge(2, 0);
+  graph.AddEdge(3, 0);
+
+  graph.AddEdge(1, 2);
+  graph.AddEdge(1, 3);
+  graph.AddEdge(2, 1);
+  graph.AddEdge(3, 1);
+
+  quotient::MinimumDegreeControl control;
+  control.degree_type = quotient::kExactDegree;
+  control.allow_supernodes = false;
+  control.force_minimal_pivot_indices = true;
+  control.aggressive_absorption = false;
+  quotient::MinimumDegreeResult analysis =
+      quotient::MinimumDegree(graph, control);
+
+  const std::vector<Int> kExpectedEliminationOrder{
+      0,
+      1,
+      2,
+      3,
+  };
+  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
+
+  /* This structure is defined directly (modulo translation from 1-based to
+     0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]. The
+     elimination structures are:
+
+      {2, 3}, {2, 3}, {3}, {}.
+
+     The resulting parents array is:
+
+      2, 2, 3, ROOT.
+
+     Thus, the assembly tree is:
+
+        3
+        |
+        2
+       / \
+      0   1
+
+     This implies a lexicographic postordering of:
+
+     0, 1, 2, 3.
+  */
+  const std::vector<std::vector<Int>> kExpectedInversePermutation{
+      {0},
+      {1},
+      {2},
+      {3},
+  };
+  REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
+                            analysis.inverse_permutation));
+
+  /* The inverse of the lexicographic postordering is:
+
+      {0}, {1}, {2}, {3}.
+
+    The corresponding permuted supernodal assembly tree is:
+
+        3
+        |
+        2
+       / \
+      0   1
+
+    so the permuted supernodal assembly parents are:
+
+      2, 2, 3, ROOT.
+  */
+  const std::vector<std::vector<Int>> kExpectedPermutation{
+      {0},
+      {1},
+      {2},
+      {3},
+  };
+  REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
+  const std::vector<Int> kExpectedPermutedSupernodeSizes{
+      1,
+      1,
+      1,
+      1,
+  };
+  REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
+  const std::vector<Int> kExpectedPermutedAssemblyParents{
+      2,
+      2,
+      3,
+      -1,
+  };
+  REQUIRE(kExpectedPermutedAssemblyParents ==
+          analysis.permuted_assembly_parents);
+
+  const Int kExpectedNumAggressiveAbsorptions = 0;
+  REQUIRE(analysis.num_aggressive_absorptions ==
+          kExpectedNumAggressiveAbsorptions);
+}
