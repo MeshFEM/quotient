@@ -1072,30 +1072,10 @@ inline void QuotientGraph::ComputePostorder(std::vector<Int>* postorder) const
   // Reconstruct the child links from the parent links in a contiguous array
   // (similar to the CSR format) by first counting the number of children of
   // each node.
-  std::vector<Int> child_offsets(num_vertices_ + 1, 0);
-  for (const Int& i : elimination_order_) {
-    if (assembly_.parent_or_tail[i] >= 0) {
-      const Int parent = supernode_principal(assembly_.parent_or_tail[i]);
-      ++child_offsets[parent];
-    }
-  }
-
-  Int num_total_children = 0;
-  for (Int i = 0; i <= num_vertices_; ++i) {
-    const Int num_children = child_offsets[i];
-    child_offsets[i] = num_total_children;
-    num_total_children += num_children;
-  }
-
-  // Pack the children into a buffer.
-  std::vector<Int> children(num_total_children);
-  offsets_copy = child_offsets;
-  for (const Int& i : elimination_order_) {
-    if (assembly_.parent_or_tail[i] >= 0) {
-      const Int parent = supernode_principal(assembly_.parent_or_tail[i]);
-      children[offsets_copy[parent]++] = i;
-    }
-  }
+  std::vector<Int> children;
+  std::vector<Int> child_offsets;
+  ChildrenFromParentSubsequence(assembly_.parent_or_tail, elimination_order_,
+                                &children, &child_offsets);
 
   // Scan for the roots and launch a pe-order traversal on each of them.
   // We march through elimination_order in reverse order so that, after a

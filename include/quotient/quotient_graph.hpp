@@ -13,6 +13,7 @@
 #include "quotient/coordinate_graph.hpp"
 #include "quotient/degree_lists.hpp"
 #include "quotient/hash_lists.hpp"
+#include "quotient/index_utils.hpp"
 #include "quotient/integers.hpp"
 #include "quotient/io_utils.hpp"
 #include "quotient/minimum_degree_control.hpp"

@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "quotient/coordinate_graph.hpp"
+#include "quotient/index_utils.hpp"
 #include "quotient/integers.hpp"
 #include "quotient/macros.hpp"
 #include "quotient/quotient_graph.hpp"
@@ -162,16 +163,6 @@ inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
   analysis.elimination_order = quotient_graph.EliminationOrder();
 
   return analysis;
-}
-
-inline void InvertPermutation(const std::vector<Int>& permutation,
-                              std::vector<Int>* inverse_permutation) {
-  const Int num_indices = permutation.size();
-  inverse_permutation->clear();
-  inverse_permutation->resize(num_indices);
-  for (Int index = 0; index < num_indices; ++index) {
-    (*inverse_permutation)[permutation[index]] = index;
-  }
 }
 
 }  // namespace quotient

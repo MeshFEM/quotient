@@ -119,10 +119,6 @@ struct MinimumDegreeResult {
 MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
                                   const MinimumDegreeControl& control);
 
-// Forms the inverse of a given permutation.
-void InvertPermutation(const std::vector<Int>& permutation,
-                       std::vector<Int>* inverse_permutation);
-
 }  // namespace quotient
 
 #include "quotient/minimum_degree-impl.hpp"
