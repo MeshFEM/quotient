@@ -1273,7 +1273,7 @@ inline void QuotientGraph::ResetExternalDegrees() QUOTIENT_NOEXCEPT {
   std::cerr << "Resetting external degrees." << std::endl;
 #endif
   node_flags_.shift = 2;
-  for (UInt i = 0; i < node_flags_.flags.Size(); ++i) {
+  for (Int i = 0; i < node_flags_.flags.Size(); ++i) {
     if (node_flags_.flags[i]) {
       node_flags_.flags[i] = 1;
     }
