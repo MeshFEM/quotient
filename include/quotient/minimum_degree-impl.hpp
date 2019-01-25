@@ -33,7 +33,7 @@ inline Int MinimumDegreeResult::NumStrictlyLowerCholeskyNonzeros() const {
 inline Int MinimumDegreeResult::LargestSupernode() const {
   Int largest_supernode = -1;
   Int largest_supernode_size = 0;
-  for (std::size_t i = 0; i < permuted_supernode_sizes.Size(); ++i) {
+  for (Int i = 0; i < permuted_supernode_sizes.Size(); ++i) {
     if (permuted_supernode_sizes[i] > largest_supernode_size) {
       largest_supernode = i;
       largest_supernode_size = permuted_supernode_sizes[i];
@@ -80,7 +80,7 @@ inline void MinimumDegreeResult::PermutedAssemblyForestToDot(
   }
 
   file << "digraph g{\n";
-  for (std::size_t i = 0; i < permuted_assembly_parents.Size(); ++i) {
+  for (Int i = 0; i < permuted_assembly_parents.Size(); ++i) {
     if (permuted_assembly_parents[i] < 0) {
       continue;
     }
