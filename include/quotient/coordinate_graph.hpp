@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 
+#include "quotient/buffer.hpp"
 #include "quotient/integers.hpp"
 #include "quotient/macros.hpp"
 #include "quotient/matrix_market.hpp"
@@ -40,12 +41,16 @@ void SwapClearVector(std::vector<T>* vec);
 template <typename T>
 void EraseDuplicatesInSortedVector(std::vector<T>* vec);
 
+// Removes all duplicate entries from a sorted buffer.
+template <typename T>
+void EraseDuplicatesInSortedVector(Buffer<T>* vec);
+
 // A coordinate-format graph data structure that supports different source
 // and target set sizes. The primary storage is a lexicographically sorted
-// std::vector<GraphEdge> and an associated std::vector<Int> of source offsets
-// (which serve the same role as in Compressed Sparse Row (CSR) format). Thus,
-// this storage scheme is a superset of the CSR format that explicitly stores
-// both source and target indices for each edge.
+// Buffer<GraphEdge> and an associated Buffer<Int> of source offsets (which
+// serve the same role as in Compressed Sparse Row (CSR) format). Thus, this
+// storage scheme is a superset of the CSR format that explicitly stores both
+// source and target indices for each edge.
 //
 // The class is designed so that the sorting and offset computation overhead
 // can be amortized over batches of edge additions and removals.
@@ -62,9 +67,9 @@ void EraseDuplicatesInSortedVector(std::vector<T>* vec);
 //   graph.QueueEdgeAddition(4, 4);
 //   graph.QueueEdgeAddition(3, 2);
 //   graph.FlushEdgeQueues();
-//   const std::vector<quotient::GraphEdge>& edges = graph.Edges();
+//   const Buffer<quotient::GraphEdge>& edges = graph.Edges();
 //
-// would return a reference to the underlying std::vector<quotient::GraphEdge>
+// would return a reference to the underlying Buffer<quotient::GraphEdge>
 // of 'graph', which should contain the edge sequence:
 //   (2, 0), (2, 3), (3, 2), (3, 4), (4, 2), (4, 4).
 //
@@ -75,8 +80,8 @@ void EraseDuplicatesInSortedVector(std::vector<T>* vec);
 //   graph.QueueEdgeRemoval(0, 4);
 //   graph.FlushEdgeQueues();
 //
-// would modify the std::vector underlying the 'edges' reference to now
-// contain the edge sequence:
+// would modify the Buffer underlying the 'edges' reference to now contain the
+// edge sequence:
 //   (2, 0), (3, 2), (3, 4), (4, 2), (4, 4).
 //
 // TODO(Jack Poulson): Add support for 'END' index marker so that ranges
@@ -114,7 +119,7 @@ class CoordinateGraph {
 
   // Removes all edges and changes the source and target vertex ground set
   // sizes to zero.
-  void Empty(bool free_resources);
+  void Empty();
 
   // Changes both the source and target ground set sizes to 'num_vertices'.
   void Resize(Int num_vertices);
@@ -163,7 +168,7 @@ class CoordinateGraph {
   const GraphEdge& Edge(Int edge_index) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the underlying vector of edges.
-  const std::vector<GraphEdge>& Edges() const QUOTIENT_NOEXCEPT;
+  const Buffer<GraphEdge>& Edges() const QUOTIENT_NOEXCEPT;
 
   // Returns the offset into the edge vector where edges from the given source
   // begin.
@@ -187,12 +192,12 @@ class CoordinateGraph {
   Int num_targets_;
 
   // The (lexicographically sorted) list of edges in the graph.
-  std::vector<GraphEdge> edges_;
+  Buffer<GraphEdge> edges_;
 
   // A list of length 'num_sources_ + 1', where 'source_edge_offsets_[source]'
   // indicates the location in 'edges_' where the edge (source, 0) would be
   // inserted.
-  std::vector<Int> source_edge_offsets_;
+  Buffer<Int> source_edge_offsets_;
 
   // The list of edges currently queued for addition into the graph.
   std::vector<GraphEdge> edges_to_add_;

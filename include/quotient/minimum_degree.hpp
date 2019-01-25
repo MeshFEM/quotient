@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "quotient/buffer.hpp"
 #include "quotient/coordinate_graph.hpp"
 #include "quotient/integers.hpp"
 #include "quotient/minimum_degree_control.hpp"
@@ -20,24 +21,24 @@ namespace quotient {
 // Statistics from running the MinimumDegree reordering algorithm.
 struct MinimumDegreeResult {
   // The MD permutation.
-  std::vector<Int> permutation;
+  Buffer<Int> permutation;
 
   // The inverse of the MD permutation. It corresponds to the postordering of
   // the assembly forest.
-  std::vector<Int> inverse_permutation;
+  Buffer<Int> inverse_permutation;
 
   // The sizes of the supernodes in the permuted ordering.
-  std::vector<Int> permuted_supernode_sizes;
+  Buffer<Int> permuted_supernode_sizes;
 
   // A map from the permuted indices to the containing supernode index.
-  std::vector<Int> permuted_member_to_supernode;
+  Buffer<Int> permuted_member_to_supernode;
 
   // The parent of each supernode in the permuted assembly forest.
-  std::vector<Int> permuted_assembly_parents;
+  Buffer<Int> permuted_assembly_parents;
 
   // The recommended elimination order of the supernodes (with each supernode
   // represented by its principal member).
-  std::vector<Int> elimination_order;
+  Buffer<Int> elimination_order;
 
   // The number of aggressive absorptions that occurred.
   Int num_aggressive_absorptions;
@@ -97,11 +98,11 @@ struct MinimumDegreeResult {
   double FractionOfDegreeUpdatesWithMultipleElements() const;
 
   // Returns the permutation implied by the postordering of the assembly tree.
-  std::vector<Int> Permutation() const;
+  Buffer<Int> Permutation() const;
 
   // Returns the inverse permutation implied by the postordering of the
   // assembly tree.
-  std::vector<Int> InversePermutation() const;
+  Buffer<Int> InversePermutation() const;
 
   // Writes a dot file (usually ".gv") for the assembly forest implied by the
   // postordering. One can subsequently generate a PNG of the forest using:

@@ -15,28 +15,33 @@
 namespace quotient {
 
 // Forms the inverse of a given permutation.
-void InvertPermutation(const std::vector<Int>& permutation,
-                       std::vector<Int>* inverse_permutation);
+void InvertPermutation(const Buffer<Int>& permutation,
+                       Buffer<Int>* inverse_permutation);
 
 // Fills 'offsets' with a length 'num_indices + 1' array whose i'th index is
 // the sum of the sizes whose indices are less than i.
-void OffsetScan(const std::vector<Int>& sizes, std::vector<Int>* offsets);
+void OffsetScan(const Buffer<Int>& sizes, Buffer<Int>* offsets);
 
 // Builds the packed list of children of the nodes in a forest from the parent
 // links. The children of node 'i' will be stored between indices
 // 'child_offsets[i]' and 'child_offsets[i + 1]' of 'children'.
-void ChildrenFromParents(const std::vector<Int>& parents,
-                         std::vector<Int>* children,
-                         std::vector<Int>* child_offsets);
+void ChildrenFromParents(const Buffer<Int>& parents, Buffer<Int>* children,
+                         Buffer<Int>* child_offsets);
 
 // Builds the packed list of children of the nodes in a given subsequence
 // based upon their parents. As for 'ChildrenFromParents', the children of
 // node 'i' will be stored between indices 'child_offsets[i]' and
 // 'child_offsets[i + 1]' of 'children'.
-void ChildrenFromParentSubsequence(const std::vector<Int>& parents,
+void ChildrenFromParentSubsequence(const Buffer<Int>& parents,
+                                   const Buffer<Int>& node_subsequence,
+                                   Buffer<Int>* children,
+                                   Buffer<Int>* child_offsets);
+
+// Equivalent to the above, but with an std::vector node subsequence.
+void ChildrenFromParentSubsequence(const Buffer<Int>& parents,
                                    const std::vector<Int>& node_subsequence,
-                                   std::vector<Int>* children,
-                                   std::vector<Int>* child_offsets);
+                                   Buffer<Int>* children,
+                                   Buffer<Int>* child_offsets);
 
 }  // namespace quotient
 

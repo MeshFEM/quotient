@@ -10,6 +10,7 @@
 
 #include <vector>
 
+#include "quotient/buffer.hpp"
 #include "quotient/coordinate_graph.hpp"
 #include "quotient/degree_lists.hpp"
 #include "quotient/hash_lists.hpp"
@@ -63,26 +64,26 @@ class QuotientGraph {
   const std::vector<Int>& EliminationOrder() const QUOTIENT_NOEXCEPT;
 
   // Fills 'postorder' with the postorder of the assembly tree.
-  void ComputePostorder(std::vector<Int>* postorder) const QUOTIENT_NOEXCEPT;
+  void ComputePostorder(Buffer<Int>* postorder) const QUOTIENT_NOEXCEPT;
 
   // Overwrites 'permuted_supernode_sizes' with the sizes of the supernodes
   // in their permuted order.
-  void PermutedSupernodeSizes(const std::vector<Int>& inverse_permutation,
-                              std::vector<Int>* permuted_supernode_sizes) const
+  void PermutedSupernodeSizes(const Buffer<Int>& inverse_permutation,
+                              Buffer<Int>* permuted_supernode_sizes) const
       QUOTIENT_NOEXCEPT;
 
   // Overwrites 'permuted_member_to_supernode' with a map from the permuted
   // vertex indices to the containing permuted supernode index.
   void PermutedMemberToSupernode(
-      const std::vector<Int>& inverse_permutation,
-      std::vector<Int>* permuted_member_to_supernode) const QUOTIENT_NOEXCEPT;
+      const Buffer<Int>& inverse_permutation,
+      Buffer<Int>* permuted_member_to_supernode) const QUOTIENT_NOEXCEPT;
 
   // Overwrites 'permuted_assembly_parents' with the uplinks of the permuted
   // supernodal assembly forest.
-  void PermutedAssemblyParents(
-      const std::vector<Int>& permutation,
-      const std::vector<Int>& permuted_member_to_supernode,
-      std::vector<Int>* permuted_assembly_parents) const QUOTIENT_NOEXCEPT;
+  void PermutedAssemblyParents(const Buffer<Int>& permutation,
+                               const Buffer<Int>& permuted_member_to_supernode,
+                               Buffer<Int>* permuted_assembly_parents) const
+      QUOTIENT_NOEXCEPT;
 
   // Returns the number of times that supervariables have been falsely hashed
   // into the same bucket.
@@ -93,16 +94,16 @@ class QuotientGraph {
   Int NumHashCollisions() const QUOTIENT_NOEXCEPT;
 
   // Forms the set of members of the supernode with the given principal member.
-  std::vector<Int> FormSupernode(Int i) const QUOTIENT_NOEXCEPT;
+  Buffer<Int> FormSupernode(Int i) const QUOTIENT_NOEXCEPT;
 
   // Returns the size of the supernode with the given principal variable.
   Int SupernodeSize(Int i) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the element for the given principal member.
-  const std::vector<Int>& Element(Int i) const QUOTIENT_NOEXCEPT;
+  const Buffer<Int>& Element(Int i) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the element list of the given principal member.
-  std::vector<Int> ElementList(Int i) const QUOTIENT_NOEXCEPT;
+  Buffer<Int> ElementList(Int i) const QUOTIENT_NOEXCEPT;
 
   // Finds the next pivot supervariable, forms the corresponding element, and
   // updates the quotient graph. The return value is the principal member of
@@ -135,7 +136,7 @@ class QuotientGraph {
 
   // Prints the current breakdown of the stage timings. The result will be
   // trivial unless QUOTIENT_ENABLE_TIMERS is defined.
-  std::vector<std::pair<std::string, double>> ComponentSeconds() const
+  Buffer<std::pair<std::string, double>> ComponentSeconds() const
       QUOTIENT_NOEXCEPT;
 
   // This routine should be called after eliminating the non-dense variables,
@@ -169,7 +170,7 @@ class QuotientGraph {
     // signed size of '0', but eliminated elements have their assembly parent
     // marked as their parent in the tree, while dense supernode member 'i' has
     // its parent equal to SYMMETRIC_INDEX(i).
-    std::vector<Int> signed_supernode_sizes;
+    Buffer<Int> signed_supernode_sizes;
 
     // A (possibly empty) dense supernode.
     DenseSupernode dense_supernode;
@@ -178,7 +179,7 @@ class QuotientGraph {
     // the parent of element 'e' in the elimination forest (if it exists).
     // If element 'e' has no parent, then the value is equal to
     // SYMMETRIC_INDEX(j), where 'j' is the last member of the supernode.
-    std::vector<Int> parent_or_tail;
+    Buffer<Int> parent_or_tail;
   };
 
   // A data structure managing an array of length 'num_vertices' which can be
@@ -196,7 +197,7 @@ class QuotientGraph {
     // a supervariable in the current pivot structure, L_p.
     //
     // It is also used for temporarily flagging variables as within a set.
-    std::vector<Int> flags;
+    Buffer<Int> flags;
 
     // The maximum degree that has been constructed so far. Since the external
     // degree updates in each stage will be less than this value, it is used as
@@ -230,17 +231,17 @@ class QuotientGraph {
   // implied by 'structures'.
   struct Edges {
     // The concatentation of the element + adjacency lists of each node.
-    std::vector<Int> lists;
+    Buffer<Int> lists;
 
     // The element list of variable 'i' will start at index
     // `element_list_offsets[i]` of 'lists'.
-    std::vector<Int> element_list_offsets;
+    Buffer<Int> element_list_offsets;
 
     // The length of the element list of variable i.
-    std::vector<Int> element_list_sizes;
+    Buffer<Int> element_list_sizes;
 
     // The length of the variable list of variable i.
-    std::vector<Int> adjacency_list_sizes;
+    Buffer<Int> adjacency_list_sizes;
   };
 
   // Data structures related to hashing supervariables.
@@ -281,7 +282,7 @@ class QuotientGraph {
   // variable to an element.
   //
   // The structure list also contains non-principal members.
-  std::vector<std::vector<Int>> elements_;
+  Buffer<Buffer<Int>> elements_;
 
   // A set of linked lists for keeping track of supervariables of each degree
   // (and, also, a way to provide fast access to a supervariable with
@@ -379,11 +380,11 @@ class QuotientGraph {
 
   // Uses the parents_ links for the assembly tree to contiguously fill a
   // subtree of the post-order rooted at 'index' using the iterator.
-  std::vector<Int>::iterator PreorderTree(
-      Int index, const std::vector<Int>& nonprincipal_members,
-      const std::vector<Int>& nonprincipal_offsets,
-      const std::vector<Int>& children, const std::vector<Int>& child_offsets,
-      std::vector<Int>::iterator iter) const QUOTIENT_NOEXCEPT;
+  Int* PreorderTree(Int index, const Buffer<Int>& nonprincipal_members,
+                    const Buffer<Int>& nonprincipal_offsets,
+                    const Buffer<Int>& children,
+                    const Buffer<Int>& child_offsets,
+                    Int* iter) const QUOTIENT_NOEXCEPT;
 
   // A definition of Ashcraft's hash function (as described in [ADD-96]).
   UInt AshcraftVariableHash(Int i) const QUOTIENT_NOEXCEPT;

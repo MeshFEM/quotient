@@ -294,7 +294,7 @@ AMDExperiment RunMatrixMarketAMDTest(
 #endif
 
     if (write_permuted_graphs) {
-      const std::vector<Int> permutation = analysis.Permutation();
+      const quotient::Buffer<Int> permutation = analysis.Permutation();
 
       quotient::CoordinateGraph permuted_graph;
       permuted_graph.Resize(graph->NumSources());

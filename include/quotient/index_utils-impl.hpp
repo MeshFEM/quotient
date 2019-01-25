@@ -12,20 +12,18 @@
 
 namespace quotient {
 
-inline void InvertPermutation(const std::vector<Int>& permutation,
-                              std::vector<Int>* inverse_permutation) {
-  const Int num_indices = permutation.size();
-  inverse_permutation->clear();
-  inverse_permutation->resize(num_indices);
+inline void InvertPermutation(const Buffer<Int>& permutation,
+                              Buffer<Int>* inverse_permutation) {
+  const Int num_indices = permutation.Size();
+  inverse_permutation->Resize(num_indices);
   for (Int index = 0; index < num_indices; ++index) {
     (*inverse_permutation)[permutation[index]] = index;
   }
 }
 
-inline void OffsetScan(const std::vector<Int>& sizes,
-                       std::vector<Int>* offsets) {
-  const Int num_indices = sizes.size();
-  offsets->resize(num_indices + 1);
+inline void OffsetScan(const Buffer<Int>& sizes, Buffer<Int>* offsets) {
+  const Int num_indices = sizes.Size();
+  offsets->Resize(num_indices + 1);
 
   Int offset = 0;
   for (Int index = 0; index < num_indices; ++index) {
@@ -35,14 +33,14 @@ inline void OffsetScan(const std::vector<Int>& sizes,
   (*offsets)[num_indices] = offset;
 }
 
-inline void ChildrenFromParents(const std::vector<Int>& parents,
-                                std::vector<Int>* children,
-                                std::vector<Int>* child_offsets) {
-  const Int num_indices = parents.size();
+inline void ChildrenFromParents(const Buffer<Int>& parents,
+                                Buffer<Int>* children,
+                                Buffer<Int>* child_offsets) {
+  const Int num_indices = parents.Size();
 
   {
     // Compute the number of children of each node in the forest.
-    std::vector<Int> num_children(num_indices, 0);
+    Buffer<Int> num_children(num_indices, 0);
     for (Int index = 0; index < num_indices; ++index) {
       const Int parent = parents[index];
       if (parent >= 0) {
@@ -56,7 +54,7 @@ inline void ChildrenFromParents(const std::vector<Int>& parents,
   }
 
   // Pack the children into the offsets.
-  children->resize(num_indices);
+  children->Resize(num_indices);
   auto offsets_copy = *child_offsets;
   for (Int index = 0; index < num_indices; ++index) {
     const Int parent = parents[index];
@@ -66,14 +64,15 @@ inline void ChildrenFromParents(const std::vector<Int>& parents,
   }
 }
 
-inline void ChildrenFromParentSubsequence(
-    const std::vector<Int>& parents, const std::vector<Int>& node_subsequence,
-    std::vector<Int>* children, std::vector<Int>* child_offsets) {
-  const Int num_indices = parents.size();
+inline void ChildrenFromParentSubsequence(const Buffer<Int>& parents,
+                                          const Buffer<Int>& node_subsequence,
+                                          Buffer<Int>* children,
+                                          Buffer<Int>* child_offsets) {
+  const Int num_indices = parents.Size();
 
   {
     // Compute the number of children of each node in the forest.
-    std::vector<Int> num_children(num_indices, 0);
+    Buffer<Int> num_children(num_indices, 0);
     for (const Int& index : node_subsequence) {
       const Int parent = parents[index];
       if (parent >= 0) {
@@ -87,7 +86,38 @@ inline void ChildrenFromParentSubsequence(
   }
 
   // Pack the children into the offsets.
-  children->resize(num_indices);
+  children->Resize(num_indices);
+  auto offsets_copy = *child_offsets;
+  for (const Int& index : node_subsequence) {
+    const Int parent = parents[index];
+    if (parent >= 0) {
+      (*children)[offsets_copy[parent]++] = index;
+    }
+  }
+}
+
+inline void ChildrenFromParentSubsequence(
+    const Buffer<Int>& parents, const std::vector<Int>& node_subsequence,
+    Buffer<Int>* children, Buffer<Int>* child_offsets) {
+  const Int num_indices = parents.Size();
+
+  {
+    // Compute the number of children of each node in the forest.
+    Buffer<Int> num_children(num_indices, 0);
+    for (const Int& index : node_subsequence) {
+      const Int parent = parents[index];
+      if (parent >= 0) {
+        ++num_children[parent];
+      }
+    }
+
+    // Convert the number of children into the offsets to pack the children
+    // into.
+    OffsetScan(num_children, child_offsets);
+  }
+
+  // Pack the children into the offsets.
+  children->Resize(num_indices);
   auto offsets_copy = *child_offsets;
   for (const Int& index : node_subsequence) {
     const Int parent = parents[index];

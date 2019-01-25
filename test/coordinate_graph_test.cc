@@ -24,8 +24,8 @@ TEST_CASE("Simple example", "[simple]") {
   // The sorted edges should now be:
   //   (0, 1), (0, 2), (0, 4), (2, 0), (3, 2).
 
-  const std::vector<quotient::GraphEdge>& edges = graph.Edges();
-  REQUIRE(edges.size() == 5);
+  const quotient::Buffer<quotient::GraphEdge>& edges = graph.Edges();
+  REQUIRE(edges.Size() == 5);
   REQUIRE(edges[0] == quotient::GraphEdge(0, 1));
   REQUIRE(edges[1] == quotient::GraphEdge(0, 2));
   REQUIRE(edges[2] == quotient::GraphEdge(0, 4));
@@ -36,14 +36,14 @@ TEST_CASE("Simple example", "[simple]") {
   graph.RemoveEdge(0, 2);
   graph.RemoveEdge(0, 2);
 
-  REQUIRE(edges.size() == 3);
+  REQUIRE(edges.Size() == 3);
   REQUIRE(edges[0] == quotient::GraphEdge(0, 1));
   REQUIRE(edges[1] == quotient::GraphEdge(0, 4));
   REQUIRE(edges[2] == quotient::GraphEdge(3, 2));
 
   graph.AddEdge(0, 0);
 
-  REQUIRE(edges.size() == 4);
+  REQUIRE(edges.Size() == 4);
   REQUIRE(edges[0] == quotient::GraphEdge(0, 0));
   REQUIRE(edges[1] == quotient::GraphEdge(0, 1));
   REQUIRE(edges[2] == quotient::GraphEdge(0, 4));
@@ -80,9 +80,9 @@ TEST_CASE("Batch example", "[batch]") {
   graph.QueueEdgeRemoval(0, 2);
   graph.FlushEdgeQueues();
 
-  const std::vector<quotient::GraphEdge>& edges = graph.Edges();
+  const quotient::Buffer<quotient::GraphEdge>& edges = graph.Edges();
 
-  REQUIRE(edges.size() == 3);
+  REQUIRE(edges.Size() == 3);
   REQUIRE(edges[0] == quotient::GraphEdge(0, 1));
   REQUIRE(edges[1] == quotient::GraphEdge(0, 4));
   REQUIRE(edges[2] == quotient::GraphEdge(3, 2));
@@ -92,7 +92,7 @@ TEST_CASE("Batch example", "[batch]") {
   graph.QueueEdgeAddition(2, 2);
   graph.FlushEdgeQueues();
 
-  REQUIRE(edges.size() == 5);
+  REQUIRE(edges.Size() == 5);
   REQUIRE(edges[0] == quotient::GraphEdge(0, 1));
   REQUIRE(edges[1] == quotient::GraphEdge(0, 4));
   REQUIRE(edges[2] == quotient::GraphEdge(2, 2));
@@ -108,7 +108,7 @@ TEST_CASE("Matrix Matrix general", "[MM-general]") {
   constexpr char kCoordinateSymmetricSmall[] =
       "../test/matrix_market/coordinate-symmetric-small.mtx";
 
-  const std::vector<quotient::GraphEdge> kExpectedEdges{
+  const quotient::Buffer<quotient::GraphEdge> kExpectedEdges{
       {0, 3}, {0, 5}, {1, 4}, {1, 5}, {1, 8}, {2, 4}, {2, 5}, {2, 6}, {3, 0},
       {3, 6}, {3, 7}, {4, 1}, {4, 2}, {4, 6}, {4, 8}, {5, 0}, {5, 1}, {5, 2},
       {6, 2}, {6, 3}, {6, 4}, {6, 7}, {6, 8}, {6, 9}, {7, 3}, {7, 6}, {7, 8},

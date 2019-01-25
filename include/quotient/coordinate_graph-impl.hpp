@@ -29,6 +29,13 @@ void EraseDuplicatesInSortedVector(std::vector<T>* vec) {
   vec->erase(std::unique(vec->begin(), vec->end()), vec->end());
 }
 
+template <typename T>
+void EraseDuplicatesInSortedVector(Buffer<T>* vec) {
+  T* new_end = std::unique(vec->begin(), vec->end());
+  const Int new_size = std::distance(vec->begin(), new_end);
+  vec->Resize(new_size);
+}
+
 inline CoordinateGraph::CoordinateGraph() : num_sources_(0), num_targets_(0) {}
 
 inline CoordinateGraph::CoordinateGraph(const CoordinateGraph& graph) {
@@ -40,17 +47,15 @@ inline CoordinateGraph::CoordinateGraph(const CoordinateGraph& graph) {
 
 inline CoordinateGraph& CoordinateGraph::operator=(
     const CoordinateGraph& graph) {
-  if (&graph == this) {
-    return *this;
+  if (&graph != this) {
+    num_sources_ = graph.num_sources_;
+    num_targets_ = graph.num_targets_;
+    edges_ = graph.edges_;
+    source_edge_offsets_ = graph.source_edge_offsets_;
+
+    edges_to_add_ = graph.edges_to_add_;
+    edges_to_remove_ = graph.edges_to_remove_;
   }
-
-  num_sources_ = graph.num_sources_;
-  num_targets_ = graph.num_targets_;
-  edges_ = graph.edges_;
-  source_edge_offsets_ = graph.source_edge_offsets_;
-  edges_to_add_ = graph.edges_to_add_;
-  edges_to_remove_ = graph.edges_to_remove_;
-
   return *this;
 }
 
@@ -191,7 +196,7 @@ inline void CoordinateGraph::ToMatrixMarket(const std::string& filename) const {
   }
 
   // Write out the entries.
-  const std::vector<GraphEdge>& edges = Edges();
+  const Buffer<GraphEdge>& edges = Edges();
   for (const GraphEdge& edge : edges) {
     std::ostringstream os;
     // We must convert from 0-based to 1-based indexing.
@@ -211,25 +216,20 @@ inline Int CoordinateGraph::NumTargets() const QUOTIENT_NOEXCEPT {
 }
 
 inline Int CoordinateGraph::NumEdges() const QUOTIENT_NOEXCEPT {
-  return edges_.size();
+  return edges_.Size();
 }
 
-inline void CoordinateGraph::Empty(bool free_resources) {
-  if (free_resources) {
-    SwapClearVector(&edges_);
-    SwapClearVector(&source_edge_offsets_);
-    SwapClearVector(&edges_to_add_);
-    SwapClearVector(&edges_to_remove_);
-  } else {
-    edges_.clear();
-    edges_to_add_.clear();
-    edges_to_remove_.clear();
-  }
+inline void CoordinateGraph::Empty() {
+  edges_.Clear();
+  source_edge_offsets_.Clear();
+
+  SwapClearVector(&edges_to_add_);
+  SwapClearVector(&edges_to_remove_);
 
   num_sources_ = num_targets_ = 0;
 
   // Create a trivial source offset vector.
-  source_edge_offsets_.resize(1);
+  source_edge_offsets_.Resize(1);
   source_edge_offsets_[0] = 0;
 }
 
@@ -246,11 +246,11 @@ inline void CoordinateGraph::AsymmetricResize(Int num_sources,
   num_sources_ = num_sources;
   num_targets_ = num_targets;
 
-  edges_.clear();
-  edges_to_add_.clear();
-  edges_to_remove_.clear();
+  edges_.Clear();
+  SwapClearVector(&edges_to_add_);
+  SwapClearVector(&edges_to_remove_);
 
-  source_edge_offsets_.resize(num_sources + 1);
+  source_edge_offsets_.Resize(num_sources + 1);
   for (Int source = 0; source <= num_sources; ++source) {
     source_edge_offsets_[source] = 0;
   }
@@ -278,9 +278,8 @@ inline void CoordinateGraph::FlushEdgeAdditionQueue(
     EraseDuplicatesInSortedVector(&edges_to_add_);
 
     // Perform a merge sort.
-    const std::vector<GraphEdge> edges_copy(edges_);
-    edges_.resize(0);
-    edges_.resize(edges_copy.size() + edges_to_add_.size());
+    const Buffer<GraphEdge> edges_copy(edges_);
+    edges_.Resize(edges_copy.Size() + edges_to_add_.size());
     std::merge(edges_copy.begin(), edges_copy.end(), edges_to_add_.begin(),
                edges_to_add_.end(), edges_.begin());
     SwapClearVector(&edges_to_add_);
@@ -313,7 +312,7 @@ inline void CoordinateGraph::FlushEdgeRemovalQueue(
     std::sort(edges_to_remove_.begin(), edges_to_remove_.end());
     EraseDuplicatesInSortedVector(&edges_to_remove_);
 
-    const Int num_edges = edges_.size();
+    const Int num_edges = edges_.Size();
     Int num_packed = 0;
     for (Int index = 0; index < num_edges; ++index) {
       auto iter = std::lower_bound(edges_to_remove_.begin(),
@@ -323,7 +322,7 @@ inline void CoordinateGraph::FlushEdgeRemovalQueue(
         edges_[num_packed++] = edges_[index];
       }
     }
-    edges_.resize(num_packed);
+    edges_.Resize(num_packed);
     SwapClearVector(&edges_to_remove_);
   }
 
@@ -359,14 +358,10 @@ inline void CoordinateGraph::RemoveEdge(Int source, Int target) {
 
 inline const GraphEdge& CoordinateGraph::Edge(Int edge_index) const
     QUOTIENT_NOEXCEPT {
-#ifdef QUOTIENT_DEBUG
-  return edges_.at(edge_index);
-#else
   return edges_[edge_index];
-#endif
 }
 
-inline const std::vector<GraphEdge>& CoordinateGraph::Edges() const
+inline const Buffer<GraphEdge>& CoordinateGraph::Edges() const
     QUOTIENT_NOEXCEPT {
   return edges_;
 }
@@ -376,11 +371,7 @@ inline Int CoordinateGraph::SourceEdgeOffset(Int source) const
   QUOTIENT_ASSERT(
       EdgeQueuesAreEmpty(),
       "Tried to retrieve a source edge offset when edge queues weren't empty");
-#ifdef QUOTIENT_DEBUG
-  return source_edge_offsets_.at(source);
-#else
   return source_edge_offsets_[source];
-#endif
 }
 
 inline Int CoordinateGraph::EdgeOffset(Int source,
@@ -390,7 +381,7 @@ inline Int CoordinateGraph::EdgeOffset(Int source,
   auto iter = std::lower_bound(edges_.begin() + source_edge_offset,
                                edges_.begin() + next_source_edge_offset,
                                GraphEdge(source, target));
-  return iter - edges_.begin();
+  return std::distance(edges_.begin(), iter);
 }
 
 inline bool CoordinateGraph::EdgeExists(Int source,
@@ -405,8 +396,8 @@ inline Int CoordinateGraph::NumConnections(Int source) const QUOTIENT_NOEXCEPT {
 }
 
 inline void CoordinateGraph::UpdateSourceEdgeOffsets() {
-  const Int num_edges = edges_.size();
-  source_edge_offsets_.resize(num_sources_ + 1);
+  const Int num_edges = edges_.Size();
+  source_edge_offsets_.Resize(num_sources_ + 1);
   Int source_edge_offset = 0;
   Int prev_source = -1;
   for (Int edge_index = 0; edge_index < num_edges; ++edge_index) {

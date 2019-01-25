@@ -17,11 +17,11 @@ namespace quotient {
 
 inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index)
     QUOTIENT_NOEXCEPT {
-  while (degree_lower_bound < Int(heads.size()) &&
+  while (degree_lower_bound < Int(heads.Size()) &&
          heads[degree_lower_bound] == -1) {
     ++degree_lower_bound;
   }
-  QUOTIENT_ASSERT(degree_lower_bound != Int(heads.size()),
+  QUOTIENT_ASSERT(degree_lower_bound != Int(heads.Size()),
                   "Could not find a minimal degree.");
 
   Int index = heads[degree_lower_bound];

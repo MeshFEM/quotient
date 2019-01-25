@@ -16,18 +16,18 @@ using quotient::Int;
 // Tests for the equality (ignoring set ordering) of a tuple of sets and their
 // concatenation in a vector.
 template <typename T>
-bool SetTuplesAreEqual(const std::vector<std::vector<T>>& set_tuple,
-                       const std::vector<T>& concatenation) {
+bool SetTuplesAreEqual(const quotient::Buffer<quotient::Buffer<T>>& set_tuple,
+                       const quotient::Buffer<T>& concatenation) {
   Int offset = 0;
-  for (const std::vector<T>& set : set_tuple) {
+  for (const quotient::Buffer<T>& set : set_tuple) {
     // Get a sorted copy of this set.
-    std::vector<T> set_copy(set);
+    quotient::Buffer<T> set_copy(set);
     std::sort(set_copy.begin(), set_copy.end());
 
     // Get a sorted copy of the corresponding portion of the set concatenations.
-    const Int set_size = set.size();
-    std::vector<T> concat_copy(concatenation.begin() + offset,
-                               concatenation.begin() + offset + set_size);
+    const Int set_size = set.Size();
+    quotient::Buffer<T> concat_copy(concatenation.begin() + offset,
+                                    concatenation.begin() + offset + set_size);
     std::sort(concat_copy.begin(), concat_copy.end());
 
     // Compare the two sets.
@@ -109,7 +109,7 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
 
       {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9}.
   */
-  const std::vector<Int> kExpectedEliminationOrder{
+  const quotient::Buffer<Int> kExpectedEliminationOrder{
       0, 1, 2, 3, 4, 5, 8, 9,
   };
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
@@ -139,7 +139,7 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
 
        {0}, {3}, {1}, {2}, {4}, {5}, {6, 7, 8}, {9}.
   */
-  const std::vector<std::vector<Int>> kExpectedInversePermutation{
+  const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
       {0}, {3}, {1}, {2}, {4}, {5}, {6, 7, 8}, {9},
   };
   REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
@@ -165,15 +165,15 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
 
       1, 5, 4, 4, 5, 6, 7, ROOT.
   */
-  const std::vector<std::vector<Int>> kExpectedPermutation{
+  const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
       {0}, {2}, {3}, {1}, {4}, {5}, {6, 7, 8}, {9},
   };
   REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
-  const std::vector<Int> kExpectedPermutedSupernodeSizes{
+  const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
       1, 1, 1, 1, 1, 1, 3, 1,
   };
   REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
-  const std::vector<Int> kExpectedPermutedAssemblyParents{
+  const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
       1, 5, 4, 4, 5, 6, 7, -1,
   };
   REQUIRE(kExpectedPermutedAssemblyParents ==
@@ -207,7 +207,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
 
-  const std::vector<Int> kExpectedEliminationOrder{
+  const quotient::Buffer<Int> kExpectedEliminationOrder{
       0,
       1,
       2,
@@ -248,7 +248,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
 
      0, 1, 2, 3.
   */
-  const std::vector<std::vector<Int>> kExpectedInversePermutation{
+  const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
       {0},
       {1},
       {2},
@@ -275,21 +275,21 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
 
       1, 2, 3, ROOT.
   */
-  const std::vector<std::vector<Int>> kExpectedPermutation{
+  const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
       {0},
       {1},
       {2},
       {3},
   };
   REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
-  const std::vector<Int> kExpectedPermutedSupernodeSizes{
+  const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
       1,
       1,
       1,
       1,
   };
   REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
-  const std::vector<Int> kExpectedPermutedAssemblyParents{
+  const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
       1,
       2,
       3,
@@ -327,7 +327,7 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
   quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(graph, control);
 
-  const std::vector<Int> kExpectedEliminationOrder{
+  const quotient::Buffer<Int> kExpectedEliminationOrder{
       0,
       1,
       2,
@@ -357,7 +357,7 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
 
      0, 1, 2, 3.
   */
-  const std::vector<std::vector<Int>> kExpectedInversePermutation{
+  const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
       {0},
       {1},
       {2},
@@ -382,21 +382,21 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
 
       2, 2, 3, ROOT.
   */
-  const std::vector<std::vector<Int>> kExpectedPermutation{
+  const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
       {0},
       {1},
       {2},
       {3},
   };
   REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
-  const std::vector<Int> kExpectedPermutedSupernodeSizes{
+  const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
       1,
       1,
       1,
       1,
   };
   REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
-  const std::vector<Int> kExpectedPermutedAssemblyParents{
+  const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
       2,
       2,
       3,

@@ -27,13 +27,13 @@ namespace quotient {
 inline MinimumDegreeResult::MinimumDegreeResult() {}
 
 inline Int MinimumDegreeResult::NumStrictlyLowerCholeskyNonzeros() const {
-  return num_cholesky_nonzeros - permuted_supernode_sizes.size();
+  return num_cholesky_nonzeros - permuted_supernode_sizes.Size();
 }
 
 inline Int MinimumDegreeResult::LargestSupernode() const {
   Int largest_supernode = -1;
   Int largest_supernode_size = 0;
-  for (std::size_t i = 0; i < permuted_supernode_sizes.size(); ++i) {
+  for (std::size_t i = 0; i < permuted_supernode_sizes.Size(); ++i) {
     if (permuted_supernode_sizes[i] > largest_supernode_size) {
       largest_supernode = i;
       largest_supernode_size = permuted_supernode_sizes[i];
@@ -63,11 +63,11 @@ inline double MinimumDegreeResult::FractionOfDegreeUpdatesWithMultipleElements()
   return num_degree_updates_with_multiple_elements / (1. * num_degree_updates);
 }
 
-inline std::vector<Int> MinimumDegreeResult::Permutation() const {
+inline Buffer<Int> MinimumDegreeResult::Permutation() const {
   return permutation;
 }
 
-inline std::vector<Int> MinimumDegreeResult::InversePermutation() const {
+inline Buffer<Int> MinimumDegreeResult::InversePermutation() const {
   return inverse_permutation;
 }
 
@@ -80,7 +80,7 @@ inline void MinimumDegreeResult::PermutedAssemblyForestToDot(
   }
 
   file << "digraph g{\n";
-  for (std::size_t i = 0; i < permuted_assembly_parents.size(); ++i) {
+  for (std::size_t i = 0; i < permuted_assembly_parents.Size(); ++i) {
     if (permuted_assembly_parents[i] < 0) {
       continue;
     }
@@ -152,7 +152,7 @@ inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
   analysis.num_aggressive_absorptions =
       quotient_graph.NumAggressiveAbsorptions();
 #ifdef QUOTIENT_ENABLE_TIMERS
-  const std::vector<std::pair<std::string, double>>& timings =
+  const Buffer<std::pair<std::string, double>>& timings =
       quotient_graph.ComponentSeconds();
   for (const std::pair<std::string, double>& pairing : timings) {
     analysis.elapsed_seconds[pairing.first] = pairing.second;

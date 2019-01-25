@@ -10,6 +10,7 @@
 
 #include <vector>
 
+#include "quotient/buffer.hpp"
 #include "quotient/integers.hpp"
 #include "quotient/macros.hpp"
 
@@ -22,21 +23,21 @@ struct DegreeLists {
   Int degree_lower_bound = 0;
 
   // A list of the external degrees associated with each index.
-  std::vector<Int> degrees;
+  Buffer<Int> degrees;
 
   // The indices of the heads of the lists for each degree. If no index exists
   // for 'degree', then 'heads[degree]' is -1.
-  std::vector<Int> heads;
+  Buffer<Int> heads;
 
   // Index 'i' will provide the index of the member that occurs directly after
   // 'i' in the degree list containing index 'i' (if such a member does not
   // exist, the value will be -1).
-  std::vector<Int> next_member;
+  Buffer<Int> next_member;
 
   // Index 'i' will provide the index of the member that occurs directly before
   // 'i' in the degree list containing index 'i' (if such a member does not
   // exist, the value will be -1).
-  std::vector<Int> last_member;
+  Buffer<Int> last_member;
 
   // Successively increases degree_lower_bound until a degree list member is
   // found (and an index of minimal degree is returned).
