@@ -10,6 +10,7 @@
 
 #include <vector>
 
+#include "quotient/buffer.hpp"
 #include "quotient/integers.hpp"
 
 namespace quotient {
