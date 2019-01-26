@@ -80,22 +80,54 @@ class Buffer {
   const T* Data() const;
 
   // A mutable iterator to the beginning of the buffer.
-  T* begin();
+  T* begin();  // NOLINT(readability-identifier-naming)
 
   // An immutable iterator to the beginning of the buffer.
-  const T* begin() const;
+  const T* begin() const;  // NOLINT(readability-identifier-naming)
+
+  // An immutable iterator to the beginning of the buffer.
+  const T* cbegin() const;  // NOLINT(readability-identifier-naming)
 
   // A mutable iterator for the end of the buffer.
-  T* end();
+  T* end();  // NOLINT(readability-identifier-naming)
 
   // An immutable iterator for the end of the buffer.
-  const T* end() const;
+  const T* end() const;  // NOLINT(readability-identifier-naming)
+
+  // An immutable iterator for the end of the buffer.
+  const T* cend() const;  // NOLINT(readability-identifier-naming)
+
+  // A mutable iterator to the reverse beginning of the buffer.
+  T* rbegin();  // NOLINT(readability-identifier-naming)
+
+  // An immutable iterator to the reverse beginning of the buffer.
+  const T* rbegin() const;  // NOLINT(readability-identifier-naming)
+
+  // An immutable iterator to the reverse beginning of the buffer.
+  const T* crbegin() const;  // NOLINT(readability-identifier-naming)
+
+  // A mutable iterator for the reverse end of the buffer.
+  T* rend();  // NOLINT(readability-identifier-naming)
+
+  // An immutable iterator for the reverse end of the buffer.
+  const T* rend() const;  // NOLINT(readability-identifier-naming)
+
+  // An immutable iterator for the reverse end of the buffer.
+  const T* crend() const;  // NOLINT(readability-identifier-naming)
 
   // Returns a mutable reference to the given entry of the buffer.
   T& operator[](Int index);
 
   // Returns an immutable reference to the given entry of the buffer.
   const T& operator[](Int index) const;
+
+  // Returns a reference to the last element of the list.
+  // Its behavior is undefined if the list is empty.
+  T& Back();
+
+  // Returns an immmutable reference to the last element of the list.
+  // Its behavior is undefined if the list is empty.
+  const T& Back() const;
 
   // Frees all memory and sets the buffer size to zero.
   void Clear();

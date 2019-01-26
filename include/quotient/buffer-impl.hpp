@@ -175,6 +175,11 @@ const T* Buffer<T>::begin() const {
 }
 
 template <typename T>
+const T* Buffer<T>::cbegin() const {
+  return data_.get();
+}
+
+template <typename T>
 T* Buffer<T>::end() {
   return data_.get() + size_;
 }
@@ -182,6 +187,41 @@ T* Buffer<T>::end() {
 template <typename T>
 const T* Buffer<T>::end() const {
   return data_.get() + size_;
+}
+
+template <typename T>
+const T* Buffer<T>::cend() const {
+  return data_.get() + size_;
+}
+
+template <typename T>
+T* Buffer<T>::rbegin() {
+  return end() - 1;
+}
+
+template <typename T>
+const T* Buffer<T>::rbegin() const {
+  return cend() - 1;
+}
+
+template <typename T>
+const T* Buffer<T>::crbegin() const {
+  return cend() - 1;
+}
+
+template <typename T>
+T* Buffer<T>::rend() {
+  return begin() - 1;
+}
+
+template <typename T>
+const T* Buffer<T>::rend() const {
+  return cbegin() - 1;
+}
+
+template <typename T>
+const T* Buffer<T>::crend() const {
+  return cbegin() - 1;
 }
 
 template <typename T>
@@ -194,6 +234,18 @@ template <typename T>
 const T& Buffer<T>::operator[](Int index) const {
   const T* data = data_.get();
   return data[index];
+}
+
+template <typename T>
+T& Buffer<T>::Back() {
+  T* data = data_.get();
+  return data[size_ - 1];
+}
+
+template <typename T>
+const T& Buffer<T>::Back() const {
+  const T* data = data_.get();
+  return data[size_ - 1];
 }
 
 template <typename T>
