@@ -195,36 +195,6 @@ const T* Buffer<T>::cend() const {
 }
 
 template <typename T>
-T* Buffer<T>::rbegin() {
-  return end() - 1;
-}
-
-template <typename T>
-const T* Buffer<T>::rbegin() const {
-  return cend() - 1;
-}
-
-template <typename T>
-const T* Buffer<T>::crbegin() const {
-  return cend() - 1;
-}
-
-template <typename T>
-T* Buffer<T>::rend() {
-  return begin() - 1;
-}
-
-template <typename T>
-const T* Buffer<T>::rend() const {
-  return cbegin() - 1;
-}
-
-template <typename T>
-const T* Buffer<T>::crend() const {
-  return cbegin() - 1;
-}
-
-template <typename T>
 T& Buffer<T>::operator[](Int index) {
   T* data = data_.get();
   return data[index];

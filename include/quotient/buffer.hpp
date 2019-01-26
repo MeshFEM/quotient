@@ -97,24 +97,6 @@ class Buffer {
   // An immutable iterator for the end of the buffer.
   const T* cend() const;  // NOLINT(readability-identifier-naming)
 
-  // A mutable iterator to the reverse beginning of the buffer.
-  T* rbegin();  // NOLINT(readability-identifier-naming)
-
-  // An immutable iterator to the reverse beginning of the buffer.
-  const T* rbegin() const;  // NOLINT(readability-identifier-naming)
-
-  // An immutable iterator to the reverse beginning of the buffer.
-  const T* crbegin() const;  // NOLINT(readability-identifier-naming)
-
-  // A mutable iterator for the reverse end of the buffer.
-  T* rend();  // NOLINT(readability-identifier-naming)
-
-  // An immutable iterator for the reverse end of the buffer.
-  const T* rend() const;  // NOLINT(readability-identifier-naming)
-
-  // An immutable iterator for the reverse end of the buffer.
-  const T* crend() const;  // NOLINT(readability-identifier-naming)
-
   // Returns a mutable reference to the given entry of the buffer.
   T& operator[](Int index);
 
