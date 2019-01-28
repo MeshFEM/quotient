@@ -112,8 +112,6 @@ inline Buffer<T>::Buffer(Buffer<T>&& buffer) noexcept
 template <typename T>
 Buffer<T>& Buffer<T>::operator=(const Buffer<T>& buffer) {
   if (this != &buffer) {
-    // TODO(Jack Poulson): Encapsulate this logic so that it isn't repeated
-    // with minor variations.
     const SizeType num_elements = buffer.Size();
     if (num_elements > capacity_) {
       DestructData();
@@ -145,8 +143,6 @@ Buffer<T>& Buffer<T>::operator=(Buffer<T>&& buffer) noexcept {
 
 template <typename T>
 Buffer<T>& Buffer<T>::operator=(const std::vector<T>& vec) {
-  // TODO(Jack Poulson): Encapsulate this logic so that it isn't repeated
-  // with minor variations.
   const SizeType num_elements = vec.size();
   if (num_elements > capacity_) {
     DestructData();
@@ -155,10 +151,10 @@ Buffer<T>& Buffer<T>::operator=(const std::vector<T>& vec) {
     data_ = AllocatorTraits::allocate(allocator_, num_elements);
     size_ = num_elements;
     capacity_ = num_elements;
-    CopyConstructRange(0, vec.data(), vec.data() + vec.size());
+    CopyConstructRange(0, vec.data(), vec.data() + num_elements);
   } else {
     std::copy(vec.begin(), vec.begin() + size_, data_);
-    CopyConstructRange(size_, vec.data() + size_, vec.data() + vec.size());
+    CopyConstructRange(size_, vec.data() + size_, vec.data() + num_elements);
     size_ = num_elements;
   }
 

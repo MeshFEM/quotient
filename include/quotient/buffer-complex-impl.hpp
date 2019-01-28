@@ -143,8 +143,6 @@ template <typename Real>
 Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
     const Buffer<Complex<Real>>& buffer) {
   if (this != &buffer) {
-    // TODO(Jack Poulson): Encapsulate this logic so that it isn't repeated
-    // with minor variations.
     const SizeType num_elements = buffer.Size();
     if (num_elements > capacity_) {
       DestructData();
@@ -180,8 +178,6 @@ Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
 template <typename Real>
 Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
     const std::vector<Complex<Real>>& vec) {
-  // TODO(Jack Poulson): Encapsulate this logic so that it isn't repeated
-  // with minor variations.
   const SizeType num_elements = vec.size();
   if (num_elements > capacity_) {
     DestructData();
