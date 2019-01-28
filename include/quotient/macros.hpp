@@ -50,4 +50,12 @@
 #define QUOTIENT_HASH_COMBINE(hash, update) hash += update
 #endif
 
+#ifdef __GNUG__
+#define QUOTIENT_UNUSED __attribute__((unused))
+#elif defined(__clang__)
+#define QUOTIENT_UNUSED __attribute__((unused))
+#else
+#define QUOTIENT_UNUSED
+#endif  // ifdef __GNUG__
+
 #endif  // ifndef QUOTIENT_MACROS_H_

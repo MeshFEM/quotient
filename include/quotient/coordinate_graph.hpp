@@ -192,6 +192,9 @@ class CoordinateGraph {
   Int num_targets_;
 
   // The (lexicographically sorted) list of edges in the graph.
+  // TODO(Jack Poulson): Avoid unnecessary additional traversals when resizing
+  // this array due to 'GraphEdge' not satisfying
+  // std::is_trivially_constructible.
   Buffer<GraphEdge> edges_;
 
   // A list of length 'num_sources_ + 1', where 'source_edge_offsets_[source]'
