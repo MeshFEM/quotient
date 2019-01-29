@@ -87,7 +87,6 @@ inline void Buffer<Complex<Real>>::CopyConstructRange(SizeType start,
     std::copy(begin, end, data_ + start);
   } else {
     Real* real_data = reinterpret_cast<Real*>(data_);
-    const SizeType size = std::distance(begin, end);
     SizeType offset = start;
     for (ConstIterator iter = begin; iter != end; ++iter, ++offset) {
       AllocatorTraits::construct(allocator_, real_data + 2 * offset,
