@@ -19,12 +19,17 @@ inline Buffer<T>::Buffer() noexcept : size_(0), capacity_(0), data_(nullptr) {}
 
 template <typename T>
 inline void Buffer<T>::DestructData() {
+  DestructRange(0, size_);
+  AllocatorTraits::deallocate(allocator_, data_, capacity_);
+}
+
+template <typename T>
+inline void Buffer<T>::DestructRange(SizeType start, SizeType end) {
   if (!is_trivially_destructible) {
-    for (Iterator iter = data_; iter != data_ + size_; ++iter) {
+    for (Iterator iter = data_ + start; iter != data_ + end; ++iter) {
       iter->~T();
     }
   }
-  AllocatorTraits::deallocate(allocator_, data_, capacity_);
 }
 
 template <typename T>
@@ -77,7 +82,7 @@ inline void Buffer<T>::CopyConstructRange(SizeType start, ConstIterator begin,
 template <typename T>
 inline Buffer<T>::Buffer(SizeType num_elements, ConstReference value)
     : size_(num_elements), capacity_(num_elements) {
-  data_ = AllocatorTraits::allocate(allocator_, num_elements);
+  data_ = AllocatorTraits::allocate(allocator_, capacity_);
   FillConstructRange(0, size_, value);
 }
 
@@ -121,10 +126,14 @@ Buffer<T>& Buffer<T>::operator=(const Buffer<T>& buffer) {
       size_ = num_elements;
       capacity_ = num_elements;
       CopyConstructRange(0, buffer.begin(), buffer.end());
-    } else {
+    } else if (num_elements >= size_) {
       std::copy(buffer.begin(), buffer.begin() + size_, data_);
       CopyConstructRange(size_, buffer.begin() + size_, buffer.end());
       size_ = num_elements;
+    } else {
+      DestructRange(num_elements, size_);
+      size_ = num_elements;
+      std::copy(buffer.begin(), buffer.end(), data_);
     }
   }
   return *this;
@@ -152,10 +161,14 @@ Buffer<T>& Buffer<T>::operator=(const std::vector<T>& vec) {
     size_ = num_elements;
     capacity_ = num_elements;
     CopyConstructRange(0, vec.data(), vec.data() + num_elements);
-  } else {
+  } else if (num_elements >= size_) {
     std::copy(vec.begin(), vec.begin() + size_, data_);
     CopyConstructRange(size_, vec.data() + size_, vec.data() + num_elements);
     size_ = num_elements;
+  } else {
+    DestructRange(num_elements, size_);
+    size_ = num_elements;
+    std::copy(vec.begin(), vec.end(), data_);
   }
 
   return *this;
@@ -191,8 +204,11 @@ void Buffer<T>::Resize(SizeType num_elements) {
     size_ = num_elements;
     capacity_ = num_elements;
     ConstructRange(0, size_);
-  } else {
+  } else if (num_elements >= size_) {
     ConstructRange(size_, num_elements);
+    size_ = num_elements;
+  } else {
+    DestructRange(num_elements, size_);
     size_ = num_elements;
   }
 }
@@ -207,10 +223,14 @@ void Buffer<T>::Resize(SizeType num_elements, ConstReference value) {
     size_ = num_elements;
     capacity_ = num_elements;
     FillConstructRange(0, size_, value);
-  } else {
+  } else if (num_elements >= size_) {
     std::fill(data_, data_ + size_, value);
     FillConstructRange(size_, num_elements, value);
     size_ = num_elements;
+  } else {
+    DestructRange(num_elements, size_);
+    size_ = num_elements;
+    std::fill(data_, data_ + size_, value);
   }
 }
 

@@ -20,17 +20,23 @@ inline Buffer<Complex<Real>>::Buffer() noexcept
 
 template <typename Real>
 inline void Buffer<Complex<Real>>::DestructData() {
+  DestructRange(0, size_);
   Real* real_data = reinterpret_cast<Real*>(data_);
+  const SizeType real_capacity = 2 * capacity_;
+  AllocatorTraits::deallocate(allocator_, real_data, real_capacity);
+}
 
+template <typename Real>
+inline void Buffer<Complex<Real>>::DestructRange(SizeType start, SizeType end) {
   if (!is_trivially_destructible_real) {
-    const SizeType real_size = 2 * size_;
-    for (Real* iter = real_data; iter != real_data + real_size; ++iter) {
+    const SizeType real_start = 2 * start;
+    const SizeType real_end = 2 * end;
+    Real* real_data = reinterpret_cast<Real*>(data_);
+    for (Real* iter = real_data + real_start; iter != real_data + real_end;
+         ++iter) {
       iter->~Real();
     }
   }
-
-  const SizeType real_capacity = 2 * capacity_;
-  AllocatorTraits::deallocate(allocator_, real_data, real_capacity);
 }
 
 template <typename Real>
@@ -154,10 +160,14 @@ Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
       size_ = num_elements;
       capacity_ = num_elements;
       CopyConstructRange(0, buffer.begin(), buffer.end());
-    } else {
+    } else if (num_elements >= size_) {
       std::copy(buffer.begin(), buffer.begin() + size_, data_);
       CopyConstructRange(size_, buffer.begin() + size_, buffer.end());
       size_ = num_elements;
+    } else {
+      DestructRange(num_elements, size_);
+      size_ = num_elements;
+      std::copy(buffer.begin(), buffer.end(), data_);
     }
   }
   return *this;
@@ -189,10 +199,14 @@ Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
     size_ = num_elements;
     capacity_ = num_elements;
     CopyConstructRange(0, vec.begin(), vec.end());
-  } else {
+  } else if (num_elements >= size_) {
     std::copy(vec.begin(), vec.begin() + size_, data_);
     CopyConstructRange(size_, vec.begin() + size_, vec.end());
     size_ = num_elements;
+  } else {
+    DestructRange(num_elements, size_);
+    size_ = num_elements;
+    std::copy(vec.begin(), vec.end(), data_);
   }
 
   return *this;
@@ -232,8 +246,11 @@ void Buffer<Complex<Real>>::Resize(SizeType num_elements) {
     size_ = num_elements;
     capacity_ = num_elements;
     ConstructRange(0, size_);
-  } else {
+  } else if (num_elements >= size_) {
     ConstructRange(size_, num_elements);
+    size_ = num_elements;
+  } else {
+    DestructRange(num_elements, size_);
     size_ = num_elements;
   }
 }
@@ -251,10 +268,14 @@ void Buffer<Complex<Real>>::Resize(SizeType num_elements,
     size_ = num_elements;
     capacity_ = num_elements;
     FillConstructRange(0, size_, value);
-  } else {
+  } else if (num_elements >= size_) {
     std::fill(data_, data_ + size_, value);
     FillConstructRange(size_, num_elements, value);
     size_ = num_elements;
+  } else {
+    DestructRange(num_elements, size_);
+    size_ = num_elements;
+    std::fill(data_, data_ + size_, value);
   }
 }
 

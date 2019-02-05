@@ -161,6 +161,9 @@ class Buffer {
   // Destruct the constructed members.
   void DestructData();
 
+  // Destructs the entries in the specified range.
+  void DestructRange(SizeType start, SizeType end);
+
   // Default-constructs the elements in the specified range.
   void ConstructRange(SizeType start, SizeType end);
 
@@ -318,6 +321,9 @@ class Buffer<Complex<Real>> {
 
   // Destruct the constructed members.
   void DestructData();
+
+  // Destructs the entries in the specified range.
+  void DestructRange(SizeType start, SizeType end);
 
   // Default-constructs the elements in the specified range.
   void ConstructRange(SizeType start, SizeType end);
