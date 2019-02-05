@@ -208,10 +208,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
       quotient::MinimumDegree(graph, control);
 
   const quotient::Buffer<Int> kExpectedEliminationOrder{
-      0,
-      1,
-      2,
-      3,
+      0, 1, 2, 3,
   };
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
 
@@ -249,10 +246,7 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
      0, 1, 2, 3.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
-      {0},
-      {1},
-      {2},
-      {3},
+      {0}, {1}, {2}, {3},
   };
   REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
                             analysis.inverse_permutation));
@@ -276,24 +270,15 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
       1, 2, 3, ROOT.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
-      {0},
-      {1},
-      {2},
-      {3},
+      {0}, {1}, {2}, {3},
   };
   REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
   const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
-      1,
-      1,
-      1,
-      1,
+      1, 1, 1, 1,
   };
   REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
   const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
-      1,
-      2,
-      3,
-      -1,
+      1, 2, 3, -1,
   };
   REQUIRE(kExpectedPermutedAssemblyParents ==
           analysis.permuted_assembly_parents);
@@ -328,10 +313,7 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
       quotient::MinimumDegree(graph, control);
 
   const quotient::Buffer<Int> kExpectedEliminationOrder{
-      0,
-      1,
-      2,
-      3,
+      0, 1, 2, 3,
   };
   REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
 
@@ -358,10 +340,7 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
      0, 1, 2, 3.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
-      {0},
-      {1},
-      {2},
-      {3},
+      {0}, {1}, {2}, {3},
   };
   REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
                             analysis.inverse_permutation));
@@ -383,24 +362,15 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
       2, 2, 3, ROOT.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
-      {0},
-      {1},
-      {2},
-      {3},
+      {0}, {1}, {2}, {3},
   };
   REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
   const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
-      1,
-      1,
-      1,
-      1,
+      1, 1, 1, 1,
   };
   REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
   const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
-      2,
-      2,
-      3,
-      -1,
+      2, 2, 3, -1,
   };
   REQUIRE(kExpectedPermutedAssemblyParents ==
           analysis.permuted_assembly_parents);

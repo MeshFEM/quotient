@@ -15,8 +15,9 @@
 namespace quotient {
 
 template <typename Real>
-inline Buffer<Complex<Real>>::Buffer() noexcept
-    : size_(0), capacity_(0), data_(nullptr) {}
+inline Buffer<Complex<Real>>::Buffer() noexcept : size_(0),
+                                                  capacity_(0),
+                                                  data_(nullptr) {}
 
 template <typename Real>
 inline void Buffer<Complex<Real>>::DestructData() {
@@ -92,7 +93,6 @@ inline void Buffer<Complex<Real>>::CopyConstructRange(SizeType start,
     std::copy(begin, end, data_ + start);
   } else {
     Real* real_data = reinterpret_cast<Real*>(data_);
-    const SizeType size = std::distance(begin, end);
     SizeType offset = start;
     for (ConstIterator iter = begin; iter != end; ++iter, ++offset) {
       AllocatorTraits::construct(allocator_, real_data + 2 * offset,
@@ -139,7 +139,9 @@ inline Buffer<Complex<Real>>::Buffer(const std::vector<Complex<Real>>& vec)
 
 template <typename Real>
 inline Buffer<Complex<Real>>::Buffer(Buffer<Complex<Real>>&& buffer) noexcept
-    : size_(buffer.size_), capacity_(buffer.capacity_), data_(buffer.data_) {
+    : size_(buffer.size_),
+      capacity_(buffer.capacity_),
+      data_(buffer.data_) {
   buffer.size_ = 0;
   buffer.capacity_ = 0;
   buffer.data_ = nullptr;
@@ -152,8 +154,6 @@ Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
     const SizeType num_elements = buffer.Size();
     if (num_elements > capacity_) {
       DestructData();
-
-      // Allocate and construct the new elements.
       const SizeType real_capacity = 2 * num_elements;
       data_ = reinterpret_cast<Complex<Real>*>(
           AllocatorTraits::allocate(allocator_, real_capacity));
@@ -191,8 +191,6 @@ Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
   const SizeType num_elements = vec.size();
   if (num_elements > capacity_) {
     DestructData();
-
-    // Allocate and construct the new elements.
     const SizeType real_capacity = 2 * num_elements;
     data_ = reinterpret_cast<Complex<Real>*>(
         AllocatorTraits::allocate(allocator_, real_capacity));
@@ -238,8 +236,6 @@ template <typename Real>
 void Buffer<Complex<Real>>::Resize(SizeType num_elements) {
   if (num_elements > capacity_) {
     DestructData();
-
-    // Allocate and construct the new elements.
     const SizeType real_capacity = 2 * num_elements;
     data_ = reinterpret_cast<Complex<Real>*>(
         AllocatorTraits::allocate(allocator_, real_capacity));
@@ -260,8 +256,6 @@ void Buffer<Complex<Real>>::Resize(SizeType num_elements,
                                    ConstReference value) {
   if (num_elements > capacity_) {
     DestructData();
-
-    // Allocate and construct the new elements.
     const SizeType real_capacity = 2 * num_elements;
     data_ = reinterpret_cast<Complex<Real>*>(
         AllocatorTraits::allocate(allocator_, real_capacity));

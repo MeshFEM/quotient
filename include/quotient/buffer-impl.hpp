@@ -108,7 +108,9 @@ inline Buffer<T>::Buffer(const std::vector<T>& vec)
 
 template <typename T>
 inline Buffer<T>::Buffer(Buffer<T>&& buffer) noexcept
-    : size_(buffer.size_), capacity_(buffer.capacity_), data_(buffer.data_) {
+    : size_(buffer.size_),
+      capacity_(buffer.capacity_),
+      data_(buffer.data_) {
   buffer.size_ = 0;
   buffer.capacity_ = 0;
   buffer.data_ = nullptr;
@@ -120,8 +122,6 @@ Buffer<T>& Buffer<T>::operator=(const Buffer<T>& buffer) {
     const SizeType num_elements = buffer.Size();
     if (num_elements > capacity_) {
       DestructData();
-
-      // Allocate and construct the new elements.
       data_ = AllocatorTraits::allocate(allocator_, num_elements);
       size_ = num_elements;
       capacity_ = num_elements;
@@ -155,8 +155,6 @@ Buffer<T>& Buffer<T>::operator=(const std::vector<T>& vec) {
   const SizeType num_elements = vec.size();
   if (num_elements > capacity_) {
     DestructData();
-
-    // Allocate and construct the new elements.
     data_ = AllocatorTraits::allocate(allocator_, num_elements);
     size_ = num_elements;
     capacity_ = num_elements;
@@ -198,8 +196,6 @@ template <typename T>
 void Buffer<T>::Resize(SizeType num_elements) {
   if (num_elements > capacity_) {
     DestructData();
-
-    // Allocate and construct the new elements.
     data_ = AllocatorTraits::allocate(allocator_, num_elements);
     size_ = num_elements;
     capacity_ = num_elements;
@@ -217,8 +213,6 @@ template <typename T>
 void Buffer<T>::Resize(SizeType num_elements, ConstReference value) {
   if (num_elements > capacity_) {
     DestructData();
-
-    // Allocate and construct the new elements.
     data_ = AllocatorTraits::allocate(allocator_, num_elements);
     size_ = num_elements;
     capacity_ = num_elements;
@@ -314,7 +308,6 @@ inline typename Buffer<T>::ConstReference Buffer<T>::Back() const noexcept {
 template <typename T>
 inline void Buffer<T>::Clear() noexcept {
   DestructData();
-
   size_ = 0;
   capacity_ = 0;
   data_ = nullptr;
