@@ -57,12 +57,16 @@ endif
 # For controlling whether (still not implemented) OpenMP support is enabled.
 if get_option('enable-openmp')
   openmp_dep = dependency('openmp', version : '>=4.0')
+  cxx_args += '-DQUOTIENT_OPENMP'
   deps += openmp_dep
 elif get_option('disable-openmp')
   openmp_dep = false
 else
   openmp_dep = dependency('openmp', version : '>=4.0', required : false)
-  deps += openmp_dep
+  if openmp_dep.found()
+    cxx_args += '-DQUOTIENT_OPENMP'
+    deps += openmp_dep
+  endif
 endif
 
 # Unit tests for the CoordinateGraph class.
