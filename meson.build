@@ -56,12 +56,12 @@ endif
 
 # For controlling whether (still not implemented) OpenMP support is enabled.
 if get_option('enable-openmp')
-  openmp_dep = dependency('openmp', version : '>=3.0')
+  openmp_dep = dependency('openmp', version : '>=4.0')
   deps += openmp_dep
 elif get_option('disable-openmp')
   openmp_dep = false
 else
-  openmp_dep = dependency('openmp', version : '>=3.0', required : false)
+  openmp_dep = dependency('openmp', version : '>=4.0', required : false)
   deps += openmp_dep
 endif
 
