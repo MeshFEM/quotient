@@ -68,7 +68,7 @@ whereas a 32-bit, release-mode version can be built with:
 mkdir build-release-32/
 meson build-release-32 --buildtype=release
 cd build-release-32
-meson configure -Duse-64bit=false
+meson configure -Duse_64bit=false
 ninja
 ```
 

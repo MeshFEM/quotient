@@ -6,37 +6,37 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
-option('use-64bit',
+option('use_64bit',
     type : 'boolean',
     value : true,
     yield : true,
     description : 'use 64-bit integers for representing the graph?')
 
-option('strong-hashes',
+option('strong_hashes',
     type : 'boolean',
     value : false,
     yield : true,
     description : 'use a more expensive, but better supervariable hash?')
 
-option('enable-timers',
+option('enable_timers',
     type : 'boolean',
     value : false,
     yield : true,
     description : 'enable code for timing the components of QuotientGraph?')
 
-option('enable-debug',
+option('enable_debug',
     type : 'boolean',
     value : false,
     yield : true,
     description : 'enable extra debugging assertions?')
 
-option('enable-openmp',
+option('enable_openmp',
     type : 'boolean',
     value : false,
     yield : true,
     description : 'demand OpenMP support?')
 
-option('disable-openmp',
+option('disable_openmp',
     type : 'boolean',
     value : true,
     yield : true,

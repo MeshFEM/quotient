@@ -32,25 +32,25 @@ endif
 
 # For controlling whether 32-bit or 64-bit integers are used. By default,
 # 64-bit integers are used.
-if get_option('use-64bit')
+if get_option('use_64bit')
   cxx_args += '-DQUOTIENT_USE_64BIT'
 endif
 
 # For controlling the tradeoff between quality and speed for the supervariable
 # hash function. It seems to typically be preferable to prefer the cheapest-
 # possible hash.
-if get_option('strong-hashes')
+if get_option('strong_hashes')
   cxx_args += '-DQUOTIENT_STRONG_HASHES'
 endif
 
 # For controlling whether QuotientGraph includes timers for the various stages
 # of minimum-degree analysis.
-if get_option('enable-timers')
+if get_option('enable_timers')
   cxx_args += '-DQUOTIENT_ENABLE_TIMERS'
 endif
 
 # For controlling whether (expensive) debugging checks are performed.
-if get_option('enable-debug')
+if get_option('enable_debug')
   cxx_args += '-DQUOTIENT_DEBUG'
 endif
 
@@ -73,11 +73,11 @@ if cxx.get_id() == 'gcc' and cxx.version() < '5.5'
 endif
 if trust_omp_version
   have_openmp = false
-  if get_option('enable-openmp')
+  if get_option('enable_openmp')
     openmp_dep = dependency('openmp', version : '>=4.0')
     have_openmp = true
     deps += openmp_dep
-  elif not get_option('disable-openmp')
+  elif not get_option('disable_openmp')
     openmp_dep = dependency('openmp', version : '>=4.0', required : false)
     if openmp_dep.found()
       have_openmp = true
