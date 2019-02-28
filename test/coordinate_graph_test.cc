@@ -100,6 +100,11 @@ TEST_CASE("Batch example", "[batch]") {
   REQUIRE(edges[4] == quotient::GraphEdge(3, 3));
 }
 
+// TODO(Jack Poulson): Figure out how to either:
+//   (a) Integrate a file mock (e.g., Google Mock) with Catch2,
+//   (b) Read the location of the project root, even from a subproject, or
+//   (c) Portably write out a file to a fixed path (e.g., /tmp/).
+/*
 TEST_CASE("Matrix Matrix general", "[MM-general]") {
   // We will assume the typical choice of a build directory living in the
   // main project directory.
@@ -128,3 +133,4 @@ TEST_CASE("Matrix Matrix general", "[MM-general]") {
   REQUIRE(graph != nullptr);
   REQUIRE(graph->Edges() == kExpectedEdges);
 }
+*/
