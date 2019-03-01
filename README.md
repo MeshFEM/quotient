@@ -2,6 +2,8 @@
 Minimum Degree reordering algorithm. Loosely speaking it is applicable for
 sparse Symmetric Quasi-SemiDefinite (SQSD) Cholesky factorizations.
 
+[![Join the chat at https://gitter.im/hodge_star/community](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/hodge_star/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 ### Dependencies
 There are no dependencies for installation of the headers.
 
