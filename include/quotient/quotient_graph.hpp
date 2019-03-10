@@ -99,8 +99,8 @@ class QuotientGraph {
   // Returns the size of the supernode with the given principal variable.
   Int SupernodeSize(Int i) const QUOTIENT_NOEXCEPT;
 
-  // Returns a reference to the element for the given principal member.
-  const Buffer<Int>& Element(Int i) const QUOTIENT_NOEXCEPT;
+  // Returns the element for the given principal member.
+  const Buffer<Int> Element(Int i) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the element list of the given principal member.
   Buffer<Int> ElementList(Int i) const QUOTIENT_NOEXCEPT;
@@ -244,6 +244,44 @@ class QuotientGraph {
     Buffer<Int> adjacency_list_sizes;
   };
 
+  // A data structure for maintaining a packing of the active elements. Its
+  // primary purpose is to avoid a separate memory allocation for each element.
+  struct PackedElements {
+    // The packed indices of all of the active elements.
+    Buffer<Int> indices;
+
+    // The index that each element begins at.
+    Buffer<Int> offsets;
+
+    // The number of entries in each element.
+    Buffer<Int> sizes;
+
+    // The position the next element can begin at.
+    Int offset = 0;
+
+    // Return an immutable pointer to the contiguous indices of the specified
+    // element.
+    const Int* Data(Int element) const { return &indices[offsets[element]]; }
+
+    // Return a mutable pointer to the contiguous indices of the specified
+    // element.
+    Int* Data(Int element) { return &indices[offsets[element]]; }
+
+    // Contiguously pack the still-active elements into 'indices'.
+    void Pack(const Int* element_beg, const Int* element_end) {
+      offset = 0;
+      for (const Int* iter = element_beg; iter != element_end; ++iter) {
+        const Int element = *iter;
+        const Int element_size = sizes[element];
+        Int element_offset = offsets[element];
+        offsets[element] = offset;
+        for (Int i = 0; i < element_size; ++i) {
+          indices[offset++] = indices[element_offset++];
+        }
+      }
+    }
+  };
+
   // Data structures related to hashing supervariables.
   struct HashInfo {
     // An array of single-linked lists for hash buckets for the supervariables.
@@ -276,13 +314,8 @@ class QuotientGraph {
   // in the quotient graph.
   Edges edges_;
 
-  // A list of length 'num_vertices' of elements (lists of principal
-  // variables in the nonzero pattern). The 'e' index of the list,
-  // 'elements[e]', will be created when supernode 'e' is converted from a
-  // variable to an element.
-  //
-  // The structure list also contains non-principal members.
-  Buffer<Buffer<Int>> elements_;
+  // A data structure for managing the packed element lists.
+  PackedElements elements_;
 
   // A set of linked lists for keeping track of supervariables of each degree
   // (and, also, a way to provide fast access to a supervariable with
