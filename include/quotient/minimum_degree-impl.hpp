@@ -152,7 +152,7 @@ inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
   analysis.num_aggressive_absorptions =
       quotient_graph.NumAggressiveAbsorptions();
 #ifdef QUOTIENT_ENABLE_TIMERS
-  const Buffer<std::pair<std::string, double>>& timings =
+  const std::vector<std::pair<std::string, double>>& timings =
       quotient_graph.ComponentSeconds();
   for (const std::pair<std::string, double>& pairing : timings) {
     analysis.elapsed_seconds[pairing.first] = pairing.second;

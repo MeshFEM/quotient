@@ -136,7 +136,7 @@ class QuotientGraph {
 
   // Prints the current breakdown of the stage timings. The result will be
   // trivial unless QUOTIENT_ENABLE_TIMERS is defined.
-  Buffer<std::pair<std::string, double>> ComponentSeconds() const
+  std::vector<std::pair<std::string, double>> ComponentSeconds() const
       QUOTIENT_NOEXCEPT;
 
   // This routine should be called after eliminating the non-dense variables,

@@ -15,9 +15,8 @@
 namespace quotient {
 
 template <typename Real>
-inline Buffer<Complex<Real>>::Buffer() noexcept : size_(0),
-                                                  capacity_(0),
-                                                  data_(nullptr) {}
+inline Buffer<Complex<Real>>::Buffer() noexcept
+    : size_(0), capacity_(0), data_(nullptr) {}
 
 template <typename Real>
 inline void Buffer<Complex<Real>>::DestructData() {
@@ -139,9 +138,7 @@ inline Buffer<Complex<Real>>::Buffer(const std::vector<Complex<Real>>& vec)
 
 template <typename Real>
 inline Buffer<Complex<Real>>::Buffer(Buffer<Complex<Real>>&& buffer) noexcept
-    : size_(buffer.size_),
-      capacity_(buffer.capacity_),
-      data_(buffer.data_) {
+    : size_(buffer.size_), capacity_(buffer.capacity_), data_(buffer.data_) {
   buffer.size_ = 0;
   buffer.capacity_ = 0;
   buffer.data_ = nullptr;

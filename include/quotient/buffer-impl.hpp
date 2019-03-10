@@ -108,9 +108,7 @@ inline Buffer<T>::Buffer(const std::vector<T>& vec)
 
 template <typename T>
 inline Buffer<T>::Buffer(Buffer<T>&& buffer) noexcept
-    : size_(buffer.size_),
-      capacity_(buffer.capacity_),
-      data_(buffer.data_) {
+    : size_(buffer.size_), capacity_(buffer.capacity_), data_(buffer.data_) {
   buffer.size_ = 0;
   buffer.capacity_ = 0;
   buffer.data_ = nullptr;

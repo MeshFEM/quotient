@@ -1310,9 +1310,9 @@ inline void QuotientGraph::CombineDenseNodes() QUOTIENT_NOEXCEPT {
   }
 }
 
-inline Buffer<std::pair<std::string, double>> QuotientGraph::ComponentSeconds()
-    const QUOTIENT_NOEXCEPT {
-  Buffer<std::pair<std::string, double>> times;
+inline std::vector<std::pair<std::string, double>>
+QuotientGraph::ComponentSeconds() const QUOTIENT_NOEXCEPT {
+  std::vector<std::pair<std::string, double>> times;
 #ifdef QUOTIENT_ENABLE_TIMERS
   for (const std::pair<std::string, Timer>& pairing : timers_) {
     times.emplace_back(pairing.first, pairing.second.TotalSeconds());
