@@ -120,6 +120,15 @@ struct MinimumDegreeResult {
 MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
                                   const MinimumDegreeControl& control);
 
+MinimumDegreeResult MinimumDegree(Int num_vertices,
+                                  const Buffer<GraphEdge>& edges,
+                                  const MinimumDegreeControl& control);
+
+template <typename Field>
+MinimumDegreeResult MinimumDegree(Int num_vertices,
+                                  const Buffer<MatrixEntry<Field>>& entries,
+                                  const MinimumDegreeControl& control);
+
 }  // namespace quotient
 
 #include "quotient/minimum_degree-impl.hpp"

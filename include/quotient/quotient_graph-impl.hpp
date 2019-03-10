@@ -41,13 +41,9 @@ static constexpr char kFinalizePivot[] = "FinalizePivot";
 
 inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph,
                                     const MinimumDegreeControl& control)
-    : control_(control),
-      num_vertices_(graph.NumSources()),
-      num_eliminated_vertices_(0),
-      num_aggressive_absorptions_(0) {
-  QUOTIENT_START_TIMER(timers_, kSetup);
+    : QuotientGraph(graph.NumSources(), graph.Edges(), control) {}
 
-  // Initialize the assembly tree.
+inline void QuotientGraph::InitializeAssemblyForest() {
   assembly_.signed_supernode_sizes.Resize(num_vertices_, 1);
   assembly_.dense_supernode.size = 0;
   assembly_.dense_supernode.principal_member = -1;
@@ -55,25 +51,9 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph,
   for (Int i = 0; i < num_vertices_; ++i) {
     assembly_.parent_or_tail[i] = SYMMETRIC_INDEX(i);
   }
+}
 
-  elimination_order_.reserve(num_vertices_);
-
-  // Initialize the counts for the adjacency lists.
-  edges_.element_list_offsets.Resize(num_vertices_, 0);
-  edges_.element_list_sizes.Resize(num_vertices_, 0);
-  edges_.adjacency_list_sizes.Resize(num_vertices_, 0);
-  const Buffer<GraphEdge>& edges = graph.Edges();
-  for (Int source = 0; source < num_vertices_; ++source) {
-    const Int source_edge_offset = graph.SourceEdgeOffset(source);
-    const Int next_source_edge_offset = graph.SourceEdgeOffset(source + 1);
-    for (Int k = source_edge_offset; k < next_source_edge_offset; ++k) {
-      const GraphEdge& edge = edges[k];
-      if (edge.second != source) {
-        ++edges_.adjacency_list_sizes[source];
-      }
-    }
-  }
-
+inline Int QuotientGraph::ConvertEdgeCountsIntoOffsets() {
   // Every row with at least this many non-diagonal nonzeros will be treated
   // as dense and moved to the back of the postordering.
   const Int dense_threshold =
@@ -105,25 +85,10 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph,
   }
 #endif
 
-  // Pack the edges.
-  edges_.lists.Resize(num_edges);
-  num_edges = 0;
-  for (Int source = 0; source < num_vertices_; ++source) {
-    if (!assembly_.signed_supernode_sizes[source]) {
-      // Skip the dense row.
-      continue;
-    }
-    const Int source_edge_offset = graph.SourceEdgeOffset(source);
-    const Int next_source_edge_offset = graph.SourceEdgeOffset(source + 1);
-    for (Int k = source_edge_offset; k < next_source_edge_offset; ++k) {
-      const GraphEdge& edge = edges[k];
-      if (edge.second != source) {
-        edges_.lists[num_edges++] = edge.second;
-      }
-    }
-  }
+  return num_edges;
+}
 
-  // Initialize the degree lists.
+inline void QuotientGraph::InitializeDegreeLists() {
   degree_lists_.degrees.Resize(num_vertices_, 0);
   degree_lists_.heads.Resize(num_vertices_ - 1, -1);
   degree_lists_.next_member.Resize(num_vertices_, -1);
@@ -136,27 +101,116 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph,
     const Int degree = edges_.adjacency_list_sizes[source];
     degree_lists_.AddDegree(source, degree);
   }
+}
 
-  // Initialize the hash lists.
+inline void QuotientGraph::InitializeHashLists() {
   hash_info_.num_collisions = 0;
   hash_info_.num_bucket_collisions = 0;
   hash_info_.lists.buckets.Resize(num_vertices_);
   hash_info_.lists.hashes.Resize(num_vertices_);
   hash_info_.lists.heads.Resize(num_vertices_, -1);
   hash_info_.lists.next_member.Resize(num_vertices_, -1);
+}
 
-  // Trivially initialize the lower-triangular nonzero structures.
-  elements_.indices.Resize(graph.NumEdges());
+inline void QuotientGraph::InitializeElements(Int num_edges) {
+  elements_.indices.Resize(num_edges);
   elements_.offsets.Resize(num_vertices_);
   elements_.sizes.Resize(num_vertices_, 0);
   elements_.offset = 0;
+}
 
+inline void QuotientGraph::InitializeNodeFlags() {
   // The absorbed elements will be maintained as 0, the unabsorbed will be
   // initialized as 1, and the shift will be initialized as 2.
   node_flags_.shift = 2;
   node_flags_.flags.Resize(num_vertices_, 1);
   node_flags_.max_degree = 0;
   node_flags_.shift_cap = std::numeric_limits<Int>::max() - num_vertices_;
+}
+
+inline QuotientGraph::QuotientGraph(Int num_vertices,
+                                    const Buffer<GraphEdge>& edges,
+                                    const MinimumDegreeControl& control)
+    : control_(control),
+      num_vertices_(num_vertices),
+      num_eliminated_vertices_(0),
+      num_aggressive_absorptions_(0) {
+  QUOTIENT_START_TIMER(timers_, kSetup);
+
+  InitializeAssemblyForest();
+
+  elimination_order_.reserve(num_vertices_);
+
+  // Initialize the counts for the adjacency lists.
+  edges_.element_list_offsets.Resize(num_vertices_, 0);
+  edges_.element_list_sizes.Resize(num_vertices_, 0);
+  edges_.adjacency_list_sizes.Resize(num_vertices_, 0);
+  for (const GraphEdge& edge : edges) {
+    if (edge.first != edge.second) {
+      ++edges_.adjacency_list_sizes[edge.first];
+    }
+  }
+
+  Int num_edges = ConvertEdgeCountsIntoOffsets();
+
+  // Pack the edges.
+  edges_.lists.Resize(num_edges);
+  num_edges = 0;
+  for (const GraphEdge& edge : edges) {
+    const Int source = edge.first;
+    if (assembly_.signed_supernode_sizes[source] && edge.second != source) {
+      edges_.lists[num_edges++] = edge.second;
+    }
+  }
+
+  InitializeDegreeLists();
+  InitializeHashLists();
+  InitializeElements(num_edges);
+  InitializeNodeFlags();
+
+  QUOTIENT_STOP_TIMER(timers_, kSetup);
+}
+
+template <typename Field>
+inline QuotientGraph::QuotientGraph(Int num_vertices,
+                                    const Buffer<MatrixEntry<Field>>& entries,
+                                    const MinimumDegreeControl& control)
+    : control_(control),
+      num_vertices_(num_vertices),
+      num_eliminated_vertices_(0),
+      num_aggressive_absorptions_(0) {
+  QUOTIENT_START_TIMER(timers_, kSetup);
+
+  InitializeAssemblyForest();
+
+  elimination_order_.reserve(num_vertices_);
+
+  // Initialize the counts for the adjacency lists.
+  edges_.element_list_offsets.Resize(num_vertices_, 0);
+  edges_.element_list_sizes.Resize(num_vertices_, 0);
+  edges_.adjacency_list_sizes.Resize(num_vertices_, 0);
+  for (const MatrixEntry<Field>& entry : entries) {
+    if (entry.row != entry.column) {
+      ++edges_.adjacency_list_sizes[entry.row];
+    }
+  }
+
+  Int num_edges = ConvertEdgeCountsIntoOffsets();
+
+  // Pack the edges.
+  edges_.lists.Resize(num_edges);
+  num_edges = 0;
+  for (const MatrixEntry<Field>& entry : entries) {
+    const Int source = entry.row;
+    if (assembly_.signed_supernode_sizes[source] && entry.column != source) {
+      edges_.lists[num_edges++] = entry.column;
+    }
+  }
+
+  InitializeDegreeLists();
+  InitializeHashLists();
+  InitializeElements(num_edges);
+  InitializeNodeFlags();
 
   QUOTIENT_STOP_TIMER(timers_, kSetup);
 }

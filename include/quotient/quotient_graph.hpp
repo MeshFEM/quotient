@@ -54,6 +54,15 @@ class QuotientGraph {
   QuotientGraph(const CoordinateGraph& graph,
                 const MinimumDegreeControl& control);
 
+  // Initializes the quotient graph from the edges of a symmetric graph.
+  QuotientGraph(Int num_vertices, const Buffer<GraphEdge>& edges,
+                const MinimumDegreeControl& control);
+
+  // Initializes the quotient graph from the entries of a symmetric matrix.
+  template <typename Field>
+  QuotientGraph(Int num_vertices, const Buffer<MatrixEntry<Field>>& edges,
+                const MinimumDegreeControl& control);
+
   // Returns the number of vertices in the original graph.
   Int NumVertices() const QUOTIENT_NOEXCEPT;
 
@@ -338,6 +347,25 @@ class QuotientGraph {
   // A map from the stage name to the associated timer.
   mutable std::unordered_map<std::string, Timer> timers_;
 #endif
+
+  // Initialize the AssemblyForest.
+  void InitializeAssemblyForest();
+
+  // Converts edge counts for each source into an offset scan and return the
+  // number of edges.
+  Int ConvertEdgeCountsIntoOffsets();
+
+  // Initializes the DegreeLists data structure.
+  void InitializeDegreeLists();
+
+  // Initializes the HashInfo data structure.
+  void InitializeHashLists();
+
+  // Initializes the PackedElements data structure.
+  void InitializeElements(Int num_elements);
+
+  // Initializes the NodeFlags data structure.
+  void InitializeNodeFlags();
 
   // Retrieve a variable with minimal (approximate) degree and set it as the
   // active pivot.
