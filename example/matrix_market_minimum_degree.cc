@@ -5,6 +5,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
@@ -250,14 +251,25 @@ AMDExperiment RunMatrixMarketAMDTest(
                 << num_experiments << "..." << std::endl;
     }
     quotient::Timer timer;
+
     timer.Start();
+    quotient::QuotientGraph quotient_graph(*graph, control);
     const quotient::MinimumDegreeResult analysis =
-        quotient::MinimumDegree(*graph, control);
+        quotient::MinimumDegree(&quotient_graph);
+    quotient::Buffer<Int> inverse_permutation;
+    quotient_graph.ComputePostorder(&inverse_permutation);
+    quotient::Buffer<Int> permutation;
+    quotient::InvertPermutation(inverse_permutation, &permutation);
+    quotient::Buffer<Int> supernode_sizes;
+    quotient_graph.PermutedSupernodeSizes(inverse_permutation,
+                                          &supernode_sizes);
     elapsed_seconds[instance] = timer.Stop();
-    largest_supernode_sizes[instance] = analysis.LargestSupernodeSize();
+
+    largest_supernode_sizes[instance] =
+        *std::max_element(supernode_sizes.begin(), supernode_sizes.end());
     num_nonzeros[instance] = analysis.num_cholesky_nonzeros;
     num_strictly_lower_nonzeros[instance] =
-        analysis.NumStrictlyLowerCholeskyNonzeros();
+        analysis.num_cholesky_nonzeros - quotient_graph.NumVertices();
     num_flops[instance] = analysis.num_cholesky_flops;
     num_degree_updates[instance] = analysis.num_degree_updates;
     num_aggressive_absorptions[instance] = analysis.num_aggressive_absorptions;
@@ -287,15 +299,13 @@ AMDExperiment RunMatrixMarketAMDTest(
     }
 #ifdef QUOTIENT_ENABLE_TIMERS
     for (const std::pair<std::string, double>& pairing :
-         analysis.elapsed_seconds) {
+         quotient_graph.ComponentSeconds()) {
       std::cout << "    " << pairing.first << ": " << pairing.second
                 << " seconds." << std::endl;
     }
 #endif
 
     if (write_permuted_graphs) {
-      const quotient::Buffer<Int> permutation = analysis.Permutation();
-
       quotient::CoordinateGraph permuted_graph;
       permuted_graph.Resize(graph->NumSources());
       permuted_graph.ReserveEdgeAdditions(graph->NumEdges());
@@ -310,8 +320,15 @@ AMDExperiment RunMatrixMarketAMDTest(
     }
 
     if (write_assembly_forests) {
+      quotient::Buffer<Int> member_to_supernode;
+      quotient_graph.PermutedMemberToSupernode(inverse_permutation,
+                                               &member_to_supernode);
+      quotient::Buffer<Int> parents;
+      quotient_graph.PermutedAssemblyParents(permutation, member_to_supernode,
+                                             &parents);
+
       const std::string new_filename = filename + ".gv";
-      analysis.PermutedAssemblyForestToDot(new_filename);
+      quotient::ForestToDot(new_filename, parents);
     }
 
     if (instance == num_random_permutations) {
@@ -319,17 +336,17 @@ AMDExperiment RunMatrixMarketAMDTest(
     }
 
     // Generate a random permutation.
-    std::vector<Int> permutation(graph->NumSources());
-    std::iota(permutation.begin(), permutation.end(), 0);
-    std::random_shuffle(permutation.begin(), permutation.end());
+    std::vector<Int> random_permutation(graph->NumSources());
+    std::iota(random_permutation.begin(), random_permutation.end(), 0);
+    std::random_shuffle(random_permutation.begin(), random_permutation.end());
 
     // Apply the permutation to the graph.
     quotient::CoordinateGraph permuted_graph;
     permuted_graph.Resize(graph->NumSources());
     permuted_graph.ReserveEdgeAdditions(graph->NumEdges());
     for (const std::pair<Int, Int>& edge : graph->Edges()) {
-      permuted_graph.QueueEdgeAddition(permutation[edge.first],
-                                       permutation[edge.second]);
+      permuted_graph.QueueEdgeAddition(random_permutation[edge.first],
+                                       random_permutation[edge.second]);
     }
     permuted_graph.FlushEdgeQueues();
 

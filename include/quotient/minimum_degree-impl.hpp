@@ -17,33 +17,30 @@
 #include "quotient/index_utils.hpp"
 #include "quotient/integers.hpp"
 #include "quotient/macros.hpp"
-#include "quotient/quotient_graph.hpp"
 #include "quotient/timer.hpp"
 
 #include "quotient/minimum_degree.hpp"
 
 namespace quotient {
 
-inline MinimumDegreeResult::MinimumDegreeResult() {}
-
-inline Int MinimumDegreeResult::NumStrictlyLowerCholeskyNonzeros() const {
-  return num_cholesky_nonzeros - permuted_supernode_sizes.Size();
-}
-
-inline Int MinimumDegreeResult::LargestSupernode() const {
-  Int largest_supernode = -1;
-  Int largest_supernode_size = 0;
-  for (std::size_t i = 0; i < permuted_supernode_sizes.Size(); ++i) {
-    if (permuted_supernode_sizes[i] > largest_supernode_size) {
-      largest_supernode = i;
-      largest_supernode_size = permuted_supernode_sizes[i];
-    }
+inline void ForestToDot(const std::string& filename,
+                        const Buffer<Int>& parents) {
+  std::ofstream file(filename);
+  if (!file.is_open()) {
+    std::cerr << "Could not open " << filename << std::endl;
+    return;
   }
-  return largest_supernode;
-}
 
-inline Int MinimumDegreeResult::LargestSupernodeSize() const {
-  return permuted_supernode_sizes[LargestSupernode()];
+  file << "digraph g{\n";
+  for (std::size_t i = 0; i < parents.Size(); ++i) {
+    if (parents[i] < 0) {
+      continue;
+    }
+    std::ostringstream os;
+    os << "  " << parents[i] << " -> " << i << ";\n";
+    file << os.str();
+  }
+  file << "}\n";
 }
 
 inline double MinimumDegreeResult::FractionOfPivotsWithMultipleElements()
@@ -63,182 +60,43 @@ inline double MinimumDegreeResult::FractionOfDegreeUpdatesWithMultipleElements()
   return num_degree_updates_with_multiple_elements / (1. * num_degree_updates);
 }
 
-inline Buffer<Int> MinimumDegreeResult::Permutation() const {
-  return permutation;
-}
+inline MinimumDegreeResult MinimumDegree(QuotientGraph* graph) {
+  const Int num_vertices = graph->NumVertices();
+  const MinimumDegreeControl& control = graph->Control();
 
-inline Buffer<Int> MinimumDegreeResult::InversePermutation() const {
-  return inverse_permutation;
-}
-
-inline void MinimumDegreeResult::PermutedAssemblyForestToDot(
-    const std::string& filename) const {
-  std::ofstream file(filename);
-  if (!file.is_open()) {
-    std::cerr << "Could not open " << filename << std::endl;
-    return;
+  // Eliminate the variables.
+  MinimumDegreeResult analysis;
+  if (control.store_pivot_element_list_sizes) {
+    analysis.pivot_element_list_sizes.reserve(num_vertices);
   }
+  if (control.store_num_degree_updates_with_multiple_elements) {
+    analysis.num_degree_updates_with_multiple_elements = 0;
+  }
+  while (graph->NumEliminatedVertices() < num_vertices) {
+    graph->FindAndProcessPivot();
 
-  file << "digraph g{\n";
-  for (std::size_t i = 0; i < permuted_assembly_parents.Size(); ++i) {
-    if (permuted_assembly_parents[i] < 0) {
-      continue;
+    if (control.store_pivot_element_list_sizes) {
+      analysis.pivot_element_list_sizes.push_back(graph->NumPivotElements());
     }
-    std::ostringstream os;
-    os << "  " << permuted_assembly_parents[i] << " -> " << i << ";\n";
-    file << os.str();
+    analysis.num_cholesky_nonzeros += graph->NumPivotCholeskyNonzeros();
+    analysis.num_cholesky_flops += graph->NumPivotCholeskyFlops();
+    analysis.num_degree_updates += graph->NumPivotDegreeUpdates();
+    if (control.store_num_degree_updates_with_multiple_elements) {
+      analysis.num_degree_updates_with_multiple_elements +=
+          graph->NumPivotDegreeUpdatesWithMultipleElements();
+    }
   }
-  file << "}\n";
-}
+  graph->CombineDenseNodes();
 
-inline void FinalizeMinimumDegreeResult(const QuotientGraph& graph,
-                                        MinimumDegreeResult* analysis) {
   // Assume the Schur complement of the non-dense supernodes onto the "dense"
   // ones results in a dense Schur complement.
-  const Int num_dense = graph.NumDense();
-  analysis->num_cholesky_nonzeros += ((num_dense + 1) * num_dense) / 2;
-  analysis->num_cholesky_flops += std::pow(1. * num_dense, 3.) / 3.;
+  const Int num_dense = graph->NumDense();
+  analysis.num_cholesky_nonzeros += ((num_dense + 1) * num_dense) / 2;
+  analysis.num_cholesky_flops += std::pow(1. * num_dense, 3.) / 3.;
 
-  // Compute the permutation using the post-ordering.
-  graph.ComputePostorder(&analysis->inverse_permutation);
-  InvertPermutation(analysis->inverse_permutation, &analysis->permutation);
-
-  // Compute a map from the permuted indices to the containing supernode.
-  graph.PermutedSupernodeSizes(analysis->inverse_permutation,
-                               &analysis->permuted_supernode_sizes);
-  graph.PermutedMemberToSupernode(analysis->inverse_permutation,
-                                  &analysis->permuted_member_to_supernode);
-
-  graph.PermutedAssemblyParents(analysis->permutation,
-                                analysis->permuted_member_to_supernode,
-                                &analysis->permuted_assembly_parents);
-
-  analysis->num_hash_collisions = graph.NumHashCollisions();
-  analysis->num_hash_bucket_collisions = graph.NumHashBucketCollisions();
-  analysis->num_aggressive_absorptions = graph.NumAggressiveAbsorptions();
-#ifdef QUOTIENT_ENABLE_TIMERS
-  const std::vector<std::pair<std::string, double>>& timings =
-      graph.ComponentSeconds();
-  for (const std::pair<std::string, double>& pairing : timings) {
-    analysis->elapsed_seconds[pairing.first] = pairing.second;
-  }
-#endif
-
-  // Extract the elimination order.
-  analysis->elimination_order = graph.EliminationOrder();
-}
-
-inline MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
-                                         const MinimumDegreeControl& control) {
-  QUOTIENT_ASSERT(graph.NumSources() == graph.NumTargets(),
-                  "MinimumDegree requires a symmetric input graph.");
-  const Int num_orig_vertices = graph.NumSources();
-
-  // Initialize a data structure that will eventually contain the results of
-  // the (approximae) minimum degree analysis.
-  MinimumDegreeResult analysis;
-  if (control.store_pivot_element_list_sizes) {
-    analysis.pivot_element_list_sizes.reserve(num_orig_vertices);
-  }
-  if (control.store_num_degree_updates_with_multiple_elements) {
-    analysis.num_degree_updates_with_multiple_elements = 0;
-  }
-
-  // Eliminate the variables.
-  QuotientGraph quotient_graph(graph, control);
-  while (quotient_graph.NumEliminatedVertices() < num_orig_vertices) {
-    quotient_graph.FindAndProcessPivot();
-
-    if (control.store_pivot_element_list_sizes) {
-      analysis.pivot_element_list_sizes.push_back(
-          quotient_graph.NumPivotElements());
-    }
-    analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
-    analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
-    analysis.num_degree_updates += quotient_graph.NumPivotDegreeUpdates();
-    if (control.store_num_degree_updates_with_multiple_elements) {
-      analysis.num_degree_updates_with_multiple_elements +=
-          quotient_graph.NumPivotDegreeUpdatesWithMultipleElements();
-    }
-  }
-  quotient_graph.CombineDenseNodes();
-
-  FinalizeMinimumDegreeResult(quotient_graph, &analysis);
-
-  return analysis;
-}
-
-inline MinimumDegreeResult MinimumDegree(Int num_vertices,
-                                         const Buffer<GraphEdge>& edges,
-                                         const MinimumDegreeControl& control) {
-  // Initialize a data structure that will eventually contain the results of
-  // the (approximae) minimum degree analysis.
-  MinimumDegreeResult analysis;
-  if (control.store_pivot_element_list_sizes) {
-    analysis.pivot_element_list_sizes.reserve(num_vertices);
-  }
-  if (control.store_num_degree_updates_with_multiple_elements) {
-    analysis.num_degree_updates_with_multiple_elements = 0;
-  }
-
-  // Eliminate the variables.
-  QuotientGraph quotient_graph(num_vertices, edges, control);
-  while (quotient_graph.NumEliminatedVertices() < num_vertices) {
-    quotient_graph.FindAndProcessPivot();
-
-    if (control.store_pivot_element_list_sizes) {
-      analysis.pivot_element_list_sizes.push_back(
-          quotient_graph.NumPivotElements());
-    }
-    analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
-    analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
-    analysis.num_degree_updates += quotient_graph.NumPivotDegreeUpdates();
-    if (control.store_num_degree_updates_with_multiple_elements) {
-      analysis.num_degree_updates_with_multiple_elements +=
-          quotient_graph.NumPivotDegreeUpdatesWithMultipleElements();
-    }
-  }
-  quotient_graph.CombineDenseNodes();
-
-  FinalizeMinimumDegreeResult(quotient_graph, &analysis);
-
-  return analysis;
-}
-
-template <typename Field>
-inline MinimumDegreeResult MinimumDegree(
-    Int num_vertices, const Buffer<MatrixEntry<Field>>& entries,
-    const MinimumDegreeControl& control) {
-  // Initialize a data structure that will eventually contain the results of
-  // the (approximae) minimum degree analysis.
-  MinimumDegreeResult analysis;
-  if (control.store_pivot_element_list_sizes) {
-    analysis.pivot_element_list_sizes.reserve(num_vertices);
-  }
-  if (control.store_num_degree_updates_with_multiple_elements) {
-    analysis.num_degree_updates_with_multiple_elements = 0;
-  }
-
-  // Eliminate the variables.
-  QuotientGraph quotient_graph(num_vertices, entries, control);
-  while (quotient_graph.NumEliminatedVertices() < num_vertices) {
-    quotient_graph.FindAndProcessPivot();
-
-    if (control.store_pivot_element_list_sizes) {
-      analysis.pivot_element_list_sizes.push_back(
-          quotient_graph.NumPivotElements());
-    }
-    analysis.num_cholesky_nonzeros += quotient_graph.NumPivotCholeskyNonzeros();
-    analysis.num_cholesky_flops += quotient_graph.NumPivotCholeskyFlops();
-    analysis.num_degree_updates += quotient_graph.NumPivotDegreeUpdates();
-    if (control.store_num_degree_updates_with_multiple_elements) {
-      analysis.num_degree_updates_with_multiple_elements +=
-          quotient_graph.NumPivotDegreeUpdatesWithMultipleElements();
-    }
-  }
-  quotient_graph.CombineDenseNodes();
-
-  FinalizeMinimumDegreeResult(quotient_graph, &analysis);
+  analysis.num_hash_collisions = graph->NumHashCollisions();
+  analysis.num_hash_bucket_collisions = graph->NumHashBucketCollisions();
+  analysis.num_aggressive_absorptions = graph->NumAggressiveAbsorptions();
 
   return analysis;
 }

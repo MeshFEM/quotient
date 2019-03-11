@@ -153,6 +153,9 @@ class QuotientGraph {
   // single supernode which becomes the parent of all non-dense roots.
   void CombineDenseNodes() QUOTIENT_NOEXCEPT;
 
+  // Returns an immutable reference to the control structure.
+  const MinimumDegreeControl& Control() const QUOTIENT_NOEXCEPT;
+
  private:
   // Bookkeeping data for the dense supernode (if it exists). It is used at the
   // end of the minimum degree analysis to postprocess the assembly forest so

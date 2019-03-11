@@ -1416,6 +1416,11 @@ inline void QuotientGraph::CombineDenseNodes() QUOTIENT_NOEXCEPT {
   }
 }
 
+inline const MinimumDegreeControl& QuotientGraph::Control() const
+    QUOTIENT_NOEXCEPT {
+  return control_;
+}
+
 inline std::vector<std::pair<std::string, double>>
 QuotientGraph::ComponentSeconds() const QUOTIENT_NOEXCEPT {
   std::vector<std::pair<std::string, double>> times;

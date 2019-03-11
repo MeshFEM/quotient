@@ -97,8 +97,9 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   quotient::MinimumDegreeControl control;
   control.degree_type = quotient::kExactDegree;
   control.force_minimal_pivot_indices = true;
+  quotient::QuotientGraph quotient_graph(graph, control);
   quotient::MinimumDegreeResult analysis =
-      quotient::MinimumDegree(graph, control);
+      quotient::MinimumDegree(&quotient_graph);
 
   /* Because of the ordering of the hash bucket, we will prefer the last member
      as the key. But there are several equally-valid solutions (the
@@ -109,10 +110,11 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
 
       {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9}.
   */
-  const quotient::Buffer<Int> kExpectedEliminationOrder{
+  const std::vector<Int> kExpectedEliminationOrder{
       0, 1, 2, 3, 4, 5, 8, 9,
   };
-  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
+  const std::vector<Int> elimination_order = quotient_graph.EliminationOrder();
+  REQUIRE(elimination_order == kExpectedEliminationOrder);
 
   /* This structure is defined directly (modulo translation from 1-based to
      0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]:
@@ -142,8 +144,9 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
       {0}, {3}, {1}, {2}, {4}, {5}, {6, 7, 8}, {9},
   };
-  REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
-                            analysis.inverse_permutation));
+  quotient::Buffer<Int> inverse_permutation;
+  quotient_graph.ComputePostorder(&inverse_permutation);
+  REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation, inverse_permutation));
 
   /* The inverse of the lexicographic postordering is:
 
@@ -168,16 +171,27 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
       {0}, {2}, {3}, {1}, {4}, {5}, {6, 7, 8}, {9},
   };
-  REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
+  quotient::Buffer<Int> permutation;
+  quotient::InvertPermutation(inverse_permutation, &permutation);
+  REQUIRE(SetTuplesAreEqual(kExpectedPermutation, permutation));
+
   const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
       1, 1, 1, 1, 1, 1, 3, 1,
   };
-  REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
+  quotient::Buffer<Int> supernode_sizes;
+  quotient_graph.PermutedSupernodeSizes(inverse_permutation, &supernode_sizes);
+  REQUIRE(kExpectedPermutedSupernodeSizes == supernode_sizes);
+
   const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
       1, 5, 4, 4, 5, 6, 7, -1,
   };
-  REQUIRE(kExpectedPermutedAssemblyParents ==
-          analysis.permuted_assembly_parents);
+  quotient::Buffer<Int> member_to_supernode;
+  quotient_graph.PermutedMemberToSupernode(inverse_permutation,
+                                           &member_to_supernode);
+  quotient::Buffer<Int> parents;
+  quotient_graph.PermutedAssemblyParents(permutation, member_to_supernode,
+                                         &parents);
+  REQUIRE(kExpectedPermutedAssemblyParents == parents);
 
   const Int kExpectedNumAggressiveAbsorptions = 0;
   REQUIRE(analysis.num_aggressive_absorptions ==
@@ -204,16 +218,15 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   control.allow_supernodes = false;
   control.force_minimal_pivot_indices = true;
   control.aggressive_absorption = true;
+  quotient::QuotientGraph quotient_graph(graph, control);
   quotient::MinimumDegreeResult analysis =
-      quotient::MinimumDegree(graph, control);
+      quotient::MinimumDegree(&quotient_graph);
 
-  const quotient::Buffer<Int> kExpectedEliminationOrder{
-      0,
-      1,
-      2,
-      3,
+  const std::vector<Int> kExpectedEliminationOrder{
+      0, 1, 2, 3,
   };
-  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
+  const std::vector<Int> elimination_order = quotient_graph.EliminationOrder();
+  REQUIRE(elimination_order == kExpectedEliminationOrder);
 
   /* This structure is defined directly (modulo translation from 1-based to
      0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]. The
@@ -249,13 +262,11 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
      0, 1, 2, 3.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
-      {0},
-      {1},
-      {2},
-      {3},
+      {0}, {1}, {2}, {3},
   };
-  REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
-                            analysis.inverse_permutation));
+  quotient::Buffer<Int> inverse_permutation;
+  quotient_graph.ComputePostorder(&inverse_permutation);
+  REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation, inverse_permutation));
 
   /* The inverse of the lexicographic postordering is:
 
@@ -276,27 +287,29 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
       1, 2, 3, ROOT.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
-      {0},
-      {1},
-      {2},
-      {3},
+      {0}, {1}, {2}, {3},
   };
-  REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
+  quotient::Buffer<Int> permutation;
+  quotient::InvertPermutation(inverse_permutation, &permutation);
+  REQUIRE(SetTuplesAreEqual(kExpectedPermutation, permutation));
+
   const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
-      1,
-      1,
-      1,
-      1,
+      1, 1, 1, 1,
   };
-  REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
+  quotient::Buffer<Int> supernode_sizes;
+  quotient_graph.PermutedSupernodeSizes(inverse_permutation, &supernode_sizes);
+  REQUIRE(kExpectedPermutedSupernodeSizes == supernode_sizes);
+
   const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
-      1,
-      2,
-      3,
-      -1,
+      1, 2, 3, -1,
   };
-  REQUIRE(kExpectedPermutedAssemblyParents ==
-          analysis.permuted_assembly_parents);
+  quotient::Buffer<Int> member_to_supernode;
+  quotient_graph.PermutedMemberToSupernode(inverse_permutation,
+                                           &member_to_supernode);
+  quotient::Buffer<Int> parents;
+  quotient_graph.PermutedAssemblyParents(permutation, member_to_supernode,
+                                         &parents);
+  REQUIRE(kExpectedPermutedAssemblyParents == parents);
 
   // [ADD-96] discusses the aggressive absorption, 0 into 1.
   const Int kExpectedNumAggressiveAbsorptions = 1;
@@ -324,16 +337,15 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
   control.allow_supernodes = false;
   control.force_minimal_pivot_indices = true;
   control.aggressive_absorption = false;
+  quotient::QuotientGraph quotient_graph(graph, control);
   quotient::MinimumDegreeResult analysis =
-      quotient::MinimumDegree(graph, control);
+      quotient::MinimumDegree(&quotient_graph);
 
-  const quotient::Buffer<Int> kExpectedEliminationOrder{
-      0,
-      1,
-      2,
-      3,
+  const std::vector<Int> kExpectedEliminationOrder{
+      0, 1, 2, 3,
   };
-  REQUIRE(analysis.elimination_order == kExpectedEliminationOrder);
+  const std::vector<Int> elimination_order = quotient_graph.EliminationOrder();
+  REQUIRE(elimination_order == kExpectedEliminationOrder);
 
   /* This structure is defined directly (modulo translation from 1-based to
      0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]. The
@@ -358,13 +370,11 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
      0, 1, 2, 3.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
-      {0},
-      {1},
-      {2},
-      {3},
+      {0}, {1}, {2}, {3},
   };
-  REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation,
-                            analysis.inverse_permutation));
+  quotient::Buffer<Int> inverse_permutation;
+  quotient_graph.ComputePostorder(&inverse_permutation);
+  REQUIRE(SetTuplesAreEqual(kExpectedInversePermutation, inverse_permutation));
 
   /* The inverse of the lexicographic postordering is:
 
@@ -383,27 +393,29 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
       2, 2, 3, ROOT.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
-      {0},
-      {1},
-      {2},
-      {3},
+      {0}, {1}, {2}, {3},
   };
-  REQUIRE(SetTuplesAreEqual(kExpectedPermutation, analysis.permutation));
+  quotient::Buffer<Int> permutation;
+  quotient::InvertPermutation(inverse_permutation, &permutation);
+  REQUIRE(SetTuplesAreEqual(kExpectedPermutation, permutation));
+
   const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
-      1,
-      1,
-      1,
-      1,
+      1, 1, 1, 1,
   };
-  REQUIRE(kExpectedPermutedSupernodeSizes == analysis.permuted_supernode_sizes);
+  quotient::Buffer<Int> supernode_sizes;
+  quotient_graph.PermutedSupernodeSizes(inverse_permutation, &supernode_sizes);
+  REQUIRE(kExpectedPermutedSupernodeSizes == supernode_sizes);
+
   const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
-      2,
-      2,
-      3,
-      -1,
+      2, 2, 3, -1,
   };
-  REQUIRE(kExpectedPermutedAssemblyParents ==
-          analysis.permuted_assembly_parents);
+  quotient::Buffer<Int> member_to_supernode;
+  quotient_graph.PermutedMemberToSupernode(inverse_permutation,
+                                           &member_to_supernode);
+  quotient::Buffer<Int> parents;
+  quotient_graph.PermutedAssemblyParents(permutation, member_to_supernode,
+                                         &parents);
+  REQUIRE(kExpectedPermutedAssemblyParents == parents);
 
   const Int kExpectedNumAggressiveAbsorptions = 0;
   REQUIRE(analysis.num_aggressive_absorptions ==

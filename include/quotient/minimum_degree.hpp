@@ -12,50 +12,25 @@
 #include <vector>
 
 #include "quotient/buffer.hpp"
-#include "quotient/coordinate_graph.hpp"
 #include "quotient/integers.hpp"
 #include "quotient/minimum_degree_control.hpp"
+#include "quotient/quotient_graph.hpp"
 
 namespace quotient {
 
+// Writes a dot file (usually ".gv") for the forest implied by the parents.
+// One can subsequently generate a PNG of the forest using:
+//   dot -Tpng filename -o output.png
+// But beware that the call to dot might take 15 minutes or more.
+void ForestToDot(const std::string& filename, const Buffer<Int>& parents);
+
 // Statistics from running the MinimumDegree reordering algorithm.
 struct MinimumDegreeResult {
-  // The MD permutation.
-  Buffer<Int> permutation;
-
-  // The inverse of the MD permutation. It corresponds to the postordering of
-  // the assembly forest.
-  Buffer<Int> inverse_permutation;
-
-  // The sizes of the supernodes in the permuted ordering.
-  Buffer<Int> permuted_supernode_sizes;
-
-  // A map from the permuted indices to the containing supernode index.
-  Buffer<Int> permuted_member_to_supernode;
-
-  // The parent of each supernode in the permuted assembly forest.
-  Buffer<Int> permuted_assembly_parents;
-
-  // The recommended elimination order of the supernodes (with each supernode
-  // represented by its principal member).
-  Buffer<Int> elimination_order;
-
   // The number of aggressive absorptions that occurred.
   Int num_aggressive_absorptions;
 
-  // An optional list (based on the value of
-  // 'MinimumDegreeControl.store_pivot_element_list_sizes') of the lengths of
-  // the element lists of each pivot.
-  std::vector<Int> pivot_element_list_sizes;
-
   // The number of degree updates performed during the minimum-degree analysis.
   Int num_degree_updates = 0;
-
-  // An optional count (based on the value of
-  // 'MinimumDegreeControl.store_num_degree_updates_with_multiple_elements')
-  // of the number of external degree updates that involved a variable with
-  // more than two members in its element list.
-  Int num_degree_updates_with_multiple_elements = -1;
 
   // The number of times that supervariables were falsely placed into the
   // same bucket.
@@ -71,23 +46,21 @@ struct MinimumDegreeResult {
   // factorization using this ordering.
   double num_cholesky_flops = 0;
 
+  // An optional count (based on the value of
+  // 'MinimumDegreeControl.store_num_degree_updates_with_multiple_elements')
+  // of the number of external degree updates that involved a variable with
+  // more than two members in its element list.
+  Int num_degree_updates_with_multiple_elements = -1;
+
+  // An optional list (based on the value of
+  // 'MinimumDegreeControl.store_pivot_element_list_sizes') of the lengths of
+  // the element lists of each pivot.
+  std::vector<Int> pivot_element_list_sizes;
+
 #ifdef QUOTIENT_ENABLE_TIMERS
   // A map from the stage names to the corresponding elapsed seconds.
   std::unordered_map<std::string, double> elapsed_seconds;
 #endif
-
-  // A trivial constructor.
-  MinimumDegreeResult();
-
-  // Returns the principal member of the largest supernode.
-  Int LargestSupernode() const;
-
-  // Returns the number of members of the largest supernode.
-  Int LargestSupernodeSize() const;
-
-  // Returns the number of strictly-lower nonzeros in the associated Cholesky
-  // factor.
-  Int NumStrictlyLowerCholeskyNonzeros() const;
 
   // Returns the fraction of pivots whose element list had more than two
   // members.
@@ -96,19 +69,6 @@ struct MinimumDegreeResult {
   // Returns the fraction of degree updates whose corresponding variable had an
   // element list had more than two members.
   double FractionOfDegreeUpdatesWithMultipleElements() const;
-
-  // Returns the permutation implied by the postordering of the assembly tree.
-  Buffer<Int> Permutation() const;
-
-  // Returns the inverse permutation implied by the postordering of the
-  // assembly tree.
-  Buffer<Int> InversePermutation() const;
-
-  // Writes a dot file (usually ".gv") for the assembly forest implied by the
-  // postordering. One can subsequently generate a PNG of the forest using:
-  //   dot -Tpng filename -o output.png
-  // But beware that the call to dot might take 15 minutes or more.
-  void PermutedAssemblyForestToDot(const std::string& filename) const;
 };
 
 // Returns a supernodal reordering and the corresponding supernodal nonzero
@@ -117,17 +77,7 @@ struct MinimumDegreeResult {
 //
 // The input graph must be explicitly symmetric.
 //
-MinimumDegreeResult MinimumDegree(const CoordinateGraph& graph,
-                                  const MinimumDegreeControl& control);
-
-MinimumDegreeResult MinimumDegree(Int num_vertices,
-                                  const Buffer<GraphEdge>& edges,
-                                  const MinimumDegreeControl& control);
-
-template <typename Field>
-MinimumDegreeResult MinimumDegree(Int num_vertices,
-                                  const Buffer<MatrixEntry<Field>>& entries,
-                                  const MinimumDegreeControl& control);
+MinimumDegreeResult MinimumDegree(QuotientGraph* graph);
 
 }  // namespace quotient
 

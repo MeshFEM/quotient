@@ -41,8 +41,9 @@ graph.FlushEdgeQueues();
 // approximation.
 quotient::MinimumDegreeControl control;
 control.degree_type = quotient::kAmestoyDegree;
+quotient::QuotientGraph quotient_graph(graph, control);
 const quotient::MinimumDegreeResult analysis = quotient::MinimumDegree(
-    graph, control);
+    &quotient_graph);
 ```
 
 ### Running the unit tests
