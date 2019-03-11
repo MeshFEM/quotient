@@ -111,7 +111,7 @@ class QuotientGraph {
   // Returns the element for the given principal member.
   const Buffer<Int> Element(Int i) const QUOTIENT_NOEXCEPT;
 
-  // Returns a reference to the element list of the given principal member.
+  // Returns a copy of the element list of the given principal member.
   Buffer<Int> ElementList(Int i) const QUOTIENT_NOEXCEPT;
 
   // Finds the next pivot supervariable, forms the corresponding element, and
@@ -251,6 +251,24 @@ class QuotientGraph {
 
     // The length of the variable list of variable i.
     Buffer<Int> adjacency_list_sizes;
+
+    // Returns a mutable pointer to the element list of a given variable.
+    Int* ElementList(Int i) { return &lists[element_list_offsets[i]]; }
+
+    // Returns an immutable pointer to the element list of a given variable.
+    const Int* ElementList(Int i) const {
+      return &lists[element_list_offsets[i]];
+    }
+
+    // Returns a mutable pointer to the adjacency list of a given variable.
+    Int* AdjacencyList(Int i) {
+      return &lists[element_list_offsets[i] + element_list_sizes[i]];
+    }
+
+    // Returns an immutable pointer to the adjacency list of a given variable.
+    const Int* AdjacencyList(Int i) const {
+      return &lists[element_list_offsets[i] + element_list_sizes[i]];
+    }
   };
 
   // A data structure for maintaining a packing of the active elements. Its
