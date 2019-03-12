@@ -45,8 +45,11 @@ struct DegreeLists {
   // the smallest index is returned.
   Int FindMinimalIndex(bool demand_smallest_index) QUOTIENT_NOEXCEPT;
 
-  // Removes the current degree of occurrence with the given index.
+  // Removes the item with the given index from its degree linked list.
   void RemoveDegree(Int index) QUOTIENT_NOEXCEPT;
+
+  // Removes the head of a degree linked list with a known index.
+  void RemoveHeadDegree(Int index, Int degree) QUOTIENT_NOEXCEPT;
 
   // Adds in an occurrence of the specified index and degree.
   void AddDegree(Int index, Int degree) QUOTIENT_NOEXCEPT;

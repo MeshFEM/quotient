@@ -26,13 +26,10 @@ inline void HashLists::AddHash(Int index, std::size_t hash,
 }
 
 inline void HashLists::ClearBucket(Int bucket) QUOTIENT_NOEXCEPT {
-  Int index = heads[bucket];
+  // Because we only traverse the next_member chain from the head of a
+  // bucket until reaching -1, if we simply set the head of the bucket to -1,
+  // then the bucket is effectively cleared.
   heads[bucket] = -1;
-  while (next_member[index] != -1) {
-    const Int old_index = index;
-    index = next_member[index];
-    next_member[old_index] = -1;
-  }
 }
 
 }  // namespace quotient

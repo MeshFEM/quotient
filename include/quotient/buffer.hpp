@@ -39,7 +39,7 @@ class Buffer {
       std::is_trivially_destructible<T>::value;
 
   // Constructs a zero-length buffer.
-  Buffer() noexcept;
+  Buffer() QUOTIENT_NOEXCEPT;
 
   // Destructor.
   ~Buffer();
@@ -61,7 +61,7 @@ class Buffer {
   Buffer(const Buffer<T>& buffer);
 
   // A move constructor.
-  Buffer(Buffer<T>&& buffer) noexcept;
+  Buffer(Buffer<T>&& buffer) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from std::vector<T>.
   Buffer(const std::vector<T>& vec);
@@ -70,7 +70,7 @@ class Buffer {
   Buffer<T>& operator=(const Buffer<T>& buffer);
 
   // A move assignment operator.
-  Buffer<T>& operator=(Buffer<T>&& buffer) noexcept;
+  Buffer<T>& operator=(Buffer<T>&& buffer) QUOTIENT_NOEXCEPT;
 
   // An assignment operator from std::vector<T>.
   Buffer<T>& operator=(const std::vector<T>& buffer);
@@ -90,60 +90,60 @@ class Buffer {
   void Resize(SizeType num_elements, ConstReference value);
 
   // Returns the current length of the buffer.
-  SizeType Size() const noexcept;
+  SizeType Size() const QUOTIENT_NOEXCEPT;
 
   // Returns true if the buffer does not contain any items.
-  bool Empty() const noexcept;
+  bool Empty() const QUOTIENT_NOEXCEPT;
 
   // Returns the current capacity of the buffer.
-  SizeType Capacity() const noexcept;
+  SizeType Capacity() const QUOTIENT_NOEXCEPT;
 
   // Returns a mutable pointer to the underlying buffer of entries.
-  Pointer Data() noexcept;
+  Pointer Data() QUOTIENT_NOEXCEPT;
 
   // Returns an immutable pointer to the underlying buffer of entries.
-  ConstPointer Data() const noexcept;
+  ConstPointer Data() const QUOTIENT_NOEXCEPT;
 
   // A mutable iterator to the beginning of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  Iterator begin() noexcept;
+  Iterator begin() QUOTIENT_NOEXCEPT;
 
   // An immutable iterator to the beginning of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  ConstIterator begin() const noexcept;
+  ConstIterator begin() const QUOTIENT_NOEXCEPT;
 
   // An immutable iterator to the beginning of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  ConstIterator cbegin() const noexcept;
+  ConstIterator cbegin() const QUOTIENT_NOEXCEPT;
 
   // A mutable iterator for the end of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  Iterator end() noexcept;
+  Iterator end() QUOTIENT_NOEXCEPT;
 
   // An immutable iterator for the end of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  ConstIterator end() const noexcept;
+  ConstIterator end() const QUOTIENT_NOEXCEPT;
 
   // An immutable iterator for the end of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  ConstIterator cend() const noexcept;
+  ConstIterator cend() const QUOTIENT_NOEXCEPT;
 
   // Returns a mutable reference to the given entry of the buffer.
-  Reference operator[](SizeType index) noexcept;
+  Reference operator[](SizeType index) QUOTIENT_NOEXCEPT;
 
   // Returns an immutable reference to the given entry of the buffer.
-  ConstReference operator[](SizeType index) const noexcept;
+  ConstReference operator[](SizeType index) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the last element of the list.
   // Its behavior is undefined if the list is empty.
-  Reference Back() noexcept;
+  Reference Back() QUOTIENT_NOEXCEPT;
 
   // Returns an immmutable reference to the last element of the list.
   // Its behavior is undefined if the list is empty.
-  ConstReference Back() const noexcept;
+  ConstReference Back() const QUOTIENT_NOEXCEPT;
 
   // Frees all memory and sets the buffer size to zero.
-  void Clear() noexcept;
+  void Clear() QUOTIENT_NOEXCEPT;
 
  private:
   // The number of entries stored by the buffer.
@@ -200,7 +200,7 @@ class Buffer<Complex<Real>> {
       std::is_trivially_destructible<Real>::value;
 
   // Constructs a zero-length buffer.
-  Buffer() noexcept;
+  Buffer() QUOTIENT_NOEXCEPT;
 
   // Destructor.
   ~Buffer();
@@ -222,7 +222,7 @@ class Buffer<Complex<Real>> {
   Buffer(const Buffer<Complex<Real>>& buffer);
 
   // A move constructor.
-  Buffer(Buffer<Complex<Real>>&& buffer) noexcept;
+  Buffer(Buffer<Complex<Real>>&& buffer) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from std::vector<Complex<Real>>.
   Buffer(const std::vector<Complex<Real>>& vec);
@@ -231,7 +231,8 @@ class Buffer<Complex<Real>> {
   Buffer<Complex<Real>>& operator=(const Buffer<Complex<Real>>& buffer);
 
   // A move assignment operator.
-  Buffer<Complex<Real>>& operator=(Buffer<Complex<Real>>&& buffer) noexcept;
+  Buffer<Complex<Real>>& operator=(Buffer<Complex<Real>>&& buffer)
+      QUOTIENT_NOEXCEPT;
 
   // An assignment operator from std::vector<Complex<Real>>.
   Buffer<Complex<Real>>& operator=(const std::vector<Complex<Real>>& buffer);
@@ -251,60 +252,60 @@ class Buffer<Complex<Real>> {
   void Resize(SizeType num_elements, ConstReference value);
 
   // Returns the current length of the buffer.
-  SizeType Size() const noexcept;
+  SizeType Size() const QUOTIENT_NOEXCEPT;
 
   // Returns true if the buffer does not contain any items.
-  bool Empty() const noexcept;
+  bool Empty() const QUOTIENT_NOEXCEPT;
 
   // Returns the current capacity of the buffer.
-  SizeType Capacity() const noexcept;
+  SizeType Capacity() const QUOTIENT_NOEXCEPT;
 
   // Returns a mutable pointer to the underlying buffer of entries.
-  Pointer Data() noexcept;
+  Pointer Data() QUOTIENT_NOEXCEPT;
 
   // Returns an immutable pointer to the underlying buffer of entries.
-  ConstPointer Data() const noexcept;
+  ConstPointer Data() const QUOTIENT_NOEXCEPT;
 
   // A mutable iterator to the beginning of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  Iterator begin() noexcept;
+  Iterator begin() QUOTIENT_NOEXCEPT;
 
   // An immutable iterator to the beginning of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  ConstIterator begin() const noexcept;
+  ConstIterator begin() const QUOTIENT_NOEXCEPT;
 
   // An immutable iterator to the beginning of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  ConstIterator cbegin() const noexcept;
+  ConstIterator cbegin() const QUOTIENT_NOEXCEPT;
 
   // A mutable iterator for the end of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  Iterator end() noexcept;
+  Iterator end() QUOTIENT_NOEXCEPT;
 
   // An immutable iterator for the end of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  ConstIterator end() const noexcept;
+  ConstIterator end() const QUOTIENT_NOEXCEPT;
 
   // An immutable iterator for the end of the buffer.
   // NOLINTNEXTLINE(readability-identifier-naming)
-  ConstIterator cend() const noexcept;
+  ConstIterator cend() const QUOTIENT_NOEXCEPT;
 
   // Returns a mutable reference to the given entry of the buffer.
-  Reference operator[](SizeType index) noexcept;
+  Reference operator[](SizeType index) QUOTIENT_NOEXCEPT;
 
   // Returns an immutable reference to the given entry of the buffer.
-  ConstReference operator[](SizeType index) const noexcept;
+  ConstReference operator[](SizeType index) const QUOTIENT_NOEXCEPT;
 
   // Returns a reference to the last element of the list.
   // Its behavior is undefined if the list is empty.
-  Reference Back() noexcept;
+  Reference Back() QUOTIENT_NOEXCEPT;
 
   // Returns an immmutable reference to the last element of the list.
   // Its behavior is undefined if the list is empty.
-  ConstReference Back() const noexcept;
+  ConstReference Back() const QUOTIENT_NOEXCEPT;
 
   // Frees all memory and sets the buffer size to zero.
-  void Clear() noexcept;
+  void Clear() QUOTIENT_NOEXCEPT;
 
  private:
   // The number of entries stored by the buffer.

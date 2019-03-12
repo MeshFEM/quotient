@@ -12,128 +12,142 @@
 
 namespace quotient {
 
-Complex<float>::Complex() : std::complex<float>() {}
+Complex<float>::Complex() QUOTIENT_NOEXCEPT : std::complex<float>() {}
 
-Complex<double>::Complex() : std::complex<double>() {}
+Complex<double>::Complex() QUOTIENT_NOEXCEPT : std::complex<double>() {}
 
-Complex<float>::Complex(const Complex<float>& input)
+Complex<float>::Complex(const Complex<float>& input) QUOTIENT_NOEXCEPT
     : std::complex<float>(input.real(), input.imag()) {}
 
-Complex<double>::Complex(const Complex<double>& input)
+Complex<double>::Complex(const Complex<double>& input) QUOTIENT_NOEXCEPT
     : std::complex<double>(input.real(), input.imag()) {}
 
-Complex<float>::Complex(const std::complex<float>& input)
+Complex<float>::Complex(const std::complex<float>& input) QUOTIENT_NOEXCEPT
     : std::complex<float>(input) {}
 
-Complex<double>::Complex(const std::complex<double>& input)
+Complex<double>::Complex(const std::complex<double>& input) QUOTIENT_NOEXCEPT
     : std::complex<double>(input) {}
 
 template <class RealInputType>
-Complex<float>::Complex(const RealInputType& input)
+Complex<float>::Complex(const RealInputType& input) QUOTIENT_NOEXCEPT
     : std::complex<float>(static_cast<float>(input)) {}
 
 template <class RealInputType>
-Complex<double>::Complex(const RealInputType& input)
+Complex<double>::Complex(const RealInputType& input) QUOTIENT_NOEXCEPT
     : std::complex<double>(static_cast<double>(input)) {}
 
 template <class RealInputType>
-Complex<float>::Complex(const Complex<RealInputType>& input)
+Complex<float>::Complex(const Complex<RealInputType>& input) QUOTIENT_NOEXCEPT
     : std::complex<float>(static_cast<float>(input.real()),
                           static_cast<float>(input.imag())) {}
 
 template <class RealInputType>
-Complex<double>::Complex(const Complex<RealInputType>& input)
+Complex<double>::Complex(const Complex<RealInputType>& input) QUOTIENT_NOEXCEPT
     : std::complex<double>(static_cast<double>(input.real()),
                            static_cast<double>(input.imag())) {}
 
 template <class RealInputType, class ImagInputType>
-Complex<float>::Complex(const RealInputType& real, const ImagInputType& imag)
+Complex<float>::Complex(const RealInputType& real,
+                        const ImagInputType& imag) QUOTIENT_NOEXCEPT
     : std::complex<float>(static_cast<float>(real), static_cast<float>(imag)) {}
 
 template <class RealInputType, class ImagInputType>
-Complex<double>::Complex(const RealInputType& real, const ImagInputType& imag)
+Complex<double>::Complex(const RealInputType& real,
+                         const ImagInputType& imag) QUOTIENT_NOEXCEPT
     : std::complex<double>(static_cast<double>(real),
                            static_cast<double>(imag)) {}
 
 template <class Real>
-Complex<Real> operator-(const Complex<Real>& value) {
+Complex<Real> operator-(const Complex<Real>& value) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& value_std =
       static_cast<const std::complex<Real>&>(value);
   return -value_std;
 }
 
 template <class Real>
-Complex<Real> operator+(const Complex<Real>& a, const Complex<Real>& b) {
+Complex<Real> operator+(const Complex<Real>& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& a_std = static_cast<const std::complex<Real>&>(a);
   const std::complex<Real>& b_std = static_cast<const std::complex<Real>&>(b);
   return a_std + b_std;
 }
 
 template <class Real>
-Complex<Real> operator+(const Complex<Real>& a, const Real& b) {
+Complex<Real> operator+(const Complex<Real>& a,
+                        const Real& b) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& a_std = static_cast<const std::complex<Real>&>(a);
   return a_std + b;
 }
 
 template <class Real>
-Complex<Real> operator+(const Real& a, const Complex<Real>& b) {
+Complex<Real> operator+(const Real& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& b_std = static_cast<const std::complex<Real>&>(b);
   return a + b_std;
 }
 
 template <class Real>
-Complex<Real> operator-(const Complex<Real>& a, const Complex<Real>& b) {
+Complex<Real> operator-(const Complex<Real>& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& a_std = static_cast<const std::complex<Real>&>(a);
   const std::complex<Real>& b_std = static_cast<const std::complex<Real>&>(b);
   return a_std - b_std;
 }
 
 template <class Real>
-Complex<Real> operator-(const Complex<Real>& a, const Real& b) {
+Complex<Real> operator-(const Complex<Real>& a,
+                        const Real& b) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& a_std = static_cast<const std::complex<Real>&>(a);
   return a_std - b;
 }
 
 template <class Real>
-Complex<Real> operator-(const Real& a, const Complex<Real>& b) {
+Complex<Real> operator-(const Real& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& b_std = static_cast<const std::complex<Real>&>(b);
   return a - b_std;
 }
 
 template <class Real>
-Complex<Real> operator*(const Complex<Real>& a, const Complex<Real>& b) {
+Complex<Real> operator*(const Complex<Real>& a,
+                        const Complex<Real>& b)QUOTIENT_NOEXCEPT {
   const std::complex<Real>& a_std = static_cast<const std::complex<Real>&>(a);
   const std::complex<Real>& b_std = static_cast<const std::complex<Real>&>(b);
   return a_std * b_std;
 }
 
 template <class Real>
-Complex<Real> operator*(const Complex<Real>& a, const Real& b) {
+Complex<Real> operator*(const Complex<Real>& a,
+                        const Real& b)QUOTIENT_NOEXCEPT {
   const std::complex<Real>& a_std = static_cast<const std::complex<Real>&>(a);
   return a_std * b;
 }
 
 template <class Real>
-Complex<Real> operator*(const Real& a, const Complex<Real>& b) {
+Complex<Real> operator*(const Real& a,
+                        const Complex<Real>& b)QUOTIENT_NOEXCEPT {
   const std::complex<Real>& b_std = static_cast<const std::complex<Real>&>(b);
   return a * b_std;
 }
 
 template <class Real>
-Complex<Real> operator/(const Complex<Real>& a, const Complex<Real>& b) {
+Complex<Real> operator/(const Complex<Real>& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& a_std = static_cast<const std::complex<Real>&>(a);
   const std::complex<Real>& b_std = static_cast<const std::complex<Real>&>(b);
   return a_std / b_std;
 }
 
 template <class Real>
-Complex<Real> operator/(const Complex<Real>& a, const Real& b) {
+Complex<Real> operator/(const Complex<Real>& a,
+                        const Real& b) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& a_std = static_cast<const std::complex<Real>&>(a);
   return a_std / b;
 }
 
 template <class Real>
-Complex<Real> operator/(const Real& a, const Complex<Real>& b) {
+Complex<Real> operator/(const Real& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT {
   const std::complex<Real>& b_std = static_cast<const std::complex<Real>&>(b);
   return a / b_std;
 }

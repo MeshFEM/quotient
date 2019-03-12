@@ -15,7 +15,9 @@
 namespace quotient {
 
 template <typename T>
-inline Buffer<T>::Buffer() noexcept : size_(0), capacity_(0), data_(nullptr) {}
+inline Buffer<T>::Buffer() QUOTIENT_NOEXCEPT : size_(0),
+                                               capacity_(0),
+                                               data_(nullptr) {}
 
 template <typename T>
 inline void Buffer<T>::DestructData() {
@@ -107,8 +109,10 @@ inline Buffer<T>::Buffer(const std::vector<T>& vec)
     : Buffer(vec.begin(), vec.end()) {}
 
 template <typename T>
-inline Buffer<T>::Buffer(Buffer<T>&& buffer) noexcept
-    : size_(buffer.size_), capacity_(buffer.capacity_), data_(buffer.data_) {
+inline Buffer<T>::Buffer(Buffer<T>&& buffer) QUOTIENT_NOEXCEPT
+    : size_(buffer.size_),
+      capacity_(buffer.capacity_),
+      data_(buffer.data_) {
   buffer.size_ = 0;
   buffer.capacity_ = 0;
   buffer.data_ = nullptr;
@@ -138,7 +142,7 @@ Buffer<T>& Buffer<T>::operator=(const Buffer<T>& buffer) {
 }
 
 template <typename T>
-Buffer<T>& Buffer<T>::operator=(Buffer<T>&& buffer) noexcept {
+Buffer<T>& Buffer<T>::operator=(Buffer<T>&& buffer) QUOTIENT_NOEXCEPT {
   size_ = buffer.size_;
   capacity_ = buffer.capacity_;
   data_ = buffer.data_;
@@ -227,84 +231,91 @@ void Buffer<T>::Resize(SizeType num_elements, ConstReference value) {
 }
 
 template <typename T>
-inline typename Buffer<T>::SizeType Buffer<T>::Size() const noexcept {
+inline typename Buffer<T>::SizeType Buffer<T>::Size() const QUOTIENT_NOEXCEPT {
   return size_;
 }
 
 template <typename T>
-inline bool Buffer<T>::Empty() const noexcept {
+inline bool Buffer<T>::Empty() const QUOTIENT_NOEXCEPT {
   return size_ == 0;
 }
 
 template <typename T>
-inline typename Buffer<T>::SizeType Buffer<T>::Capacity() const noexcept {
+inline typename Buffer<T>::SizeType Buffer<T>::Capacity() const
+    QUOTIENT_NOEXCEPT {
   return capacity_;
 }
 
 template <typename T>
-inline typename Buffer<T>::Pointer Buffer<T>::Data() noexcept {
+inline typename Buffer<T>::Pointer Buffer<T>::Data() QUOTIENT_NOEXCEPT {
   return data_;
 }
 
 template <typename T>
-inline typename Buffer<T>::ConstPointer Buffer<T>::Data() const noexcept {
+inline typename Buffer<T>::ConstPointer Buffer<T>::Data() const
+    QUOTIENT_NOEXCEPT {
   return data_;
 }
 
 template <typename T>
-inline typename Buffer<T>::Pointer Buffer<T>::begin() noexcept {
+inline typename Buffer<T>::Pointer Buffer<T>::begin() QUOTIENT_NOEXCEPT {
   return data_;
 }
 
 template <typename T>
-inline typename Buffer<T>::ConstPointer Buffer<T>::begin() const noexcept {
+inline typename Buffer<T>::ConstPointer Buffer<T>::begin() const
+    QUOTIENT_NOEXCEPT {
   return data_;
 }
 
 template <typename T>
-inline typename Buffer<T>::ConstPointer Buffer<T>::cbegin() const noexcept {
+inline typename Buffer<T>::ConstPointer Buffer<T>::cbegin() const
+    QUOTIENT_NOEXCEPT {
   return data_;
 }
 
 template <typename T>
-inline typename Buffer<T>::Pointer Buffer<T>::end() noexcept {
+inline typename Buffer<T>::Pointer Buffer<T>::end() QUOTIENT_NOEXCEPT {
   return data_ + size_;
 }
 
 template <typename T>
-inline typename Buffer<T>::ConstPointer Buffer<T>::end() const noexcept {
+inline typename Buffer<T>::ConstPointer Buffer<T>::end() const
+    QUOTIENT_NOEXCEPT {
   return data_ + size_;
 }
 
 template <typename T>
-inline typename Buffer<T>::ConstPointer Buffer<T>::cend() const noexcept {
+inline typename Buffer<T>::ConstPointer Buffer<T>::cend() const
+    QUOTIENT_NOEXCEPT {
   return data_ + size_;
 }
 
 template <typename T>
-inline typename Buffer<T>::Reference Buffer<T>::operator[](
-    SizeType index) noexcept {
+inline typename Buffer<T>::Reference Buffer<T>::operator[](SizeType index)
+    QUOTIENT_NOEXCEPT {
   return data_[index];
 }
 
 template <typename T>
 inline typename Buffer<T>::ConstReference Buffer<T>::operator[](
-    SizeType index) const noexcept {
+    SizeType index) const QUOTIENT_NOEXCEPT {
   return data_[index];
 }
 
 template <typename T>
-inline typename Buffer<T>::Reference Buffer<T>::Back() noexcept {
+inline typename Buffer<T>::Reference Buffer<T>::Back() QUOTIENT_NOEXCEPT {
   return data_[size_ - 1];
 }
 
 template <typename T>
-inline typename Buffer<T>::ConstReference Buffer<T>::Back() const noexcept {
+inline typename Buffer<T>::ConstReference Buffer<T>::Back() const
+    QUOTIENT_NOEXCEPT {
   return data_[size_ - 1];
 }
 
 template <typename T>
-inline void Buffer<T>::Clear() noexcept {
+inline void Buffer<T>::Clear() QUOTIENT_NOEXCEPT {
   DestructData();
   size_ = 0;
   capacity_ = 0;

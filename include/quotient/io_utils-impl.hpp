@@ -8,13 +8,29 @@
 #ifndef QUOTIENT_IO_UTILS_IMPL_H_
 #define QUOTIENT_IO_UTILS_IMPL_H_
 
-#include <ostream>
-#include <vector>
-
-#include "quotient/integers.hpp"
 #include "quotient/io_utils.hpp"
 
 namespace quotient {
+
+inline void ForestToDot(const std::string& filename,
+                        const Buffer<Int>& parents) {
+  std::ofstream file(filename);
+  if (!file.is_open()) {
+    std::cerr << "Could not open " << filename << std::endl;
+    return;
+  }
+
+  file << "digraph g{\n";
+  for (std::size_t i = 0; i < parents.Size(); ++i) {
+    if (parents[i] < 0) {
+      continue;
+    }
+    std::ostringstream os;
+    os << "  " << parents[i] << " -> " << i << ";\n";
+    file << os.str();
+  }
+  file << "}\n";
+}
 
 template <typename T>
 void PrintVector(const std::vector<T>& vec, const std::string& msg,

@@ -24,16 +24,6 @@ inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index)
   QUOTIENT_ASSERT(degree_lower_bound != Int(heads.Size()),
                   "Could not find a minimal degree.");
 
-  Int index = heads[degree_lower_bound];
-  if (demand_smallest_index) {
-    Int minimal_index = index;
-    while (next_member[index] != -1) {
-      index = next_member[index];
-      minimal_index = std::min(minimal_index, index);
-    }
-    index = minimal_index;
-  }
-
 #ifdef QUOTIENT_DEBUG
   Int degree = 0;
   while (heads[degree] == -1) {
@@ -44,9 +34,30 @@ inline Int DegreeLists::FindMinimalIndex(bool demand_smallest_index)
       "True minimal degree was different from result from FindMinimalIndex.");
 #endif
 
-  RemoveDegree(index);
+  Int index = heads[degree_lower_bound];
+  if (demand_smallest_index) {
+    Int minimal_index = index;
+    while (next_member[index] != -1) {
+      index = next_member[index];
+      minimal_index = std::min(minimal_index, index);
+    }
+    index = minimal_index;
+    RemoveDegree(index);
+  } else {
+    RemoveHeadDegree(index, degree_lower_bound);
+  }
 
   return index;
+}
+
+inline void DegreeLists::RemoveHeadDegree(Int index,
+                                          Int degree) QUOTIENT_NOEXCEPT {
+  const Int next = next_member[index];
+  QUOTIENT_ASSERT(last_member[index] == -1, "Falsely assumed head index.");
+  heads[degree] = next;
+  if (next != -1) {
+    last_member[next] = -1;
+  }
 }
 
 inline void DegreeLists::RemoveDegree(Int index) QUOTIENT_NOEXCEPT {
@@ -66,12 +77,14 @@ inline void DegreeLists::RemoveDegree(Int index) QUOTIENT_NOEXCEPT {
 
 inline void DegreeLists::AddDegree(Int index, Int degree) QUOTIENT_NOEXCEPT {
   const Int head = heads[degree];
+  QUOTIENT_ASSERT(head != index, "Index matched preexisting head.");
+  if (head != -1) {
+    QUOTIENT_ASSERT(degrees[head] == degree, "Invalid head degree.");
+    last_member[head] = index;
+  }
   heads[degree] = index;
   last_member[index] = -1;
   next_member[index] = head;
-  if (head != -1) {
-    last_member[head] = index;
-  }
   degrees[index] = degree;
 
   // Update the minimal degree.

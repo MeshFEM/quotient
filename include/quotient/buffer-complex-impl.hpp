@@ -15,8 +15,9 @@
 namespace quotient {
 
 template <typename Real>
-inline Buffer<Complex<Real>>::Buffer() noexcept
-    : size_(0), capacity_(0), data_(nullptr) {}
+inline Buffer<Complex<Real>>::Buffer() QUOTIENT_NOEXCEPT : size_(0),
+                                                           capacity_(0),
+                                                           data_(nullptr) {}
 
 template <typename Real>
 inline void Buffer<Complex<Real>>::DestructData() {
@@ -137,8 +138,10 @@ inline Buffer<Complex<Real>>::Buffer(const std::vector<Complex<Real>>& vec)
     : Buffer(vec.begin(), vec.end()) {}
 
 template <typename Real>
-inline Buffer<Complex<Real>>::Buffer(Buffer<Complex<Real>>&& buffer) noexcept
-    : size_(buffer.size_), capacity_(buffer.capacity_), data_(buffer.data_) {
+inline Buffer<Complex<Real>>::Buffer(Buffer<Complex<Real>>&& buffer)
+    QUOTIENT_NOEXCEPT : size_(buffer.size_),
+                        capacity_(buffer.capacity_),
+                        data_(buffer.data_) {
   buffer.size_ = 0;
   buffer.capacity_ = 0;
   buffer.data_ = nullptr;
@@ -172,7 +175,7 @@ Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
 
 template <typename Real>
 Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
-    Buffer<Complex<Real>>&& buffer) noexcept {
+    Buffer<Complex<Real>>&& buffer) QUOTIENT_NOEXCEPT {
   size_ = buffer.size_;
   capacity_ = buffer.capacity_;
   data_ = buffer.data_;
@@ -272,96 +275,96 @@ void Buffer<Complex<Real>>::Resize(SizeType num_elements,
 
 template <typename Real>
 inline typename Buffer<Complex<Real>>::SizeType Buffer<Complex<Real>>::Size()
-    const noexcept {
+    const QUOTIENT_NOEXCEPT {
   return size_;
 }
 
 template <typename Real>
-inline bool Buffer<Complex<Real>>::Empty() const noexcept {
+inline bool Buffer<Complex<Real>>::Empty() const QUOTIENT_NOEXCEPT {
   return size_ == 0;
 }
 
 template <typename Real>
 inline typename Buffer<Complex<Real>>::SizeType
-Buffer<Complex<Real>>::Capacity() const noexcept {
+Buffer<Complex<Real>>::Capacity() const QUOTIENT_NOEXCEPT {
   return capacity_;
 }
 
 template <typename Real>
-inline typename Buffer<Complex<Real>>::Pointer
-Buffer<Complex<Real>>::Data() noexcept {
+inline typename Buffer<Complex<Real>>::Pointer Buffer<Complex<Real>>::Data()
+    QUOTIENT_NOEXCEPT {
   return data_;
 }
 
 template <typename Real>
 inline typename Buffer<Complex<Real>>::ConstPointer
-Buffer<Complex<Real>>::Data() const noexcept {
+Buffer<Complex<Real>>::Data() const QUOTIENT_NOEXCEPT {
   return data_;
 }
 
 template <typename Real>
-inline typename Buffer<Complex<Real>>::Pointer
-Buffer<Complex<Real>>::begin() noexcept {
-  return data_;
-}
-
-template <typename Real>
-inline typename Buffer<Complex<Real>>::ConstPointer
-Buffer<Complex<Real>>::begin() const noexcept {
+inline typename Buffer<Complex<Real>>::Pointer Buffer<Complex<Real>>::begin()
+    QUOTIENT_NOEXCEPT {
   return data_;
 }
 
 template <typename Real>
 inline typename Buffer<Complex<Real>>::ConstPointer
-Buffer<Complex<Real>>::cbegin() const noexcept {
+Buffer<Complex<Real>>::begin() const QUOTIENT_NOEXCEPT {
   return data_;
 }
 
 template <typename Real>
-inline typename Buffer<Complex<Real>>::Pointer
-Buffer<Complex<Real>>::end() noexcept {
+inline typename Buffer<Complex<Real>>::ConstPointer
+Buffer<Complex<Real>>::cbegin() const QUOTIENT_NOEXCEPT {
+  return data_;
+}
+
+template <typename Real>
+inline typename Buffer<Complex<Real>>::Pointer Buffer<Complex<Real>>::end()
+    QUOTIENT_NOEXCEPT {
   return data_ + size_;
 }
 
 template <typename Real>
 inline typename Buffer<Complex<Real>>::ConstPointer Buffer<Complex<Real>>::end()
-    const noexcept {
+    const QUOTIENT_NOEXCEPT {
   return data_ + size_;
 }
 
 template <typename Real>
 inline typename Buffer<Complex<Real>>::ConstPointer
-Buffer<Complex<Real>>::cend() const noexcept {
+Buffer<Complex<Real>>::cend() const QUOTIENT_NOEXCEPT {
   return data_ + size_;
 }
 
 template <typename Real>
 inline
     typename Buffer<Complex<Real>>::Reference Buffer<Complex<Real>>::operator[](
-        SizeType index) noexcept {
+        SizeType index) QUOTIENT_NOEXCEPT {
   return data_[index];
 }
 
 template <typename Real>
 inline typename Buffer<Complex<Real>>::ConstReference Buffer<Complex<Real>>::
-operator[](SizeType index) const noexcept {
+operator[](SizeType index) const QUOTIENT_NOEXCEPT {
   return data_[index];
 }
 
 template <typename Real>
-inline typename Buffer<Complex<Real>>::Reference
-Buffer<Complex<Real>>::Back() noexcept {
+inline typename Buffer<Complex<Real>>::Reference Buffer<Complex<Real>>::Back()
+    QUOTIENT_NOEXCEPT {
   return data_[size_ - 1];
 }
 
 template <typename Real>
 inline typename Buffer<Complex<Real>>::ConstReference
-Buffer<Complex<Real>>::Back() const noexcept {
+Buffer<Complex<Real>>::Back() const QUOTIENT_NOEXCEPT {
   return data_[size_ - 1];
 }
 
 template <typename Real>
-inline void Buffer<Complex<Real>>::Clear() noexcept {
+inline void Buffer<Complex<Real>>::Clear() QUOTIENT_NOEXCEPT {
   DestructData();
 
   size_ = 0;

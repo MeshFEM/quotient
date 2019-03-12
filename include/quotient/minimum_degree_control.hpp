@@ -47,9 +47,6 @@ struct MinimumDegreeControl {
   // Whether nontrivial supernodes are allowed. It is highly recommended that
   // this remain true.
   bool allow_supernodes = true;
-
-  // Return the explicit list of supernodes (in the original ordering)?
-  bool store_supernodes = false;
 };
 
 }  // namespace quotient

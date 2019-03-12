@@ -256,20 +256,22 @@ class QuotientGraph {
     Buffer<Int> adjacency_list_sizes;
 
     // Returns a mutable pointer to the element list of a given variable.
-    Int* ElementList(Int i) { return &lists[element_list_offsets[i]]; }
+    Int* ElementList(Int i) QUOTIENT_NOEXCEPT {
+      return &lists[element_list_offsets[i]];
+    }
 
     // Returns an immutable pointer to the element list of a given variable.
-    const Int* ElementList(Int i) const {
+    const Int* ElementList(Int i) const QUOTIENT_NOEXCEPT {
       return &lists[element_list_offsets[i]];
     }
 
     // Returns a mutable pointer to the adjacency list of a given variable.
-    Int* AdjacencyList(Int i) {
+    Int* AdjacencyList(Int i) QUOTIENT_NOEXCEPT {
       return &lists[element_list_offsets[i] + element_list_sizes[i]];
     }
 
     // Returns an immutable pointer to the adjacency list of a given variable.
-    const Int* AdjacencyList(Int i) const {
+    const Int* AdjacencyList(Int i) const QUOTIENT_NOEXCEPT {
       return &lists[element_list_offsets[i] + element_list_sizes[i]];
     }
   };
@@ -291,14 +293,19 @@ class QuotientGraph {
 
     // Return an immutable pointer to the contiguous indices of the specified
     // element.
-    const Int* Data(Int element) const { return &indices[offsets[element]]; }
+    const Int* Data(Int element) const QUOTIENT_NOEXCEPT {
+      return &indices[offsets[element]];
+    }
 
     // Return a mutable pointer to the contiguous indices of the specified
     // element.
-    Int* Data(Int element) { return &indices[offsets[element]]; }
+    Int* Data(Int element) QUOTIENT_NOEXCEPT {
+      return &indices[offsets[element]];
+    }
 
     // Contiguously pack the still-active elements into 'indices'.
-    void Pack(const Int* element_beg, const Int* element_end) {
+    void Pack(const Int* element_beg,
+              const Int* element_end) QUOTIENT_NOEXCEPT {
       offset = 0;
       for (const Int* iter = element_beg; iter != element_end; ++iter) {
         const Int element = *iter;
@@ -370,23 +377,23 @@ class QuotientGraph {
 #endif
 
   // Initialize the AssemblyForest.
-  void InitializeAssemblyForest();
+  void InitializeAssemblyForest() QUOTIENT_NOEXCEPT;
 
   // Converts edge counts for each source into an offset scan and return the
   // number of edges.
-  Int ConvertEdgeCountsIntoOffsets();
+  Int ConvertEdgeCountsIntoOffsets() QUOTIENT_NOEXCEPT;
 
   // Initializes the DegreeLists data structure.
-  void InitializeDegreeLists();
+  void InitializeDegreeLists() QUOTIENT_NOEXCEPT;
 
   // Initializes the HashInfo data structure.
-  void InitializeHashLists();
+  void InitializeHashLists() QUOTIENT_NOEXCEPT;
 
   // Initializes the PackedElements data structure.
-  void InitializeElements(Int num_elements);
+  void InitializeElements(Int num_elements) QUOTIENT_NOEXCEPT;
 
   // Initializes the NodeFlags data structure.
-  void InitializeNodeFlags();
+  void InitializeNodeFlags() QUOTIENT_NOEXCEPT;
 
   // Retrieve a variable with minimal (approximate) degree and set it as the
   // active pivot.

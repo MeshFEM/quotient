@@ -39,25 +39,26 @@ class Complex<float> : public std::complex<float> {
   using std::complex<RealType>::operator/=;
 
   // The default constructor.
-  Complex();
+  Complex() QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a Complex<Real> variable.
-  Complex(const Complex<RealType>& input);
+  Complex(const Complex<RealType>& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a std::complex variable.
-  Complex(const std::complex<RealType>& input);
+  Complex(const std::complex<RealType>& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a real variable.
   template <class RealInputType>
-  Complex(const RealInputType& input);
+  Complex(const RealInputType& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from real and imaginary parts.
   template <class RealInputType, class ImagInputType>
-  Complex(const RealInputType& real, const ImagInputType& imag);
+  Complex(const RealInputType& real,
+          const ImagInputType& imag) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a Complex variable.
   template <class RealInputType>
-  Complex(const Complex<RealInputType>& input);
+  Complex(const Complex<RealInputType>& input) QUOTIENT_NOEXCEPT;
 };
 
 // A specialization of Complex to an underlying real type of 'double'.
@@ -75,25 +76,26 @@ class Complex<double> : public std::complex<double> {
   using std::complex<RealType>::operator/=;
 
   // The default constructor.
-  Complex();
+  Complex() QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a Complex<Real> variable.
-  Complex(const Complex<RealType>& input);
+  Complex(const Complex<RealType>& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a std::complex variable.
-  Complex(const std::complex<RealType>& input);
+  Complex(const std::complex<RealType>& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a real variable.
   template <class RealInputType>
-  Complex(const RealInputType& input);
+  Complex(const RealInputType& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from real and imaginary parts.
   template <class RealInputType, class ImagInputType>
-  Complex(const RealInputType& real, const ImagInputType& imag);
+  Complex(const RealInputType& real,
+          const ImagInputType& imag) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a Complex variable.
   template <class RealInputType>
-  Complex(const Complex<RealInputType>& input);
+  Complex(const Complex<RealInputType>& input) QUOTIENT_NOEXCEPT;
 };
 
 namespace complex_base {
@@ -139,39 +141,49 @@ struct IsReal {
 
 // Returns the negation of a complex value.
 template <class Real>
-Complex<Real> operator-(const Complex<Real>& value);
+Complex<Real> operator-(const Complex<Real>& value) QUOTIENT_NOEXCEPT;
 
 // Returns the sum of two values.
 template <class Real>
-Complex<Real> operator+(const Complex<Real>& a, const Complex<Real>& b);
+Complex<Real> operator+(const Complex<Real>& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT;
 template <class Real>
-Complex<Real> operator+(const Complex<Real>& a, const Real& b);
+Complex<Real> operator+(const Complex<Real>& a,
+                        const Real& b) QUOTIENT_NOEXCEPT;
 template <class Real>
-Complex<Real> operator+(const Real& a, const Complex<Real>& b);
+Complex<Real> operator+(const Real& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT;
 
 // Returns the difference of two values.
 template <class Real>
-Complex<Real> operator-(const Complex<Real>& a, const Complex<Real>& b);
+Complex<Real> operator-(const Complex<Real>& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT;
 template <class Real>
-Complex<Real> operator-(const Complex<Real>& a, const Real& b);
+Complex<Real> operator-(const Complex<Real>& a,
+                        const Real& b) QUOTIENT_NOEXCEPT;
 template <class Real>
-Complex<Real> operator-(const Real& a, const Complex<Real>& b);
+Complex<Real> operator-(const Real& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT;
 
 // Returns the product of two values.
 template <class Real>
-Complex<Real> operator*(const Complex<Real>& a, const Complex<Real>& b);
+Complex<Real> operator*(const Complex<Real>& a,
+                        const Complex<Real>& b)QUOTIENT_NOEXCEPT;
 template <class Real>
-Complex<Real> operator*(const Complex<Real>& a, const Real& b);
+Complex<Real> operator*(const Complex<Real>& a, const Real& b)QUOTIENT_NOEXCEPT;
 template <class Real>
-Complex<Real> operator*(const Real& a, const Complex<Real>& b);
+Complex<Real> operator*(const Real& a, const Complex<Real>& b)QUOTIENT_NOEXCEPT;
 
 // Returns the ratio of two values.
 template <class Real>
-Complex<Real> operator/(const Complex<Real>& a, const Complex<Real>& b);
+Complex<Real> operator/(const Complex<Real>& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT;
 template <class Real>
-Complex<Real> operator/(const Complex<Real>& a, const Real& b);
+Complex<Real> operator/(const Complex<Real>& a,
+                        const Real& b) QUOTIENT_NOEXCEPT;
 template <class Real>
-Complex<Real> operator/(const Real& a, const Complex<Real>& b);
+Complex<Real> operator/(const Real& a,
+                        const Complex<Real>& b) QUOTIENT_NOEXCEPT;
 
 // Returns the real part of a real scalar.
 template <class Real>

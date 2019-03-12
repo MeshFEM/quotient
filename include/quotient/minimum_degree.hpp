@@ -18,12 +18,6 @@
 
 namespace quotient {
 
-// Writes a dot file (usually ".gv") for the forest implied by the parents.
-// One can subsequently generate a PNG of the forest using:
-//   dot -Tpng filename -o output.png
-// But beware that the call to dot might take 15 minutes or more.
-void ForestToDot(const std::string& filename, const Buffer<Int>& parents);
-
 // Statistics from running the MinimumDegree reordering algorithm.
 struct MinimumDegreeResult {
   // The number of aggressive absorptions that occurred.

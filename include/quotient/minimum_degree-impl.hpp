@@ -23,26 +23,6 @@
 
 namespace quotient {
 
-inline void ForestToDot(const std::string& filename,
-                        const Buffer<Int>& parents) {
-  std::ofstream file(filename);
-  if (!file.is_open()) {
-    std::cerr << "Could not open " << filename << std::endl;
-    return;
-  }
-
-  file << "digraph g{\n";
-  for (std::size_t i = 0; i < parents.Size(); ++i) {
-    if (parents[i] < 0) {
-      continue;
-    }
-    std::ostringstream os;
-    os << "  " << parents[i] << " -> " << i << ";\n";
-    file << os.str();
-  }
-  file << "}\n";
-}
-
 inline double MinimumDegreeResult::FractionOfPivotsWithMultipleElements()
     const {
   Int num_pivots_with_multiple_elements = 0;
