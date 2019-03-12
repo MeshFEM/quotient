@@ -19,9 +19,6 @@ namespace quotient {
 // An array of singly-linked list for tracking variables with colliding hash
 // bucket values.
 struct HashLists {
-  // A list of the hash buckets associated with each index.
-  Buffer<Int> buckets;
-
   // A list of the hashes associated with each index.
   Buffer<std::size_t> hashes;
 

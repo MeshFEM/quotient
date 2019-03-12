@@ -18,7 +18,6 @@ namespace quotient {
 inline void HashLists::AddHash(Int index, std::size_t hash,
                                Int bucket) QUOTIENT_NOEXCEPT {
   hashes[index] = hash;
-  buckets[index] = bucket;
 
   const Int head = heads[bucket];
   next_member[index] = head;
