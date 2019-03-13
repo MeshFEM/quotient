@@ -106,7 +106,6 @@ inline void QuotientGraph::InitializeDegreeLists() QUOTIENT_NOEXCEPT {
 inline void QuotientGraph::InitializeHashLists() QUOTIENT_NOEXCEPT {
   hash_info_.num_collisions = 0;
   hash_info_.num_bucket_collisions = 0;
-  hash_info_.lists.buckets.Resize(num_vertices_);
   hash_info_.lists.hashes.Resize(num_vertices_);
   hash_info_.lists.heads.Resize(num_vertices_, -1);
   hash_info_.lists.next_member.Resize(num_vertices_, -1);
@@ -974,7 +973,8 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
   const Buffer<Int>& next_member = hash_info_.lists.next_member;
   for (Int i_index = 0; i_index < pivot_size; ++i_index) {
     Int i = pivot_data[i_index];
-    const Int bucket = hash_info_.lists.buckets[i];
+    const UInt hash = hash_info_.lists.hashes[i];
+    const Int bucket = hash % num_vertices_;
     const Int head = hash_info_.lists.heads[bucket];
     // We are not the head of the bucket.
     if (i != head) {
