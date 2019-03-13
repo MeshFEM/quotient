@@ -223,7 +223,9 @@ class QuotientGraph {
   // A packing of the adjacency and element lists, with the element lists
   // occurring first in each member, so that memory allocations are not
   // required during the elimination process. The list is of length
-  // 'num_vertices_'.
+  // 'num_vertices_'. After a supervariable is converted into an element, the
+  // metadata (and potentially storage) is repurposed for storing the element
+  // structure.
   //
   // Each element list is the set of current children of a principal variable.
   //
@@ -232,79 +234,89 @@ class QuotientGraph {
   // principal variable, then 'adjacency_lists[i]' contains the set of neighbor
   // variables for variable i that are not redundant with respect to edges
   // implied by 'structures'.
-  struct Edges {
+  struct QuotientGraphData {
     // The concatentation of the element + adjacency lists of each node.
     Buffer<Int> lists;
 
-    // The element list of variable 'i' will start at index
-    // `element_list_offsets[i]` of 'lists'.
-    Buffer<Int> element_list_offsets;
+    // When index 'i' is a variable, the element list of supervariable 'i' will
+    // start at index `element_offsets[i]` of 'lists'. When supervariable 'i'
+    // becomes an element, the element will be stored in this location.
+    Buffer<Int> element_offsets;
 
     // The length of the element list of variable i.
-    Buffer<Int> element_list_sizes;
+
+    // When index 'i' is a variable, 'element_sizes[i]' will denote the length
+    // of the element list. When 'i' is an element, it will denote the number
+    // of supervariables in the element.
+    Buffer<Int> element_sizes;
 
     // The length of the variable list of variable i.
     Buffer<Int> adjacency_list_sizes;
 
+    // The position the next element can be stored at.
+    Int offset;
+
     // Returns a mutable pointer to the element list of a given variable.
     Int* ElementList(Int i) QUOTIENT_NOEXCEPT {
-      return &lists[element_list_offsets[i]];
+      return &lists[element_offsets[i]];
     }
 
     // Returns an immutable pointer to the element list of a given variable.
     const Int* ElementList(Int i) const QUOTIENT_NOEXCEPT {
-      return &lists[element_list_offsets[i]];
+      return &lists[element_offsets[i]];
+    }
+
+    // Returns a mutable pointer to the structure of a given element.
+    Int* ElementData(Int i) QUOTIENT_NOEXCEPT {
+      return &lists[element_offsets[i]];
+    }
+
+    // Returns an immutable pointer to the structure of a given element.
+    const Int* ElementData(Int i) const QUOTIENT_NOEXCEPT {
+      return &lists[element_offsets[i]];
     }
 
     // Returns a mutable pointer to the adjacency list of a given variable.
     Int* AdjacencyList(Int i) QUOTIENT_NOEXCEPT {
-      return &lists[element_list_offsets[i] + element_list_sizes[i]];
+      return &lists[element_offsets[i] + element_sizes[i]];
     }
 
     // Returns an immutable pointer to the adjacency list of a given variable.
     const Int* AdjacencyList(Int i) const QUOTIENT_NOEXCEPT {
-      return &lists[element_list_offsets[i] + element_list_sizes[i]];
-    }
-  };
-
-  // A data structure for maintaining a packing of the active elements. Its
-  // primary purpose is to avoid a separate memory allocation for each element.
-  struct PackedElements {
-    // The packed indices of all of the active elements.
-    Buffer<Int> indices;
-
-    // The index that each element begins at.
-    Buffer<Int> offsets;
-
-    // The number of entries in each element.
-    Buffer<Int> sizes;
-
-    // The position the next element can begin at.
-    Int offset = 0;
-
-    // Return an immutable pointer to the contiguous indices of the specified
-    // element.
-    const Int* Data(Int element) const QUOTIENT_NOEXCEPT {
-      return &indices[offsets[element]];
+      return &lists[element_offsets[i] + element_sizes[i]];
     }
 
-    // Return a mutable pointer to the contiguous indices of the specified
-    // element.
-    Int* Data(Int element) QUOTIENT_NOEXCEPT {
-      return &indices[offsets[element]];
+    // Returns an immutable reference to the element list length for
+    // supervariable i.
+    const Int& ElementListSize(Int i) const QUOTIENT_NOEXCEPT {
+      return element_sizes[i];
+    }
+
+    // Returns a mutable reference to the element list length for supervariable
+    // i.
+    Int& ElementListSize(Int i) QUOTIENT_NOEXCEPT { return element_sizes[i]; }
+
+    // Returns an immutable reference to the structure length for an element.
+    const Int& ElementSize(Int element) const QUOTIENT_NOEXCEPT {
+      return element_sizes[element];
+    }
+
+    // Returns a mutable reference to the structure length for an element.
+    Int& ElementSize(Int element) QUOTIENT_NOEXCEPT {
+      return element_sizes[element];
     }
 
     // Contiguously pack the still-active elements into 'indices'.
-    void Pack(const Int* element_beg,
-              const Int* element_end) QUOTIENT_NOEXCEPT {
-      offset = 0;
+    void PackElements(Int pack_offset, const Int* element_beg,
+                      const Int* element_end) QUOTIENT_NOEXCEPT {
+      offset = pack_offset;
       for (const Int* iter = element_beg; iter != element_end; ++iter) {
         const Int element = *iter;
-        const Int element_size = sizes[element];
-        Int element_offset = offsets[element];
-        offsets[element] = offset;
+        const Int element_size = element_sizes[element];
+        Int element_offset = element_offsets[element];
+        element_offsets[element] = offset;
         for (Int i = 0; i < element_size; ++i) {
-          indices[offset++] = indices[element_offset++];
+          lists[offset++] = lists[element_offset++];
         }
       }
     }
@@ -346,10 +358,7 @@ class QuotientGraph {
 
   // The representation of the element lists and adjacencies of the nodes
   // in the quotient graph.
-  Edges edges_;
-
-  // A data structure for managing the packed element lists.
-  PackedElements elements_;
+  QuotientGraphData graph_data_;
 
   // A data structure for quickly maintaining node statuses and degrees.
   NodeFlags node_flags_;
@@ -377,9 +386,6 @@ class QuotientGraph {
 
   // Initializes the DegreeAndHashLists data structure.
   void InitializeDegreeAndHashLists() QUOTIENT_NOEXCEPT;
-
-  // Initializes the PackedElements data structure.
-  void InitializeElements(Int num_elements) QUOTIENT_NOEXCEPT;
 
   // Initializes the NodeFlags data structure.
   void InitializeNodeFlags() QUOTIENT_NOEXCEPT;
