@@ -88,27 +88,21 @@ inline Int QuotientGraph::ConvertEdgeCountsIntoOffsets() QUOTIENT_NOEXCEPT {
   return num_edges;
 }
 
-inline void QuotientGraph::InitializeDegreeLists() QUOTIENT_NOEXCEPT {
-  degree_lists_.degrees.Resize(num_vertices_, 0);
-  degree_lists_.heads.Resize(num_vertices_ - 1, -1);
-  degree_lists_.next_member.Resize(num_vertices_, -1);
-  degree_lists_.last_member.Resize(num_vertices_, -1);
+inline void QuotientGraph::InitializeDegreeAndHashLists() QUOTIENT_NOEXCEPT {
+  degrees_and_hashes_.lists.degrees.Resize(num_vertices_, 0);
+  degrees_and_hashes_.lists.heads.Resize(num_vertices_, -1);
+  degrees_and_hashes_.lists.next_member.Resize(num_vertices_, -1);
+  degrees_and_hashes_.lists.last_member.Resize(num_vertices_, -1);
   for (Int source = 0; source < num_vertices_; ++source) {
     if (!assembly_.signed_supernode_sizes[source]) {
       // Skip the dense row.
       continue;
     }
     const Int degree = edges_.adjacency_list_sizes[source];
-    degree_lists_.AddDegree(source, degree);
+    degrees_and_hashes_.lists.AddDegree(source, degree);
   }
-}
-
-inline void QuotientGraph::InitializeHashLists() QUOTIENT_NOEXCEPT {
-  hash_info_.num_collisions = 0;
-  hash_info_.num_bucket_collisions = 0;
-  hash_info_.lists.hashes.Resize(num_vertices_);
-  hash_info_.lists.heads.Resize(num_vertices_, -1);
-  hash_info_.lists.next_member.Resize(num_vertices_, -1);
+  degrees_and_hashes_.num_collisions = 0;
+  degrees_and_hashes_.num_bucket_collisions = 0;
 }
 
 inline void QuotientGraph::InitializeElements(Int num_edges) QUOTIENT_NOEXCEPT {
@@ -162,8 +156,7 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
     }
   }
 
-  InitializeDegreeLists();
-  InitializeHashLists();
+  InitializeDegreeAndHashLists();
   InitializeElements(num_edges);
   InitializeNodeFlags();
 
@@ -206,8 +199,7 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
     }
   }
 
-  InitializeDegreeLists();
-  InitializeHashLists();
+  InitializeDegreeAndHashLists();
   InitializeElements(num_edges);
   InitializeNodeFlags();
 
@@ -245,7 +237,8 @@ inline Int QuotientGraph::FindAndProcessPivot() QUOTIENT_NOEXCEPT {
 }
 
 inline Int QuotientGraph::GetNextPivot() QUOTIENT_NOEXCEPT {
-  pivot_ = degree_lists_.FindMinimalIndex(control_.force_minimal_pivot_indices);
+  pivot_ = degrees_and_hashes_.lists.FindMinimalIndex(
+      control_.force_minimal_pivot_indices);
   return pivot_;
 }
 
@@ -266,11 +259,11 @@ inline Int QuotientGraph::NumEliminatedVertices() const QUOTIENT_NOEXCEPT {
 }
 
 inline Int QuotientGraph::NumHashBucketCollisions() const QUOTIENT_NOEXCEPT {
-  return hash_info_.num_bucket_collisions;
+  return degrees_and_hashes_.num_bucket_collisions;
 }
 
 inline Int QuotientGraph::NumHashCollisions() const QUOTIENT_NOEXCEPT {
-  return hash_info_.num_collisions;
+  return degrees_and_hashes_.num_collisions;
 }
 
 inline Int QuotientGraph::SupernodeSize(Int i) const QUOTIENT_NOEXCEPT {
@@ -401,7 +394,7 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
                       "Flipped supernode size was expected to be positive.");
       degree += supernode_size;
     }
-    QUOTIENT_ASSERT(degree == degree_lists_.degrees[element],
+    QUOTIENT_ASSERT(degree == degrees_and_hashes_.lists.degrees[element],
                     "Degree did not match its cached value.");
 #endif
 
@@ -417,7 +410,7 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
   QUOTIENT_ASSERT(elements_.offset + pivot_size < Int(elements_.indices.Size()),
                   "Packed beyond end of element indices.");
 
-  degree_lists_.degrees[pivot_] = pivot_degree;
+  degrees_and_hashes_.lists.degrees[pivot_] = pivot_degree;
   node_flags_.max_degree = std::max(node_flags_.max_degree, pivot_degree);
 
   QUOTIENT_STOP_TIMER(timers_, kComputePivotStructure);
@@ -447,8 +440,8 @@ inline Int QuotientGraph::NumPivotDegreeUpdatesWithMultipleElements() const
 
 inline Int QuotientGraph::NumPivotCholeskyNonzeros() const QUOTIENT_NOEXCEPT {
   const Int pivot_size = std::abs(assembly_.signed_supernode_sizes[pivot_]);
-  const Int structure_size =
-      degree_lists_.degrees[pivot_] + assembly_.dense_supernode.size;
+  const Int structure_size = degrees_and_hashes_.lists.degrees[pivot_] +
+                             assembly_.dense_supernode.size;
   const Int diag_block_nonzeros = (pivot_size * (pivot_size + 1)) / 2;
   const Int subdiagonal_nonzeros = structure_size * pivot_size;
   return diag_block_nonzeros + subdiagonal_nonzeros;
@@ -456,8 +449,8 @@ inline Int QuotientGraph::NumPivotCholeskyNonzeros() const QUOTIENT_NOEXCEPT {
 
 inline double QuotientGraph::NumPivotCholeskyFlops() const QUOTIENT_NOEXCEPT {
   const Int pivot_size = std::abs(assembly_.signed_supernode_sizes[pivot_]);
-  const Int structure_size =
-      degree_lists_.degrees[pivot_] + assembly_.dense_supernode.size;
+  const Int structure_size = degrees_and_hashes_.lists.degrees[pivot_] +
+                             assembly_.dense_supernode.size;
   const double diag_block_flops = std::pow(1. * pivot_size, 3.) / 3.;
   const double schur_complement_flops =
       std::pow(1. * structure_size, 2.) * pivot_size;
@@ -540,7 +533,7 @@ inline std::pair<Int, UInt> QuotientGraph::ExactEmptyDegreeAndHash(Int i)
   const Int supernode_size = -assembly_.signed_supernode_sizes[i];
   QUOTIENT_ASSERT(supernode_size > 0,
                   "The flipped supernode size should have been positive.");
-  degree += degree_lists_.degrees[pivot_] - supernode_size;
+  degree += degrees_and_hashes_.lists.degrees[pivot_] - supernode_size;
   QUOTIENT_HASH_COMBINE(hash, pivot_);
 
   // Add the cardinality of A_i \ supernode(i), where 'i' is the principal
@@ -570,7 +563,7 @@ inline std::pair<Int, UInt> QuotientGraph::ExactSingleDegreeAndHash(Int i)
   const Int supernode_size = -assembly_.signed_supernode_sizes[i];
   QUOTIENT_ASSERT(supernode_size > 0,
                   "The flipped supernode size should have been positive.");
-  degree += degree_lists_.degrees[pivot_] - supernode_size;
+  degree += degrees_and_hashes_.lists.degrees[pivot_] - supernode_size;
   QUOTIENT_HASH_COMBINE(hash, pivot_);
 
   Int& shifted_external_degree = node_flags_.flags[element];
@@ -684,14 +677,14 @@ inline void QuotientGraph::ExactDegreesAndHashes() QUOTIENT_NOEXCEPT {
     } else {
       degree_and_hash = ExactGenericDegreeAndHash(i);
     }
-    degree_lists_.degrees[i] = degree_and_hash.first;
-    hash_info_.lists.hashes[i] = degree_and_hash.second;
+    degrees_and_hashes_.lists.degrees[i] = degree_and_hash.first;
+    degrees_and_hashes_.lists.SetHash(i, degree_and_hash.second);
   }
 }
 
 inline void QuotientGraph::AmestoyDegreesAndHashes() QUOTIENT_NOEXCEPT {
   const Int shift = node_flags_.shift;
-  const Int pivot_degree = degree_lists_.degrees[pivot_];
+  const Int pivot_degree = degrees_and_hashes_.lists.degrees[pivot_];
   const Int pivot_size = elements_.sizes[pivot_];
   const Int* pivot_data = elements_.Data(pivot_);
   const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
@@ -712,7 +705,7 @@ inline void QuotientGraph::AmestoyDegreesAndHashes() QUOTIENT_NOEXCEPT {
     QUOTIENT_ASSERT(external_pivot_degree >= 0,
                     "Encountered a negative external pivot degree");
 
-    const Int old_degree = degree_lists_.degrees[i];
+    const Int old_degree = degrees_and_hashes_.lists.degrees[i];
     const Int bound1 = old_degree + external_pivot_degree;
 
     // bound_2 = |A_i \ supernode(i)| + |L_p \ supernode(i)| +
@@ -743,8 +736,8 @@ inline void QuotientGraph::AmestoyDegreesAndHashes() QUOTIENT_NOEXCEPT {
     degree = std::min(degree, bound0);
     degree = std::min(degree, bound1);
 
-    degree_lists_.degrees[i] = degree;
-    hash_info_.lists.hashes[i] = hash;
+    degrees_and_hashes_.lists.degrees[i] = degree;
+    degrees_and_hashes_.lists.SetHash(i, hash);
   }
 }
 
@@ -761,8 +754,8 @@ inline void QuotientGraph::AshcraftDegreesAndHashes() QUOTIENT_NOEXCEPT {
     } else {
       degree_and_hash = GilbertDegreeAndHash(i);
     }
-    degree_lists_.degrees[i] = degree_and_hash.first;
-    hash_info_.lists.hashes[i] = degree_and_hash.second;
+    degrees_and_hashes_.lists.degrees[i] = degree_and_hash.first;
+    degrees_and_hashes_.lists.SetHash(i, degree_and_hash.second);
   }
 }
 
@@ -787,13 +780,14 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i)
 
     QUOTIENT_ASSERT(assembly_.parent_or_tail[element] < 0,
                     "Used absorbed element in Gilbert degree update.");
-    QUOTIENT_ASSERT(degree_lists_.degrees[element] - supernode_size >= 0,
-                    "Negative Gilbert degree update.");
-    degree += degree_lists_.degrees[element] - supernode_size;
+    QUOTIENT_ASSERT(
+        degrees_and_hashes_.lists.degrees[element] - supernode_size >= 0,
+        "Negative Gilbert degree update.");
+    degree += degrees_and_hashes_.lists.degrees[element] - supernode_size;
     QUOTIENT_HASH_COMBINE(hash, element);
   }
   num_elements = num_packed;
-  degree += degree_lists_.degrees[pivot_] - supernode_size;
+  degree += degrees_and_hashes_.lists.degrees[pivot_] - supernode_size;
   QUOTIENT_HASH_COMBINE(hash, pivot_);
 
   PackCountAndHashAdjacencies(i, num_elements, &degree, &hash);
@@ -808,7 +802,7 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i)
 
 inline void QuotientGraph::GilbertDegreesAndHashes() QUOTIENT_NOEXCEPT {
   const Int num_vertices_left = num_vertices_ - num_eliminated_vertices_;
-  const Int pivot_degree = degree_lists_.degrees[pivot_];
+  const Int pivot_degree = degrees_and_hashes_.lists.degrees[pivot_];
   const Int pivot_size = elements_.sizes[pivot_];
   const Int* pivot_data = elements_.Data(pivot_);
   for (Int index = 0; index < pivot_size; ++index) {
@@ -832,9 +826,10 @@ inline void QuotientGraph::GilbertDegreesAndHashes() QUOTIENT_NOEXCEPT {
 
       QUOTIENT_ASSERT(assembly_.parent_or_tail[element] < 0,
                       "Used absorbed element in Gilbert degree update.");
-      QUOTIENT_ASSERT(degree_lists_.degrees[element] - supernode_size >= 0,
-                      "Negative Gilbert degree update.");
-      degree += degree_lists_.degrees[element] - supernode_size;
+      QUOTIENT_ASSERT(
+          degrees_and_hashes_.lists.degrees[element] - supernode_size >= 0,
+          "Negative Gilbert degree update.");
+      degree += degrees_and_hashes_.lists.degrees[element] - supernode_size;
       QUOTIENT_HASH_COMBINE(hash, element);
     }
     num_elements = num_packed;
@@ -847,8 +842,8 @@ inline void QuotientGraph::GilbertDegreesAndHashes() QUOTIENT_NOEXCEPT {
     const Int bound = num_vertices_left - supernode_size;
     degree = std::min(degree, bound);
 
-    degree_lists_.degrees[i] = degree;
-    hash_info_.lists.hashes[i] = hash;
+    degrees_and_hashes_.lists.degrees[i] = degree;
+    degrees_and_hashes_.lists.SetHash(i, hash);
   }
 }
 
@@ -861,7 +856,7 @@ inline void QuotientGraph::ComputeDegreesAndHashes() QUOTIENT_NOEXCEPT {
   const Int* pivot_data = elements_.Data(pivot_);
   for (Int index = 0; index < pivot_size; ++index) {
     const Int i = pivot_data[index];
-    degree_lists_.RemoveDegree(i);
+    degrees_and_hashes_.lists.RemoveDegree(i);
   }
 
   switch (control_.degree_type) {
@@ -964,18 +959,18 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
   // Add the hashes into the hash lists.
   for (Int i_index = 0; i_index < pivot_size; ++i_index) {
     const Int i = pivot_data[i_index];
-    const UInt hash = hash_info_.lists.hashes[i];
+    const UInt hash = degrees_and_hashes_.lists.Hash(i);
     const Int bucket = hash % num_vertices_;
-    hash_info_.lists.AddHash(i, hash, bucket);
+    degrees_and_hashes_.lists.AddHash(i, hash, bucket);
   }
 
   Int num_merges = 0;
-  const Buffer<Int>& next_member = hash_info_.lists.next_member;
+  const Buffer<Int>& next_member = degrees_and_hashes_.lists.next_member;
   for (Int i_index = 0; i_index < pivot_size; ++i_index) {
     Int i = pivot_data[i_index];
-    const UInt hash = hash_info_.lists.hashes[i];
+    const UInt hash = degrees_and_hashes_.lists.Hash(i);
     const Int bucket = hash % num_vertices_;
-    const Int head = hash_info_.lists.heads[bucket];
+    const Int head = degrees_and_hashes_.lists.HashBucketHead(bucket);
     // We are not the head of the bucket.
     if (i != head) {
       continue;
@@ -988,7 +983,7 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
       }
       QUOTIENT_ASSERT(assembly_.signed_supernode_sizes[i] < 0,
                       "Supernode size should have been temporarily negative.");
-      const UInt i_hash = hash_info_.lists.hashes[i];
+      const UInt i_hash = degrees_and_hashes_.lists.Hash(i);
       bool scattered_adjacencies = false;
 
       const Int num_adjacencies_i = edges_.adjacency_list_sizes[i];
@@ -1001,11 +996,11 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
         QUOTIENT_ASSERT(
             assembly_.signed_supernode_sizes[j] < 0,
             "Supernode size should have been temporarily negative.");
-        const UInt j_hash = hash_info_.lists.hashes[j];
+        const UInt j_hash = degrees_and_hashes_.lists.Hash(j);
         if (i_hash != j_hash ||
             edges_.element_list_sizes[i] != edges_.element_list_sizes[j] ||
             num_adjacencies_i != edges_.adjacency_list_sizes[j]) {
-          ++hash_info_.num_bucket_collisions;
+          ++degrees_and_hashes_.num_bucket_collisions;
           continue;
         }
         if (!scattered_adjacencies) {
@@ -1043,7 +1038,7 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
           QUOTIENT_ASSERT(absorbed_size > 0,
                           "Absorbed size should have been positive.");
 
-          degree_lists_.degrees[i] -= absorbed_size;
+          degrees_and_hashes_.lists.degrees[i] -= absorbed_size;
 
           // Merge [i] -> [j] (and i becomes the principal member).
           //
@@ -1058,8 +1053,8 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
           edges_.element_list_sizes[j] = 0;
           edges_.adjacency_list_sizes[j] = 0;
         } else {
-          ++hash_info_.num_collisions;
-          ++hash_info_.num_bucket_collisions;
+          ++degrees_and_hashes_.num_collisions;
+          ++degrees_and_hashes_.num_bucket_collisions;
         }
       }
       if (scattered_adjacencies) {
@@ -1070,13 +1065,17 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
         }
       }
     }
-    hash_info_.lists.ClearBucket(bucket);
+    degrees_and_hashes_.lists.ClearHashBucket(bucket);
   }
 
 #ifdef QUOTIENT_DEBUG
-  for (Int index = 0; index < num_vertices_; ++index) {
-    if (hash_info_.lists.heads[index] != -1) {
-      std::cerr << "Did not clear head for bucket " << index << std::endl;
+  for (Int i_index = 0; i_index < pivot_size; ++i_index) {
+    Int i = pivot_data[i_index];
+    const UInt hash = degrees_and_hashes_.lists.Hash(i);
+    const Int bucket = hash % num_vertices_;
+    const Int index = degrees_and_hashes_.lists.HashBucketHead(bucket);
+    if (index != -1) {
+      std::cerr << "Did not clear head for bucket " << bucket << std::endl;
     }
   }
 #endif
@@ -1100,7 +1099,7 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
   const Int* element_list = edges_.ElementList(pivot_);
   for (Int k = 0; k < num_elements; ++k) {
     const Int element = element_list[k];
-    degree_lists_.degrees[element] -= supernode_size;
+    degrees_and_hashes_.lists.degrees[element] -= supernode_size;
   }
 
   // Unflip the signs of supernode sizes for the members of the pivot structure
@@ -1114,7 +1113,8 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
         assembly_.signed_supernode_sizes[i] <= 0,
         "A member of pivot element had a positive signed supernode size.");
     if (assembly_.signed_supernode_sizes[i] < 0) {
-      degree_lists_.AddDegree(i, degree_lists_.degrees[i]);
+      const Int degree = degrees_and_hashes_.lists.degrees[i];
+      degrees_and_hashes_.lists.AddDegree(i, degree);
       assembly_.signed_supernode_sizes[i] =
           -assembly_.signed_supernode_sizes[i];
       pivot_data[num_packed++] = i;
@@ -1340,8 +1340,8 @@ inline void QuotientGraph::ExternalDegrees() QUOTIENT_NOEXCEPT {
       } else if (shifted_external_degree) {
         QUOTIENT_ASSERT(assembly_.parent_or_tail[element] < 0,
                         "Tried to subtract from an absorbed element.");
-        shifted_external_degree =
-            degree_lists_.degrees[element] + shift_minus_supernode_size;
+        shifted_external_degree = degrees_and_hashes_.lists.degrees[element] +
+                                  shift_minus_supernode_size;
       }
       QUOTIENT_ASSERT(
           !shifted_external_degree || shifted_external_degree >= shift,

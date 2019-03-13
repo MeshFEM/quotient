@@ -58,4 +58,11 @@
 #define QUOTIENT_UNUSED
 #endif  // ifdef __GNUG__
 
+// A macro for faciliating the storage of two separate non-negative integers
+// within a single signed integer. The mapping is an involution between
+// [0, INT_MAX - 2] and -[2, INT_MAX].
+//
+// This choice allows -1 to be used as a special code.
+#define SYMMETRIC_INDEX(index) (-((index) + 2))
+
 #endif  // ifndef QUOTIENT_MACROS_H_

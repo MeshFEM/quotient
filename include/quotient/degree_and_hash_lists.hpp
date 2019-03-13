@@ -5,8 +5,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-#ifndef QUOTIENT_DEGREE_LISTS_H_
-#define QUOTIENT_DEGREE_LISTS_H_
+#ifndef QUOTIENT_DEGREE_AND_HASH_LISTS_H_
+#define QUOTIENT_DEGREE_AND_HASH_LISTS_H_
 
 #include <vector>
 
@@ -17,8 +17,10 @@
 namespace quotient {
 
 // An array of  doubly-linked list for tracking node degrees in a manner which
-// makes it easy to find a minimal degree variable.
-struct DegreeLists {
+// makes it easy to find a minimal degree variable. There is also support for
+// additionally storing hash bucket singly-linked lists in a subset of the
+// indices (typically, the principal supervariables in the pivot structure).
+struct DegreeAndHashLists {
   // A lower-bound on the minimum degree of all degree list members.
   Int degree_lower_bound = 0;
 
@@ -58,10 +60,30 @@ struct DegreeLists {
   // removes the old occurrence and adds in the new occurrence. Otherwise,
   // it is a no-op.
   void UpdateDegree(Int index, Int degree) QUOTIENT_NOEXCEPT;
+
+  // Returns the hash of the given index (from a principal supervariable in the
+  // current pivot structure).
+  Int Hash(Int index) const QUOTIENT_NOEXCEPT;
+
+  // Sets the hash of the given index to the specified value.
+  void SetHash(Int index, std::size_t hash) QUOTIENT_NOEXCEPT;
+
+  // Removes the given hash bucket.
+  void ClearHashBucket(Int bucket) QUOTIENT_NOEXCEPT;
+
+  // Adds in an occurrence of the specified index (which should be a principal
+  // supervariable in the current pivot structure) and hash.
+  void AddHash(Int index, std::size_t hash, Int bucket) QUOTIENT_NOEXCEPT;
+
+  // Returns the index of the head of the given hash bucket.
+  Int HashBucketHead(Int bucket) const QUOTIENT_NOEXCEPT;
+
+  // Sets the head of the hash bucket to the given index.
+  void SetHashBucketHead(Int bucket, Int head) QUOTIENT_NOEXCEPT;
 };
 
 }  // namespace quotient
 
-#include "quotient/degree_lists-impl.hpp"
+#include "quotient/degree_and_hash_lists-impl.hpp"
 
-#endif  // ifndef QUOTIENT_DEGREE_LISTS_H_
+#endif  // ifndef QUOTIENT_DEGREE_AND_HASH_LISTS_H_

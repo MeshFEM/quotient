@@ -12,24 +12,15 @@
 
 #include "quotient/buffer.hpp"
 #include "quotient/coordinate_graph.hpp"
-#include "quotient/degree_lists.hpp"
-#include "quotient/hash_lists.hpp"
+#include "quotient/degree_and_hash_lists.hpp"
 #include "quotient/index_utils.hpp"
 #include "quotient/integers.hpp"
 #include "quotient/io_utils.hpp"
+#include "quotient/macros.hpp"
 #include "quotient/minimum_degree_control.hpp"
 #include "quotient/timer.hpp"
 
 namespace quotient {
-
-// A macro for facilitating a single entry encoding either the parent of an
-// absorbed element (if the value is non-negative) or the tail of a supernode
-// (if the value is negative). In the latter case, if the last member of the
-// supernode had index 'j', then the value is stored as
-//   SYMMETRIC_INDEX(j),
-// which, due to the macro being an involution, allows us to recover j via
-//   j = SYMMETRIC_INDEX(SYMMETRIC_INDEX(j)).
-#define SYMMETRIC_INDEX(index) (-((index) + 1))
 
 // A data structure representing the "quotient graph" interpretation of the
 // original graph after eliminating a sequence of vertices. This is the
@@ -319,10 +310,16 @@ class QuotientGraph {
     }
   };
 
-  // Data structures related to hashing supervariables.
-  struct HashInfo {
-    // An array of single-linked lists for hash buckets for the supervariables.
-    HashLists lists;
+  // Data structures related to degree lists and hashed supervariables.
+  struct DegreesAndHashes {
+    // A set of linked lists for keeping track of supervariables of each degree
+    // (and, also, a way to provide fast access to a supervariable with
+    // minimal degree).
+    //
+    // Hashes and a singly-linked hash bucket list are stored within the
+    // leftovers from removing degree links to principal supervariables in the
+    // pivot structure.
+    DegreeAndHashLists lists;
 
     // The number of times that supervariables were falsely placed within the
     // same bucket.
@@ -354,16 +351,11 @@ class QuotientGraph {
   // A data structure for managing the packed element lists.
   PackedElements elements_;
 
-  // A set of linked lists for keeping track of supervariables of each degree
-  // (and, also, a way to provide fast access to a supervariable with
-  // minimal degree).
-  DegreeLists degree_lists_;
-
   // A data structure for quickly maintaining node statuses and degrees.
   NodeFlags node_flags_;
 
-  // Data structures related to hashing supervariables.
-  HashInfo hash_info_;
+  // Data structures related to degree lists and hashed supervariables.
+  DegreesAndHashes degrees_and_hashes_;
 
   // The number of aggressive absorptions that have occurred.
   Int num_aggressive_absorptions_;
@@ -383,11 +375,8 @@ class QuotientGraph {
   // number of edges.
   Int ConvertEdgeCountsIntoOffsets() QUOTIENT_NOEXCEPT;
 
-  // Initializes the DegreeLists data structure.
-  void InitializeDegreeLists() QUOTIENT_NOEXCEPT;
-
-  // Initializes the HashInfo data structure.
-  void InitializeHashLists() QUOTIENT_NOEXCEPT;
+  // Initializes the DegreeAndHashLists data structure.
+  void InitializeDegreeAndHashLists() QUOTIENT_NOEXCEPT;
 
   // Initializes the PackedElements data structure.
   void InitializeElements(Int num_elements) QUOTIENT_NOEXCEPT;
