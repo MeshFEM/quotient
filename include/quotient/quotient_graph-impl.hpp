@@ -43,16 +43,6 @@ inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph,
                                     const MinimumDegreeControl& control)
     : QuotientGraph(graph.NumSources(), graph.Edges(), control) {}
 
-inline void QuotientGraph::InitializeAssemblyForest() QUOTIENT_NOEXCEPT {
-  assembly_.signed_supernode_sizes.Resize(num_vertices_, 1);
-  assembly_.dense_supernode.size = 0;
-  assembly_.dense_supernode.principal_member = -1;
-  assembly_.parent_or_tail.Resize(num_vertices_);
-  for (Int i = 0; i < num_vertices_; ++i) {
-    assembly_.parent_or_tail[i] = SYMMETRIC_INDEX(i);
-  }
-}
-
 inline Int QuotientGraph::ConvertEdgeCountsIntoOffsets() QUOTIENT_NOEXCEPT {
   // Every row with at least this many non-diagonal nonzeros will be treated
   // as dense and moved to the back of the postordering.
@@ -65,22 +55,22 @@ inline Int QuotientGraph::ConvertEdgeCountsIntoOffsets() QUOTIENT_NOEXCEPT {
   for (Int source = 0; source < num_vertices_; ++source) {
     graph_data_.element_offsets[source] = num_edges;
     if (graph_data_.adjacency_list_sizes[source] >= dense_threshold) {
-      if (!assembly_.dense_supernode.size) {
-        assembly_.dense_supernode.principal_member = source;
+      if (!graph_data_.dense_supernode.size) {
+        graph_data_.dense_supernode.principal_member = source;
       }
-      ++assembly_.dense_supernode.size;
+      ++graph_data_.dense_supernode.size;
       ++num_eliminated_vertices_;
       // We will denote this source as dense by setting its supernode size to
       // 0 and keeping its parent as -1. A merged variable also has a supernode
       // size of 0, but its parent is a valid vertex index.
-      assembly_.signed_supernode_sizes[source] = 0;
+      graph_data_.signed_supernode_sizes[source] = 0;
       graph_data_.adjacency_list_sizes[source] = 0;
     }
     num_edges += graph_data_.adjacency_list_sizes[source];
   }
 #ifdef QUOTIENT_DEBUG
-  if (assembly_.dense_supernode.size) {
-    std::cout << "Eliminated " << assembly_.dense_supernode.size
+  if (graph_data_.dense_supernode.size) {
+    std::cout << "Eliminated " << graph_data_.dense_supernode.size
               << " dense rows." << std::endl;
   }
 #endif
@@ -94,7 +84,7 @@ inline void QuotientGraph::InitializeDegreeAndHashLists() QUOTIENT_NOEXCEPT {
   degrees_and_hashes_.lists.next_member.Resize(num_vertices_, -1);
   degrees_and_hashes_.lists.last_member.Resize(num_vertices_, -1);
   for (Int source = 0; source < num_vertices_; ++source) {
-    if (!assembly_.signed_supernode_sizes[source]) {
+    if (!graph_data_.signed_supernode_sizes[source]) {
       // Skip the dense row.
       continue;
     }
@@ -123,9 +113,12 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
       num_aggressive_absorptions_(0) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
-  InitializeAssemblyForest();
-
+  // TODO(Jack Poulson): Eliminate this variable.
   elimination_order_.reserve(num_vertices_);
+
+  graph_data_.signed_supernode_sizes.Resize(num_vertices_, 1);
+  graph_data_.dense_supernode.size = 0;
+  graph_data_.dense_supernode.principal_member = -1;
 
   // Initialize the counts for the adjacency lists.
   graph_data_.element_offsets.Resize(num_vertices_);
@@ -145,11 +138,11 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
   num_edges = 0;
   for (const GraphEdge& edge : edges) {
     const Int source = edge.first;
-    if (assembly_.signed_supernode_sizes[source] && edge.second != source) {
+    if (graph_data_.signed_supernode_sizes[source] && edge.second != source) {
       graph_data_.lists[num_edges++] = edge.second;
     }
   }
-  graph_data_.offset = num_edges;
+  graph_data_.offset = graph_data_.offset_baseline = num_edges;
 
   InitializeDegreeAndHashLists();
   InitializeNodeFlags();
@@ -167,9 +160,11 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
       num_aggressive_absorptions_(0) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
-  InitializeAssemblyForest();
-
   elimination_order_.reserve(num_vertices_);
+
+  graph_data_.signed_supernode_sizes.Resize(num_vertices_, 1);
+  graph_data_.dense_supernode.size = 0;
+  graph_data_.dense_supernode.principal_member = -1;
 
   // Initialize the counts for the adjacency lists.
   graph_data_.element_offsets.Resize(num_vertices_);
@@ -189,11 +184,11 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
   num_edges = 0;
   for (const MatrixEntry<Field>& entry : entries) {
     const Int source = entry.row;
-    if (assembly_.signed_supernode_sizes[source] && entry.column != source) {
+    if (graph_data_.signed_supernode_sizes[source] && entry.column != source) {
       graph_data_.lists[num_edges++] = entry.column;
     }
   }
-  graph_data_.offset = num_edges;
+  graph_data_.offset = graph_data_.offset_baseline = num_edges;
 
   InitializeDegreeAndHashLists();
   InitializeNodeFlags();
@@ -242,7 +237,7 @@ inline Int QuotientGraph::NumAggressiveAbsorptions() const QUOTIENT_NOEXCEPT {
 }
 
 inline Int QuotientGraph::NumDense() const QUOTIENT_NOEXCEPT {
-  return assembly_.dense_supernode.size;
+  return graph_data_.dense_supernode.size;
 }
 
 inline Int QuotientGraph::NumVertices() const QUOTIENT_NOEXCEPT {
@@ -262,10 +257,10 @@ inline Int QuotientGraph::NumHashCollisions() const QUOTIENT_NOEXCEPT {
 }
 
 inline Int QuotientGraph::SupernodeSize(Int i) const QUOTIENT_NOEXCEPT {
-  if (assembly_.signed_supernode_sizes[i]) {
+  if (graph_data_.signed_supernode_sizes[i]) {
     // This is a traditional supernode (but it might be eliminated).
-    return std::abs(assembly_.signed_supernode_sizes[i]);
-  } else if (assembly_.parent_or_tail[i] < 0) {
+    return std::abs(graph_data_.signed_supernode_sizes[i]);
+  } else if (graph_data_.ActiveSupernode(i)) {
     // This is a dense node.
     return 1;
   } else {
@@ -300,30 +295,30 @@ inline Buffer<Int> QuotientGraph::ElementList(Int i) const QUOTIENT_NOEXCEPT {
 
 inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kComputePivotStructure);
-
   const Int num_elements = graph_data_.ElementListSize(pivot_);
   const Int* element_list = graph_data_.ElementList(pivot_);
 
   const Int num_adjacencies = graph_data_.adjacency_list_sizes[pivot_];
   const Int* adjacency_list = graph_data_.AdjacencyList(pivot_);
 
-  const Int pivot_supernode_size = assembly_.signed_supernode_sizes[pivot_];
+  const Int pivot_supernode_size = graph_data_.signed_supernode_sizes[pivot_];
 
   // Allocate space for the element using an upper-bound on the size
   // (note that, because of supernodes, this is *not* the degree).
   Int element_size_bound = num_adjacencies;
   for (Int k = 0; k < num_elements; ++k) {
     const Int element = element_list[k];
-    QUOTIENT_ASSERT(graph_data_.ElementSize(element) > 0,
-                    "Non-positive element size.");
-    element_size_bound += graph_data_.ElementSize(element) - 1;
+    const Int element_size = graph_data_.ElementSize(element);
+    QUOTIENT_ASSERT(element_size > 0, "Non-positive element size of " +
+                                          std::to_string(element_size));
+    element_size_bound += element_size - 1;
   }
   if (graph_data_.offset + element_size_bound > Int(graph_data_.lists.Size())) {
 #ifdef QUOTIENT_DEBUG
     std::cerr << "Repacking elements." << std::endl;
 #endif
     graph_data_.PackElements(
-        num_vertices_, elimination_order_.data(),
+        elimination_order_.data(),
         elimination_order_.data() + elimination_order_.size());
   }
 
@@ -331,24 +326,24 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
   Int* pivot_data = graph_data_.ElementData(pivot_);
 
   // Negate the signed supernode size of the pivot.
-  assembly_.signed_supernode_sizes[pivot_] = -pivot_supernode_size;
+  graph_data_.signed_supernode_sizes[pivot_] = -pivot_supernode_size;
 
   // Push the supervariables in the pivot adjacency list into the structure.
   Int pivot_size = 0;
   Int pivot_degree = 0;
   for (Int k = 0; k < num_adjacencies; ++k) {
     const Int i = adjacency_list[k];
-    const Int supernode_size = assembly_.signed_supernode_sizes[i];
+    const Int supernode_size = graph_data_.signed_supernode_sizes[i];
     QUOTIENT_ASSERT(supernode_size >= 0,
                     "An element was in the adjacency list.");
     if (!supernode_size) {
       continue;
     }
-    QUOTIENT_ASSERT(assembly_.parent_or_tail[i] < 0,
+    QUOTIENT_ASSERT(graph_data_.ActiveSupernode(i),
                     "An absorbed element was in the adjacency list.");
 
     pivot_degree += supernode_size;
-    assembly_.signed_supernode_sizes[i] = -supernode_size;
+    graph_data_.signed_supernode_sizes[i] = -supernode_size;
 
     // Store index 'i' into the pivot element.
     pivot_data[pivot_size++] = i;
@@ -359,25 +354,25 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
   // into the current structure.
   for (Int k = 0; k < num_elements; ++k) {
     const Int element = element_list[k];
-    QUOTIENT_ASSERT(assembly_.parent_or_tail[element] < 0,
+    QUOTIENT_ASSERT(graph_data_.ActiveSupernode(element),
                     "Used an absorbed element in pivot structure.");
 
     const Int element_size = graph_data_.ElementSize(element);
     const Int* element_data = graph_data_.ElementData(element);
     for (Int j = 0; j < element_size; ++j) {
       const Int index = element_data[j];
-      const Int supernode_size = assembly_.signed_supernode_sizes[index];
+      const Int supernode_size = graph_data_.signed_supernode_sizes[index];
       // While no eliminated supernodes should appear in unabsorbed elements,
       // we have (temporarily) flipped the signs of the supernode sizes of
       // the members we have already added to this pivot's structure.
       if (supernode_size <= 0) {
         continue;
       }
-      QUOTIENT_ASSERT(assembly_.parent_or_tail[index] < 0,
+      QUOTIENT_ASSERT(graph_data_.ActiveSupernode(index),
                       "An absorbed element was in an element.");
 
       pivot_degree += supernode_size;
-      assembly_.signed_supernode_sizes[index] = -supernode_size;
+      graph_data_.signed_supernode_sizes[index] = -supernode_size;
 
       // Store index 'index' into the pivot element.
       pivot_data[pivot_size++] = index;
@@ -386,7 +381,7 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
     Int degree = 0;
     for (Int j = 0; j < element_size; ++j) {
       const Int index = element_data[j];
-      const Int supernode_size = -assembly_.signed_supernode_sizes[index];
+      const Int supernode_size = -graph_data_.signed_supernode_sizes[index];
       QUOTIENT_ASSERT(supernode_size >= 0,
                       "Flipped supernode size was expected to be positive.");
       degree += supernode_size;
@@ -396,9 +391,10 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
 #endif
 
     // Absorb this element into the pivot.
-    assembly_.parent_or_tail[element] = pivot_;
-    node_flags_.flags[element] = 0;
+    degrees_and_hashes_.lists.degrees[element] -= pivot_supernode_size;
+    graph_data_.element_offsets[element] = SYMMETRIC_INDEX(pivot_);
     graph_data_.ElementSize(element) = 0;
+    node_flags_.flags[element] = 0;
   }
 
   // Set the size of the pivot element.
@@ -436,18 +432,18 @@ inline Int QuotientGraph::NumPivotDegreeUpdatesWithMultipleElements() const
 }
 
 inline Int QuotientGraph::NumPivotCholeskyNonzeros() const QUOTIENT_NOEXCEPT {
-  const Int pivot_size = std::abs(assembly_.signed_supernode_sizes[pivot_]);
+  const Int pivot_size = std::abs(graph_data_.signed_supernode_sizes[pivot_]);
   const Int structure_size = degrees_and_hashes_.lists.degrees[pivot_] +
-                             assembly_.dense_supernode.size;
+                             graph_data_.dense_supernode.size;
   const Int diag_block_nonzeros = (pivot_size * (pivot_size + 1)) / 2;
   const Int subdiagonal_nonzeros = structure_size * pivot_size;
   return diag_block_nonzeros + subdiagonal_nonzeros;
 }
 
 inline double QuotientGraph::NumPivotCholeskyFlops() const QUOTIENT_NOEXCEPT {
-  const Int pivot_size = std::abs(assembly_.signed_supernode_sizes[pivot_]);
+  const Int pivot_size = std::abs(graph_data_.signed_supernode_sizes[pivot_]);
   const Int structure_size = degrees_and_hashes_.lists.degrees[pivot_] +
-                             assembly_.dense_supernode.size;
+                             graph_data_.dense_supernode.size;
   const double diag_block_flops = std::pow(1. * pivot_size, 3.) / 3.;
   const double schur_complement_flops =
       std::pow(1. * structure_size, 2.) * pivot_size;
@@ -476,7 +472,7 @@ inline void QuotientGraph::PackCountAndHashAdjacencies(
     // Due to our (temporary) negation of the supernode sizes of the pivot and
     // members of the pivot structure, all four cases can be handled by
     // demanding a positive (signed) supernode size.
-    const Int supernode_size = assembly_.signed_supernode_sizes[j];
+    const Int supernode_size = graph_data_.signed_supernode_sizes[j];
     if (supernode_size > 0) {
       degree_new += supernode_size;
       QUOTIENT_HASH_COMBINE(hash_new, j);
@@ -527,7 +523,7 @@ inline std::pair<Int, UInt> QuotientGraph::ExactEmptyDegreeAndHash(Int i)
       "The element list was falsely assumed to have a single entry.");
 
   // Add |L_p \ supernode(i)|.
-  const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+  const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
   QUOTIENT_ASSERT(supernode_size > 0,
                   "The flipped supernode size should have been positive.");
   degree += degrees_and_hashes_.lists.degrees[pivot_] - supernode_size;
@@ -557,7 +553,7 @@ inline std::pair<Int, UInt> QuotientGraph::ExactSingleDegreeAndHash(Int i)
                   "The element list should have contained a non-pivot.");
 
   // Add |L_p \ supernode(i)|.
-  const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+  const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
   QUOTIENT_ASSERT(supernode_size > 0,
                   "The flipped supernode size should have been positive.");
   degree += degrees_and_hashes_.lists.degrees[pivot_] - supernode_size;
@@ -611,7 +607,7 @@ inline std::pair<Int, UInt> QuotientGraph::ExactGenericDegreeAndHash(Int i)
       if (node_flags_.flags[j] == shift || i == j) {
         continue;
       }
-      degree += std::abs(assembly_.signed_supernode_sizes[j]);
+      degree += std::abs(graph_data_.signed_supernode_sizes[j]);
       node_flags_.flags[j] = shift;
     }
   }
@@ -630,7 +626,7 @@ inline std::pair<Int, UInt> QuotientGraph::ExactGenericDegreeAndHash(Int i)
     if (node_flags_.flags[j] == shift || i == j) {
       continue;
     }
-    degree += std::abs(assembly_.signed_supernode_sizes[j]);
+    degree += std::abs(graph_data_.signed_supernode_sizes[j]);
     node_flags_.flags[j] = shift;
   }
 
@@ -674,6 +670,9 @@ inline void QuotientGraph::ExactDegreesAndHashes() QUOTIENT_NOEXCEPT {
     } else {
       degree_and_hash = ExactGenericDegreeAndHash(i);
     }
+    QUOTIENT_ASSERT(
+        degree_and_hash.first >= 0,
+        "Tried to set a degree of " + std::to_string(degree_and_hash.first));
     degrees_and_hashes_.lists.degrees[i] = degree_and_hash.first;
     degrees_and_hashes_.lists.SetHash(i, degree_and_hash.second);
   }
@@ -691,7 +690,7 @@ inline void QuotientGraph::AmestoyDegreesAndHashes() QUOTIENT_NOEXCEPT {
     Int degree = 0;
     UInt hash = 0;
 
-    const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+    const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
     QUOTIENT_ASSERT(supernode_size > 0,
                     "The negated supernode size was expected to be positive.");
     const Int bound0 = num_vertices_left - supernode_size;
@@ -733,6 +732,8 @@ inline void QuotientGraph::AmestoyDegreesAndHashes() QUOTIENT_NOEXCEPT {
     degree = std::min(degree, bound0);
     degree = std::min(degree, bound1);
 
+    QUOTIENT_ASSERT(degree >= 0,
+                    "Tried to set a degree of " + std::to_string(degree));
     degrees_and_hashes_.lists.degrees[i] = degree;
     degrees_and_hashes_.lists.SetHash(i, hash);
   }
@@ -751,6 +752,9 @@ inline void QuotientGraph::AshcraftDegreesAndHashes() QUOTIENT_NOEXCEPT {
     } else {
       degree_and_hash = GilbertDegreeAndHash(i);
     }
+    QUOTIENT_ASSERT(
+        degree_and_hash.first >= 0,
+        "Tried to set a degree of " + std::to_string(degree_and_hash.first));
     degrees_and_hashes_.lists.degrees[i] = degree_and_hash.first;
     degrees_and_hashes_.lists.SetHash(i, degree_and_hash.second);
   }
@@ -761,7 +765,7 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i)
   Int degree = 0;
   UInt hash = 0;
 
-  const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+  const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
   QUOTIENT_ASSERT(supernode_size > 0,
                   "The negated supernode size was expected to be positive.");
 
@@ -775,7 +779,7 @@ inline std::pair<Int, UInt> QuotientGraph::GilbertDegreeAndHash(Int i)
     }
     element_list[num_packed++] = element;
 
-    QUOTIENT_ASSERT(assembly_.parent_or_tail[element] < 0,
+    QUOTIENT_ASSERT(graph_data_.ActiveSupernode(element),
                     "Used absorbed element in Gilbert degree update.");
     QUOTIENT_ASSERT(
         degrees_and_hashes_.lists.degrees[element] - supernode_size >= 0,
@@ -807,7 +811,7 @@ inline void QuotientGraph::GilbertDegreesAndHashes() QUOTIENT_NOEXCEPT {
     Int degree = 0;
     UInt hash = 0;
 
-    const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+    const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
     QUOTIENT_ASSERT(supernode_size > 0,
                     "The negated supernode size was expected to be positive.");
 
@@ -821,7 +825,7 @@ inline void QuotientGraph::GilbertDegreesAndHashes() QUOTIENT_NOEXCEPT {
       }
       element_list[num_packed++] = element;
 
-      QUOTIENT_ASSERT(assembly_.parent_or_tail[element] < 0,
+      QUOTIENT_ASSERT(graph_data_.ActiveSupernode(element),
                       "Used absorbed element in Gilbert degree update.");
       QUOTIENT_ASSERT(
           degrees_and_hashes_.lists.degrees[element] - supernode_size >= 0,
@@ -839,6 +843,8 @@ inline void QuotientGraph::GilbertDegreesAndHashes() QUOTIENT_NOEXCEPT {
     const Int bound = num_vertices_left - supernode_size;
     degree = std::min(degree, bound);
 
+    QUOTIENT_ASSERT(degree >= 0,
+                    "Tried to set a degree of " + std::to_string(degree));
     degrees_and_hashes_.lists.degrees[i] = degree;
     degrees_and_hashes_.lists.SetHash(i, hash);
   }
@@ -893,14 +899,14 @@ inline bool QuotientGraph::StructuralVariablesAreQuotientIndistinguishable(
   for (Int k = 0; k < num_elements_i; ++k) {
     const Int element = element_list_i[k];
     QUOTIENT_ASSERT(
-        assembly_.parent_or_tail[element] < 0,
+        graph_data_.ActiveSupernode(element),
         "Absorbed element was in element list during absorption test.");
   }
   const Int num_elements_j = graph_data_.ElementListSize(j);
   for (Int k = 0; k < num_elements_j; ++k) {
     const Int element = element_list_j[k];
     QUOTIENT_ASSERT(
-        assembly_.parent_or_tail[element] < 0,
+        graph_data_.ActiveSupernode(element),
         "Absorbed element was in element list during absorption test.");
   }
   const Int num_adjacencies_i = graph_data_.adjacency_list_sizes[i];
@@ -908,13 +914,13 @@ inline bool QuotientGraph::StructuralVariablesAreQuotientIndistinguishable(
   for (Int k = 0; k < num_adjacencies_i; ++k) {
     const Int index = adjacency_list_i[k];
     QUOTIENT_ASSERT(
-        assembly_.signed_supernode_sizes[index] > 0,
+        graph_data_.signed_supernode_sizes[index] > 0,
         "Non-positive supernode size in adj list during absorption test.");
   }
   for (Int k = 0; k < num_adjacencies_j; ++k) {
     const Int index = adjacency_list_j[k];
     QUOTIENT_ASSERT(
-        assembly_.signed_supernode_sizes[index] > 0,
+        graph_data_.signed_supernode_sizes[index] > 0,
         "Non-positive supernode size in adj list during absorption test.");
   }
 #endif
@@ -975,10 +981,10 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
 
     // Test the unique pairs in the bucket.
     for (; next_member[i] != -1; i = next_member[i]) {
-      if (!assembly_.signed_supernode_sizes[i]) {
+      if (!graph_data_.signed_supernode_sizes[i]) {
         continue;
       }
-      QUOTIENT_ASSERT(assembly_.signed_supernode_sizes[i] < 0,
+      QUOTIENT_ASSERT(graph_data_.signed_supernode_sizes[i] < 0,
                       "Supernode size should have been temporarily negative.");
       const UInt i_hash = degrees_and_hashes_.lists.Hash(i);
       bool scattered_adjacencies = false;
@@ -987,11 +993,11 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
       const Int* adjacency_list_i = graph_data_.AdjacencyList(i);
 
       for (Int j = next_member[i]; j != -1; j = next_member[j]) {
-        if (!assembly_.signed_supernode_sizes[j]) {
+        if (!graph_data_.signed_supernode_sizes[j]) {
           continue;
         }
         QUOTIENT_ASSERT(
-            assembly_.signed_supernode_sizes[j] < 0,
+            graph_data_.signed_supernode_sizes[j] < 0,
             "Supernode size should have been temporarily negative.");
         const UInt j_hash = degrees_and_hashes_.lists.Hash(j);
         if (i_hash != j_hash ||
@@ -1031,24 +1037,20 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
 
         if (StructuralVariablesAreQuotientIndistinguishable(i, j)) {
           ++num_merges;
-          const Int absorbed_size = -assembly_.signed_supernode_sizes[j];
+          const Int absorbed_size = -graph_data_.signed_supernode_sizes[j];
           QUOTIENT_ASSERT(absorbed_size > 0,
                           "Absorbed size should have been positive.");
-
-          degrees_and_hashes_.lists.degrees[i] -= absorbed_size;
 
           // Merge [i] -> [j] (and i becomes the principal member).
           //
           // Recall that the supernode sizes of principal variables in the
           // pivot structure have been negated.
-          const Int tail_index_j = SYMMETRIC_INDEX(assembly_.parent_or_tail[j]);
-          assembly_.parent_or_tail[j] = i;
-          assembly_.parent_or_tail[i] = SYMMETRIC_INDEX(tail_index_j);
-          assembly_.signed_supernode_sizes[i] -= absorbed_size;
-          assembly_.signed_supernode_sizes[j] = 0;
-
+          degrees_and_hashes_.lists.degrees[i] -= absorbed_size;
+          graph_data_.signed_supernode_sizes[i] -= absorbed_size;
+          graph_data_.element_offsets[j] = SYMMETRIC_INDEX(i);
           graph_data_.ElementListSize(j) = 0;
           graph_data_.adjacency_list_sizes[j] = 0;
+          graph_data_.signed_supernode_sizes[j] = 0;
         } else {
           ++degrees_and_hashes_.num_collisions;
           ++degrees_and_hashes_.num_bucket_collisions;
@@ -1084,20 +1086,9 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kFinalizePivot);
   ResetExternalDegrees();
 
-  const Int supernode_size = -assembly_.signed_supernode_sizes[pivot_];
+  const Int supernode_size = -graph_data_.signed_supernode_sizes[pivot_];
   QUOTIENT_ASSERT(supernode_size > 0,
                   "The supernode size was assumed positive.");
-
-  // Since this supervariable is being eliminated, it needs to be implicitly
-  // removed from all elements containing it. This is accomplished through
-  // decrementing their element sizes and marking the supernode as eliminated
-  // by making its sign negative.
-  const Int num_elements = graph_data_.ElementListSize(pivot_);
-  const Int* element_list = graph_data_.ElementList(pivot_);
-  for (Int k = 0; k < num_elements; ++k) {
-    const Int element = element_list[k];
-    degrees_and_hashes_.lists.degrees[element] -= supernode_size;
-  }
 
   // Unflip the signs of supernode sizes for the members of the pivot structure
   // and simultaneously remove the non-principal members.
@@ -1107,13 +1098,18 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
   for (Int index = 0; index < pivot_size; ++index) {
     const Int i = pivot_data[index];
     QUOTIENT_ASSERT(
-        assembly_.signed_supernode_sizes[i] <= 0,
+        graph_data_.signed_supernode_sizes[i] <= 0,
         "A member of pivot element had a positive signed supernode size.");
-    if (assembly_.signed_supernode_sizes[i] < 0) {
+    if (graph_data_.signed_supernode_sizes[i] < 0) {
       const Int degree = degrees_and_hashes_.lists.degrees[i];
+      QUOTIENT_ASSERT(degree >= 0,
+                      "Negative degree of " + std::to_string(degree) +
+                          " at pivot structure index " + std::to_string(index) +
+                          " (" + std::to_string(i) + ") for pivot " +
+                          std::to_string(pivot_));
       degrees_and_hashes_.lists.AddDegree(i, degree);
-      assembly_.signed_supernode_sizes[i] =
-          -assembly_.signed_supernode_sizes[i];
+      graph_data_.signed_supernode_sizes[i] =
+          -graph_data_.signed_supernode_sizes[i];
       pivot_data[num_packed++] = i;
     }
   }
@@ -1129,12 +1125,10 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
 inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
     QUOTIENT_NOEXCEPT {
   auto supernode_principal = [&](Int index) {
-    while (!assembly_.signed_supernode_sizes[index]) {
-      QUOTIENT_ASSERT(
-          assembly_.parent_or_tail[index] >= 0,
-          "Negative member of assembly_.parent_or_tail while computing "
-          "supernode principal.");
-      index = assembly_.parent_or_tail[index];
+    while (!graph_data_.signed_supernode_sizes[index]) {
+      QUOTIENT_ASSERT(!graph_data_.ActiveSupernode(index),
+                      "Active supernode while computing supernode principal.");
+      index = SYMMETRIC_INDEX(graph_data_.element_offsets[index]);
     }
     return index;
   };
@@ -1144,7 +1138,7 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
   Int num_nonprincipal_members = 0;
   for (Int i = 0; i < num_vertices_; ++i) {
     nonprincipal_offsets[i] = num_nonprincipal_members;
-    const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+    const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
     QUOTIENT_ASSERT(supernode_size >= 0, "Supernode size was negative.");
     if (supernode_size) {
       num_nonprincipal_members += supernode_size - 1;
@@ -1154,7 +1148,7 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
   auto offsets_copy = nonprincipal_offsets;
   Buffer<Int> nonprincipal_members(num_nonprincipal_members);
   for (Int i = 0; i < num_vertices_; ++i) {
-    const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+    const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
     if (!supernode_size) {
       const Int principal = supernode_principal(i);
       nonprincipal_members[offsets_copy[principal]++] = i;
@@ -1166,7 +1160,7 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
   // each node.
   Buffer<Int> children;
   Buffer<Int> child_offsets;
-  ChildrenFromParentSubsequence(assembly_.parent_or_tail, elimination_order_,
+  ChildrenFromParentSubsequence(graph_data_.element_offsets, elimination_order_,
                                 &children, &child_offsets);
 
   // Scan for the roots and launch a pe-order traversal on each of them.
@@ -1175,7 +1169,7 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
   postorder->Resize(num_vertices_);
   Int* iter = postorder->begin();
   for (const Int& i : elimination_order_) {
-    if (assembly_.parent_or_tail[i] >= 0) {
+    if (!graph_data_.ActiveSupernode(i)) {
       // This element was absorbed into another element.
       continue;
     }
@@ -1186,11 +1180,11 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
   // Reverse the preordering (to form a postordering) in-place.
   std::reverse(postorder->begin(), iter);
 
-  if (assembly_.dense_supernode.size) {
+  if (graph_data_.dense_supernode.size) {
     // Pack the dense columns into the back.
     for (Int i = 0; i < num_vertices_; ++i) {
-      if (!assembly_.signed_supernode_sizes[i] &&
-          assembly_.parent_or_tail[i] < 0) {
+      if (!graph_data_.signed_supernode_sizes[i] &&
+          graph_data_.ActiveSupernode(i)) {
         *iter = i;
         ++iter;
       }
@@ -1248,9 +1242,9 @@ inline void QuotientGraph::PermutedSupernodeSizes(
   Int i_perm = 0;
   for (Int index = 0; index < num_supernodes; ++index) {
     const Int i = inverse_permutation[i_perm];
-    QUOTIENT_ASSERT(assembly_.signed_supernode_sizes[i] < 0,
+    QUOTIENT_ASSERT(graph_data_.signed_supernode_sizes[i] < 0,
                     "Supernode size was negative.");
-    const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+    const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
     (*permuted_supernode_sizes)[index] = supernode_size;
 
     i_perm += supernode_size;
@@ -1267,9 +1261,9 @@ inline void QuotientGraph::PermutedMemberToSupernode(
   Int permuted_supernode = -1;
   for (Int i_perm = 0; i_perm < num_indices; ++i_perm) {
     const Int i = inverse_permutation[i_perm];
-    if (assembly_.signed_supernode_sizes[i]) {
+    if (graph_data_.signed_supernode_sizes[i]) {
       // 'i' is a principal variable of an absorbed element.
-      QUOTIENT_ASSERT(assembly_.signed_supernode_sizes[i] < 0,
+      QUOTIENT_ASSERT(graph_data_.signed_supernode_sizes[i] < 0,
                       "Supernode size was negative.");
       (*permuted_member_to_supernode)[i_perm] = ++permuted_supernode;
     } else {
@@ -1282,13 +1276,15 @@ inline void QuotientGraph::PermutedMemberToSupernode(
 inline void QuotientGraph::PermutedAssemblyParents(
     const Buffer<Int>& permutation,
     const Buffer<Int>& permuted_member_to_supernode,
-    Buffer<Int>* permuted_assembly_parents) const QUOTIENT_NOEXCEPT {
+    Buffer<Int>* permuted_graph_data_parents) const QUOTIENT_NOEXCEPT {
   const Int num_supernodes = elimination_order_.size();
-  permuted_assembly_parents->Clear();
-  permuted_assembly_parents->Resize(num_supernodes);
+  permuted_graph_data_parents->Clear();
+  permuted_graph_data_parents->Resize(num_supernodes);
   for (Int index = 0; index < num_supernodes; ++index) {
     const Int original_principal = elimination_order_[index];
-    const Int original_parent = assembly_.parent_or_tail[original_principal];
+    const Int original_parent =
+        SYMMETRIC_INDEX(graph_data_.element_offsets[original_principal]);
+    QUOTIENT_ASSERT(original_parent >= 0, "Invalid parent index.");
 
     const Int permuted_principal = permutation[original_principal];
     const Int permuted_parent =
@@ -1300,7 +1296,7 @@ inline void QuotientGraph::PermutedAssemblyParents(
         permuted_parent >= 0 ? permuted_member_to_supernode[permuted_parent]
                              : -1;
 
-    (*permuted_assembly_parents)[permuted_principal_supernode] =
+    (*permuted_graph_data_parents)[permuted_principal_supernode] =
         permuted_parent_supernode;
   }
 }
@@ -1314,7 +1310,7 @@ inline void QuotientGraph::ExternalDegrees() QUOTIENT_NOEXCEPT {
   const Int* pivot_data = graph_data_.ElementData(pivot_);
   for (Int index = 0; index < pivot_size; ++index) {
     const Int i = pivot_data[index];
-    const Int supernode_size = -assembly_.signed_supernode_sizes[i];
+    const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
     QUOTIENT_ASSERT(supernode_size > 0,
                     "supernode " + std::to_string(i) +
                         " had non-positive signed size "
@@ -1328,15 +1324,15 @@ inline void QuotientGraph::ExternalDegrees() QUOTIENT_NOEXCEPT {
       Int& shifted_external_degree = node_flags_.flags[element];
 
       if (shifted_external_degree >= shift) {
-        QUOTIENT_ASSERT(assembly_.parent_or_tail[element] < 0,
-                        "Tried to subtract from an absorbed element.");
+        QUOTIENT_ASSERT(graph_data_.ActiveSupernode(element),
+                        "Tried to subtract using an absorbed element.");
         QUOTIENT_ASSERT(
             shifted_external_degree != shift,
             "Shifted external size was equal to shift before subtracting");
         shifted_external_degree -= supernode_size;
       } else if (shifted_external_degree) {
-        QUOTIENT_ASSERT(assembly_.parent_or_tail[element] < 0,
-                        "Tried to subtract from an absorbed element.");
+        QUOTIENT_ASSERT(graph_data_.ActiveSupernode(element),
+                        "Tried to subtract using an absorbed element.");
         shifted_external_degree = degrees_and_hashes_.lists.degrees[element] +
                                   shift_minus_supernode_size;
       }
@@ -1346,7 +1342,7 @@ inline void QuotientGraph::ExternalDegrees() QUOTIENT_NOEXCEPT {
       if (aggressive_absorption && shifted_external_degree == shift) {
         ++num_aggressive_absorptions_;
         shifted_external_degree = 0;
-        assembly_.parent_or_tail[element] = pivot_;
+        graph_data_.element_offsets[element] = SYMMETRIC_INDEX(pivot_);
         graph_data_.ElementSize(element) = 0;
       }
     }
@@ -1376,20 +1372,21 @@ inline void QuotientGraph::ResetExternalDegrees() QUOTIENT_NOEXCEPT {
 }
 
 inline void QuotientGraph::CombineDenseNodes() QUOTIENT_NOEXCEPT {
-  if (!assembly_.dense_supernode.size) {
+  if (!graph_data_.dense_supernode.size) {
     return;
   }
 
   // Absorb all of the dense nodes into the principal member.
   for (Int i = 0; i < num_vertices_; ++i) {
-    if (!assembly_.signed_supernode_sizes[i] &&
-        assembly_.parent_or_tail[i] < 0) {
-      if (i == assembly_.dense_supernode.principal_member) {
-        assembly_.signed_supernode_sizes[i] = -assembly_.dense_supernode.size;
+    if (!graph_data_.signed_supernode_sizes[i] &&
+        graph_data_.ActiveSupernode(i)) {
+      if (i == graph_data_.dense_supernode.principal_member) {
+        graph_data_.signed_supernode_sizes[i] =
+            -graph_data_.dense_supernode.size;
       } else {
-        assembly_.parent_or_tail[i] =
-            assembly_.dense_supernode.principal_member;
-        assembly_.signed_supernode_sizes[i] = 0;
+        graph_data_.element_offsets[i] =
+            SYMMETRIC_INDEX(graph_data_.dense_supernode.principal_member);
+        graph_data_.signed_supernode_sizes[i] = 0;
       }
     }
   }
@@ -1397,10 +1394,11 @@ inline void QuotientGraph::CombineDenseNodes() QUOTIENT_NOEXCEPT {
   // Point the non-dense elements currently marked as roots to the dense
   // supernode.
   for (Int i = 0; i < num_vertices_; ++i) {
-    if (assembly_.signed_supernode_sizes[i] &&
-        i != assembly_.dense_supernode.principal_member &&
-        assembly_.parent_or_tail[i] < 0) {
-      assembly_.parent_or_tail[i] = assembly_.dense_supernode.principal_member;
+    if (graph_data_.signed_supernode_sizes[i] &&
+        i != graph_data_.dense_supernode.principal_member &&
+        graph_data_.ActiveSupernode(i)) {
+      graph_data_.element_offsets[i] =
+          SYMMETRIC_INDEX(graph_data_.dense_supernode.principal_member);
     }
   }
 }

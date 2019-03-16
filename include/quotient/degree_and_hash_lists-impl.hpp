@@ -77,10 +77,14 @@ inline void DegreeAndHashLists::RemoveDegree(Int index) QUOTIENT_NOEXCEPT {
 
 inline void DegreeAndHashLists::AddDegree(Int index,
                                           Int degree) QUOTIENT_NOEXCEPT {
+  QUOTIENT_ASSERT(degree >= 0, "Attempted to add negative degree of " +
+                                   std::to_string(degree));
   const Int head = heads[degree];
   QUOTIENT_ASSERT(head != index, "Index matched preexisting head.");
   if (head != -1) {
-    QUOTIENT_ASSERT(degrees[head] == degree, "Invalid head degree.");
+    QUOTIENT_ASSERT(degrees[head] == degree, "Invalid head degree for degree " +
+                                                 std::to_string(degree) +
+                                                 " of " + std::to_string(head));
     last_member[head] = index;
   }
   heads[degree] = index;

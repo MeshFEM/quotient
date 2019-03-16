@@ -64,48 +64,17 @@ inline void ChildrenFromParents(const Buffer<Int>& parents,
   }
 }
 
-inline void ChildrenFromParentSubsequence(const Buffer<Int>& parents,
-                                          const Buffer<Int>& node_subsequence,
-                                          Buffer<Int>* children,
-                                          Buffer<Int>* child_offsets) {
-  const Int num_indices = parents.Size();
-
-  {
-    // Compute the number of children of each node in the forest.
-    Buffer<Int> num_children(num_indices, 0);
-    for (const Int& index : node_subsequence) {
-      const Int parent = parents[index];
-      if (parent >= 0) {
-        ++num_children[parent];
-      }
-    }
-
-    // Convert the number of children into the offsets to pack the children
-    // into.
-    OffsetScan(num_children, child_offsets);
-  }
-
-  // Pack the children into the offsets.
-  children->Resize(num_indices);
-  auto offsets_copy = *child_offsets;
-  for (const Int& index : node_subsequence) {
-    const Int parent = parents[index];
-    if (parent >= 0) {
-      (*children)[offsets_copy[parent]++] = index;
-    }
-  }
-}
-
 inline void ChildrenFromParentSubsequence(
-    const Buffer<Int>& parents, const std::vector<Int>& node_subsequence,
-    Buffer<Int>* children, Buffer<Int>* child_offsets) {
-  const Int num_indices = parents.Size();
+    const Buffer<Int>& symmetric_parents,
+    const std::vector<Int>& node_subsequence, Buffer<Int>* children,
+    Buffer<Int>* child_offsets) {
+  const Int num_indices = symmetric_parents.Size();
 
   {
     // Compute the number of children of each node in the forest.
     Buffer<Int> num_children(num_indices, 0);
     for (const Int& index : node_subsequence) {
-      const Int parent = parents[index];
+      const Int parent = SYMMETRIC_INDEX(symmetric_parents[index]);
       if (parent >= 0) {
         ++num_children[parent];
       }
@@ -120,7 +89,7 @@ inline void ChildrenFromParentSubsequence(
   children->Resize(num_indices);
   auto offsets_copy = *child_offsets;
   for (const Int& index : node_subsequence) {
-    const Int parent = parents[index];
+    const Int parent = SYMMETRIC_INDEX(symmetric_parents[index]);
     if (parent >= 0) {
       (*children)[offsets_copy[parent]++] = index;
     }

@@ -161,65 +161,6 @@ class QuotientGraph {
     Int principal_member;
   };
 
-  // An easily-modifiable representation of the supernodes in the quotient
-  // graph. Each supernode is maintained as a singly-linked list.
-  struct AssemblyForest {
-    // A list of length 'num_vertices' of the (signed) sizes of each
-    // supernode. If index 'i' is not principal, then it is set to zero; if
-    // 'i' is a principal variable, then index 'i' is the size of the supernode:
-    // if 'i' is a principal element, the value is negated.
-    //
-    // Absorbed elements and dense supernode members both are marked via a
-    // signed size of '0', but eliminated elements have their assembly parent
-    // marked as their parent in the tree, while dense supernode member 'i' has
-    // its parent equal to SYMMETRIC_INDEX(i).
-    Buffer<Int> signed_supernode_sizes;
-
-    // A (possibly empty) dense supernode.
-    DenseSupernode dense_supernode;
-
-    // A list of length 'num_vertices' where index 'e' contains the index of
-    // the parent of element 'e' in the elimination forest (if it exists).
-    // If element 'e' has no parent, then the value is equal to
-    // SYMMETRIC_INDEX(j), where 'j' is the last member of the supernode.
-    Buffer<Int> parent_or_tail;
-  };
-
-  // A data structure managing an array of length 'num_vertices' which can be
-  // used to quickly compute the cardinalities of |L_e \ L_p| for each element
-  // e in an element list of a supervariable in the current pivot structure,
-  // L_p.
-  //
-  // The positive values can be quickly 'unset' by increasing a shift such that,
-  // in the next iteration, a value is unset if it is less than the shift.
-  //
-  // It is also used for temporarily flagging variables as within a set.
-  struct NodeFlags {
-    // A mask of length 'num_vertices' that can be used to quickly compute
-    // the cardinalities of |L_e \ L_p| for each element e in an element list of
-    // a supervariable in the current pivot structure, L_p.
-    //
-    // It is also used for temporarily flagging variables as within a set.
-    Buffer<Int> flags;
-
-    // The maximum degree that has been constructed so far. Since the external
-    // degree updates in each stage will be less than this value, it is used as
-    // the amount to increase external_degree_shift_ by at each iteration.
-    //
-    // TODO(Jack Poulson): This is true for Amestoy and exact degree bounds, but
-    // I have not yet checked if it holds for the Gilbert bound.
-    Int max_degree;
-
-    // The current datum value for the external degrees (stored within
-    // node_flags_). All values should be interpreted relative to the datum
-    // value.
-    Int shift;
-
-    // The maximum allowable value of the datum until an explicit reset is
-    // required.
-    Int shift_cap;
-  };
-
   // A packing of the adjacency and element lists, with the element lists
   // occurring first in each member, so that memory allocations are not
   // required during the elimination process. The list is of length
@@ -235,15 +176,22 @@ class QuotientGraph {
   // variables for variable i that are not redundant with respect to edges
   // implied by 'structures'.
   struct QuotientGraphData {
-    // The concatentation of the element + adjacency lists of each node.
+    // The concatenation of either the element list and adjacency list or
+    // element structure of each active node.
     Buffer<Int> lists;
 
-    // When index 'i' is a variable, the element list of supervariable 'i' will
-    // start at index `element_offsets[i]` of 'lists'. When supervariable 'i'
-    // becomes an element, the element will be stored in this location.
+    // When index 'i' is an active variable, the element list of supervariable
+    // 'i' will start at index `element_offsets[i]` of 'lists'. When index 'e'
+    // is an unabsorbed element, the element structure will be stored in this
+    // location.
+    //
+    // Otherwise, if 'i' was a variable merged into variable 'j', index 'i' will
+    // contain SYMMETRIC_INDEX(j). Similarly, if 'e' is an element absorbed
+    // into element 'f', index 'e' will contain SYMMETRIC_INDEX(f).
+    //
+    // Thus, iff element_offsets[i] >= 0, supervariable or element 'i' is
+    // active.
     Buffer<Int> element_offsets;
-
-    // The length of the element list of variable i.
 
     // When index 'i' is a variable, 'element_sizes[i]' will denote the length
     // of the element list. When 'i' is an element, it will denote the number
@@ -255,6 +203,27 @@ class QuotientGraph {
 
     // The position the next element can be stored at.
     Int offset;
+
+    // The baseline position to reset the offset to.
+    Int offset_baseline;
+
+    // A list of length 'num_vertices' of the (signed) sizes of each
+    // supernode. If index 'i' is not principal, then it is set to zero; if
+    // 'i' is a principal variable, then index 'i' is the size of the supernode:
+    // if 'i' is a principal element, the value is negated.
+    //
+    // Absorbed elements and dense supernode members both are marked via a
+    // signed size of '0', but eliminated elements have their assembly parent
+    // marked as their parent in the tree, while dense supernode member 'i' has
+    // its parent equal to SYMMETRIC_INDEX(i).
+    Buffer<Int> signed_supernode_sizes;
+
+    // A (possibly empty) dense supernode.
+    DenseSupernode dense_supernode;
+
+    // Returns whether or not index 'i' corresponds to the principal member of
+    // either an active supervariable or an unabsorbed element.
+    bool ActiveSupernode(Int i) const { return element_offsets[i] >= 0; }
 
     // Returns a mutable pointer to the element list of a given variable.
     Int* ElementList(Int i) QUOTIENT_NOEXCEPT {
@@ -307,16 +276,18 @@ class QuotientGraph {
     }
 
     // Contiguously pack the still-active elements into 'indices'.
-    void PackElements(Int pack_offset, const Int* element_beg,
+    void PackElements(const Int* element_beg,
                       const Int* element_end) QUOTIENT_NOEXCEPT {
-      offset = pack_offset;
+      offset = offset_baseline;
       for (const Int* iter = element_beg; iter != element_end; ++iter) {
         const Int element = *iter;
-        const Int element_size = element_sizes[element];
-        Int element_offset = element_offsets[element];
-        element_offsets[element] = offset;
-        for (Int i = 0; i < element_size; ++i) {
-          lists[offset++] = lists[element_offset++];
+        if (ActiveSupernode(element)) {
+          const Int element_size = element_sizes[element];
+          Int element_offset = element_offsets[element];
+          element_offsets[element] = offset;
+          for (Int i = 0; i < element_size; ++i) {
+            lists[offset++] = lists[element_offset++];
+          }
         }
       }
     }
@@ -341,6 +312,41 @@ class QuotientGraph {
     Int num_collisions;
   };
 
+  // A data structure managing an array of length 'num_vertices' which can be
+  // used to quickly compute the cardinalities of |L_e \ L_p| for each element
+  // e in an element list of a supervariable in the current pivot structure,
+  // L_p.
+  //
+  // The positive values can be quickly 'unset' by increasing a shift such that,
+  // in the next iteration, a value is unset if it is less than the shift.
+  //
+  // It is also used for temporarily flagging variables as within a set.
+  struct NodeFlags {
+    // A mask of length 'num_vertices' that can be used to quickly compute
+    // the cardinalities of |L_e \ L_p| for each element e in an element list of
+    // a supervariable in the current pivot structure, L_p.
+    //
+    // It is also used for temporarily flagging variables as within a set.
+    Buffer<Int> flags;
+
+    // The maximum degree that has been constructed so far. Since the external
+    // degree updates in each stage will be less than this value, it is used as
+    // the amount to increase external_degree_shift_ by at each iteration.
+    //
+    // TODO(Jack Poulson): This is true for Amestoy and exact degree bounds, but
+    // I have not yet checked if it holds for the Gilbert bound.
+    Int max_degree;
+
+    // The current datum value for the external degrees (stored within
+    // node_flags_). All values should be interpreted relative to the datum
+    // value.
+    Int shift;
+
+    // The maximum allowable value of the datum until an explicit reset is
+    // required.
+    Int shift_cap;
+  };
+
   // The control structure used to configure the MinimumDegree analysis.
   const MinimumDegreeControl control_;
 
@@ -352,9 +358,6 @@ class QuotientGraph {
 
   // The principal member of the current pivot.
   Int pivot_;
-
-  // The representation of the current assembly forest.
-  AssemblyForest assembly_;
 
   // The representation of the element lists and adjacencies of the nodes
   // in the quotient graph.
@@ -376,9 +379,6 @@ class QuotientGraph {
   // A map from the stage name to the associated timer.
   mutable std::unordered_map<std::string, Timer> timers_;
 #endif
-
-  // Initialize the AssemblyForest.
-  void InitializeAssemblyForest() QUOTIENT_NOEXCEPT;
 
   // Converts edge counts for each source into an offset scan and return the
   // number of edges.

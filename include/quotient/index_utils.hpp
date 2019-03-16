@@ -30,16 +30,12 @@ void ChildrenFromParents(const Buffer<Int>& parents, Buffer<Int>* children,
                          Buffer<Int>* child_offsets);
 
 // Builds the packed list of children of the nodes in a given subsequence
-// based upon their parents. As for 'ChildrenFromParents', the children of
-// node 'i' will be stored between indices 'child_offsets[i]' and
-// 'child_offsets[i + 1]' of 'children'.
-void ChildrenFromParentSubsequence(const Buffer<Int>& parents,
-                                   const Buffer<Int>& node_subsequence,
-                                   Buffer<Int>* children,
-                                   Buffer<Int>* child_offsets);
-
-// Equivalent to the above, but with an std::vector node subsequence.
-void ChildrenFromParentSubsequence(const Buffer<Int>& parents,
+// based upon their parents, which only exist at index 'i' if
+// SYMMETRIC_INDEX(i) >= 0..
+//
+// As for 'ChildrenFromParents', the children of node 'i' will be stored
+// between indices 'child_offsets[i]' and 'child_offsets[i + 1]' of 'children'.
+void ChildrenFromParentSubsequence(const Buffer<Int>& symmetric_parents,
                                    const std::vector<Int>& node_subsequence,
                                    Buffer<Int>* children,
                                    Buffer<Int>* child_offsets);
