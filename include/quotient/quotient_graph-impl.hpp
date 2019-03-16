@@ -393,7 +393,7 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
 
     // Absorb this element into the pivot.
     degrees_and_hashes_.lists.degrees[element] -= pivot_supernode_size;
-    graph_data_.element_offsets[element] = SYMMETRIC_INDEX(pivot_);
+    graph_data_.SetParent(element, pivot_);
     graph_data_.ElementSize(element) = 0;
     node_flags_.flags[element] = 0;
   }
@@ -1048,7 +1048,7 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
           // pivot structure have been negated.
           degrees_and_hashes_.lists.degrees[i] -= absorbed_size;
           graph_data_.signed_supernode_sizes[i] -= absorbed_size;
-          graph_data_.element_offsets[j] = SYMMETRIC_INDEX(i);
+          graph_data_.SetParent(j, i);
           graph_data_.ElementListSize(j) = 0;
           graph_data_.adjacency_list_sizes[j] = 0;
           graph_data_.signed_supernode_sizes[j] = 0;
@@ -1125,15 +1125,6 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
 
 inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
     QUOTIENT_NOEXCEPT {
-  auto supernode_principal = [&](Int index) {
-    while (!graph_data_.signed_supernode_sizes[index]) {
-      QUOTIENT_ASSERT(!graph_data_.ActiveSupernode(index),
-                      "Active supernode while computing supernode principal.");
-      index = SYMMETRIC_INDEX(graph_data_.element_offsets[index]);
-    }
-    return index;
-  };
-
   // Fill the supernode non-principal member lists.
   Buffer<Int> nonprincipal_offsets(num_vertices_ + 1, 0);
   Int num_nonprincipal_members = 0;
@@ -1151,7 +1142,13 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
   for (Int i = 0; i < num_vertices_; ++i) {
     const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
     if (!supernode_size) {
-      const Int principal = supernode_principal(i);
+      Int principal = i;
+      while (!graph_data_.signed_supernode_sizes[principal]) {
+        QUOTIENT_ASSERT(
+            !graph_data_.ActiveSupernode(principal),
+            "Active supernode while computing supernode principal.");
+        principal = graph_data_.Parent(principal);
+      }
       nonprincipal_members[offsets_copy[principal]++] = i;
     }
   }
@@ -1281,8 +1278,7 @@ inline void QuotientGraph::PermutedAssemblyParents(
   permuted_graph_data_parents->Resize(num_supernodes);
   for (Int index = 0; index < num_supernodes; ++index) {
     const Int original_principal = elimination_order_[index];
-    const Int original_parent =
-        SYMMETRIC_INDEX(graph_data_.element_offsets[original_principal]);
+    const Int original_parent = graph_data_.Parent(original_principal);
     QUOTIENT_ASSERT(original_parent >= 0, "Invalid parent index.");
 
     const Int permuted_principal = permutation[original_principal];
@@ -1341,7 +1337,7 @@ inline void QuotientGraph::ExternalDegrees() QUOTIENT_NOEXCEPT {
       if (aggressive_absorption && shifted_external_degree == shift) {
         ++num_aggressive_absorptions_;
         shifted_external_degree = 0;
-        graph_data_.element_offsets[element] = SYMMETRIC_INDEX(pivot_);
+        graph_data_.SetParent(element, pivot_);
         graph_data_.ElementSize(element) = 0;
       }
     }
@@ -1383,8 +1379,7 @@ inline void QuotientGraph::CombineDenseNodes() QUOTIENT_NOEXCEPT {
         graph_data_.signed_supernode_sizes[i] =
             -graph_data_.dense_supernode.size;
       } else {
-        graph_data_.element_offsets[i] =
-            SYMMETRIC_INDEX(graph_data_.dense_supernode.principal_member);
+        graph_data_.SetParent(i, graph_data_.dense_supernode.principal_member);
         graph_data_.signed_supernode_sizes[i] = 0;
       }
     }
@@ -1396,8 +1391,7 @@ inline void QuotientGraph::CombineDenseNodes() QUOTIENT_NOEXCEPT {
     if (graph_data_.signed_supernode_sizes[i] &&
         i != graph_data_.dense_supernode.principal_member &&
         graph_data_.ActiveSupernode(i)) {
-      graph_data_.element_offsets[i] =
-          SYMMETRIC_INDEX(graph_data_.dense_supernode.principal_member);
+      graph_data_.SetParent(i, graph_data_.dense_supernode.principal_member);
     }
   }
 }

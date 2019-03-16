@@ -220,7 +220,21 @@ class QuotientGraph {
 
     // Returns whether or not index 'i' corresponds to the principal member of
     // either an active supervariable or an unabsorbed element.
-    bool ActiveSupernode(Int i) const { return element_offsets[i] >= 0; }
+    bool ActiveSupernode(Int i) const QUOTIENT_NOEXCEPT {
+      return element_offsets[i] >= 0;
+    }
+
+    // Returns the parent index of a merged variable or absorbed element.
+    Int Parent(Int i) const QUOTIENT_NOEXCEPT {
+      QUOTIENT_ASSERT(element_offsets[i] < 0,
+                      "Cannot retrieve parent of active object.");
+      return SYMMETRIC_INDEX(element_offsets[i]);
+    }
+
+    // Sets the parent index of a merged variable or absorbed element.
+    void SetParent(Int i, Int parent) QUOTIENT_NOEXCEPT {
+      element_offsets[i] = SYMMETRIC_INDEX(parent);
+    }
 
     // Returns a mutable pointer to the element list of a given variable.
     Int* ElementList(Int i) QUOTIENT_NOEXCEPT {
