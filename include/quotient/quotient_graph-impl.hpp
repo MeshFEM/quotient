@@ -25,19 +25,18 @@ namespace quotient {
 #ifdef QUOTIENT_ENABLE_TIMERS
 #define QUOTIENT_START_TIMER(timer, name) timer[name].Start()
 #define QUOTIENT_STOP_TIMER(timer, name) timer[name].Stop()
-#else
-#define QUOTIENT_START_TIMER(timer, name)
-#define QUOTIENT_STOP_TIMER(timer, name)
-#endif
 
-#ifdef QUOTIENT_ENABLE_TIMERS
 static constexpr char kSetup[] = "Setup";
 static constexpr char kComputePivotStructure[] = "ComputePivotStructure";
 static constexpr char kExternalDegrees[] = "ExternalDegrees";
 static constexpr char kComputeDegreesAndHashes[] = "ComputeDegreesAndHashes";
 static constexpr char kMergeVariables[] = "MergeVariables";
 static constexpr char kFinalizePivot[] = "FinalizePivot";
-#endif
+static constexpr char kComputePostorder[] = "ComputePostorder";
+#else
+#define QUOTIENT_START_TIMER(timer, name)
+#define QUOTIENT_STOP_TIMER(timer, name)
+#endif  // ifdef QUOTIENT_ENABLE_TIMERS
 
 inline bool QuotientGraph::QuotientGraphData::ActiveSupernode(Int i) const
     QUOTIENT_NOEXCEPT {
@@ -251,6 +250,7 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
   Int num_edges = ConvertEdgeCountsIntoOffsets();
 
   // Pack the edges. We leave extra room for packing element structures.
+  // TODO(Jack Poulson): Make this coefficient configurable.
   const float kNumEdgesRatio = 0.2f;
   const Int extra_element_space = kNumEdgesRatio * num_edges + num_vertices_;
   graph_data_.lists.Resize(num_edges + extra_element_space);
@@ -300,6 +300,7 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
   Int num_edges = ConvertEdgeCountsIntoOffsets();
 
   // Pack the edges. We leave extra room for packing element structures.
+  // TODO(Jack Poulson): Make this coefficient configurable.
   const float kNumEdgesRatio = 0.2f;
   const Int extra_element_space = kNumEdgesRatio * num_edges + num_vertices_;
   graph_data_.lists.Resize(num_edges + extra_element_space);
@@ -1246,6 +1247,8 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
 
 inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
     QUOTIENT_NOEXCEPT {
+  QUOTIENT_START_TIMER(timers_, kComputePostorder);
+
   // Fill the supernode non-principal member lists.
   Buffer<Int> nonprincipal_offsets(num_vertices_ + 1, 0);
   Int num_nonprincipal_members = 0;
@@ -1310,6 +1313,7 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
 
   QUOTIENT_ASSERT(iter == postorder->end(),
                   "Postorder had incorrect final offset.");
+  QUOTIENT_STOP_TIMER(timers_, kComputePostorder);
 }
 
 inline Int* QuotientGraph::PreorderTree(Int root,
