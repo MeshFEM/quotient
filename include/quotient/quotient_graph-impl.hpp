@@ -39,6 +39,122 @@ static constexpr char kMergeVariables[] = "MergeVariables";
 static constexpr char kFinalizePivot[] = "FinalizePivot";
 #endif
 
+inline bool QuotientGraph::QuotientGraphData::ActiveSupernode(Int i) const
+    QUOTIENT_NOEXCEPT {
+  return element_offsets[i] >= 0;
+}
+
+inline Int QuotientGraph::QuotientGraphData::Parent(Int i) const
+    QUOTIENT_NOEXCEPT {
+  QUOTIENT_ASSERT(element_offsets[i] < 0,
+                  "Cannot rettrieve parent of active object.");
+  return SYMMETRIC_INDEX(element_offsets[i]);
+}
+
+inline void QuotientGraph::QuotientGraphData::SetParent(Int i, Int parent)
+    QUOTIENT_NOEXCEPT {
+  element_offsets[i] = SYMMETRIC_INDEX(parent);
+}
+
+inline const Int* QuotientGraph::QuotientGraphData::ElementList(Int i) const
+    QUOTIENT_NOEXCEPT {
+  return &lists[element_offsets[i]];
+}
+
+inline Int* QuotientGraph::QuotientGraphData::ElementList(Int i)
+    QUOTIENT_NOEXCEPT {
+  return &lists[element_offsets[i]];
+}
+
+inline const Int* QuotientGraph::QuotientGraphData::ElementData(Int i) const
+    QUOTIENT_NOEXCEPT {
+  return &lists[element_offsets[i]];
+}
+
+inline Int* QuotientGraph::QuotientGraphData::ElementData(Int i)
+    QUOTIENT_NOEXCEPT {
+  return &lists[element_offsets[i]];
+}
+
+inline const Int* QuotientGraph::QuotientGraphData::AdjacencyList(Int i) const
+    QUOTIENT_NOEXCEPT {
+  return &lists[element_offsets[i] + element_sizes[i]];
+}
+
+inline Int* QuotientGraph::QuotientGraphData::AdjacencyList(Int i)
+    QUOTIENT_NOEXCEPT {
+  return &lists[element_offsets[i] + element_sizes[i]];
+}
+
+inline const Int& QuotientGraph::QuotientGraphData::ElementListSize(
+    Int element) const QUOTIENT_NOEXCEPT {
+  return element_sizes[element];
+}
+
+inline Int& QuotientGraph::QuotientGraphData::ElementListSize(Int element)
+    QUOTIENT_NOEXCEPT {
+  return element_sizes[element];
+}
+
+inline const Int& QuotientGraph::QuotientGraphData::ElementSize(
+    Int element) const QUOTIENT_NOEXCEPT {
+  return element_sizes[element];
+}
+
+inline Int& QuotientGraph::QuotientGraphData::ElementSize(Int element)
+    QUOTIENT_NOEXCEPT {
+  return element_sizes[element];
+}
+
+inline void QuotientGraph::QuotientGraphData::Pack() QUOTIENT_NOEXCEPT {
+  const Int offset_save = offset;
+
+  // Overwrite the offsets of all of the active variables and elements
+  // with the first entry of the object and replace the entry with the
+  // symmetric version of the object index (as a flag).
+  const Int num_vertices = element_sizes.Size();
+  for (Int i = 0; i < num_vertices; ++i) {
+    if (ActiveSupernode(i)) {
+      QUOTIENT_ASSERT(element_sizes[i] + adjacency_list_sizes[i] != 0,
+                      "Had a zero-length active variable.");
+      Int* element_list = &lists[element_offsets[i]];
+      element_offsets[i] = element_list[0];
+      element_list[0] = SYMMETRIC_INDEX(i);
+    }
+  }
+
+  // Pack the adjacencies and elements.
+  Int pack_offset = 0;
+  Int read_offset = 0;
+  while (read_offset < offset_save) {
+    const Int entry = lists[read_offset++];
+    if (entry >= 0) {
+      continue;
+    }
+    const Int i = SYMMETRIC_INDEX(entry);
+    const Int element_size = element_sizes[i];
+    const Int adjacency_size = adjacency_list_sizes[i];
+    QUOTIENT_ASSERT(element_size || adjacency_size, "Packing empty element");
+
+    // The current index is the beginning of an object.
+    const Int displaced_entry = element_offsets[i];
+    element_offsets[i] = pack_offset;
+    lists[pack_offset++] = displaced_entry;
+
+    // Pack the rest of the object.
+    const Int length = element_size + adjacency_size;
+    for (Int k = 1; k < length; ++k) {
+      lists[pack_offset++] = lists[read_offset++];
+    }
+  }
+
+  offset = pack_offset;
+#ifdef QUOTIENT_DEBUG
+  std::cout << "Began with " << offset_save << ", ended with " << pack_offset
+            << std::endl;
+#endif
+}
+
 inline QuotientGraph::QuotientGraph(const CoordinateGraph& graph,
                                     const MinimumDegreeControl& control)
     : QuotientGraph(graph.NumSources(), graph.Edges(), control) {}
@@ -57,6 +173,7 @@ inline Int QuotientGraph::ConvertEdgeCountsIntoOffsets() QUOTIENT_NOEXCEPT {
     if (graph_data_.adjacency_list_sizes[source] >= dense_threshold) {
       if (!graph_data_.dense_supernode.size) {
         graph_data_.dense_supernode.principal_member = source;
+        ++num_eliminated_supernodes_;
       }
       ++graph_data_.dense_supernode.size;
       ++num_eliminated_vertices_;
@@ -110,6 +227,7 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
     : control_(control),
       num_vertices_(num_vertices),
       num_eliminated_vertices_(0),
+      num_eliminated_supernodes_(0),
       num_aggressive_absorptions_(0) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
@@ -158,9 +276,11 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
     : control_(control),
       num_vertices_(num_vertices),
       num_eliminated_vertices_(0),
+      num_eliminated_supernodes_(0),
       num_aggressive_absorptions_(0) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
+  // TODO(Jack Poulson): Eliminate this variable.
   elimination_order_.reserve(num_vertices_);
 
   graph_data_.signed_supernode_sizes.Resize(num_vertices_, 1);
@@ -1118,6 +1238,7 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
   graph_data_.offset += num_packed;
 
   elimination_order_.push_back(pivot_);
+  ++num_eliminated_supernodes_;
   num_eliminated_vertices_ += supernode_size;
 
   QUOTIENT_STOP_TIMER(timers_, kFinalizePivot);
@@ -1231,12 +1352,11 @@ inline Int* QuotientGraph::PreorderTree(Int root,
 inline void QuotientGraph::PermutedSupernodeSizes(
     const Buffer<Int>& inverse_permutation,
     Buffer<Int>* permuted_supernode_sizes) const QUOTIENT_NOEXCEPT {
-  const Int num_supernodes = elimination_order_.size();
   permuted_supernode_sizes->Clear();
-  permuted_supernode_sizes->Resize(num_supernodes);
+  permuted_supernode_sizes->Resize(num_eliminated_supernodes_);
 
   Int i_perm = 0;
-  for (Int index = 0; index < num_supernodes; ++index) {
+  for (Int index = 0; index < num_eliminated_supernodes_; ++index) {
     const Int i = inverse_permutation[i_perm];
     QUOTIENT_ASSERT(graph_data_.signed_supernode_sizes[i] < 0,
                     "Supernode size was negative.");
@@ -1273,10 +1393,9 @@ inline void QuotientGraph::PermutedAssemblyParents(
     const Buffer<Int>& permutation,
     const Buffer<Int>& permuted_member_to_supernode,
     Buffer<Int>* permuted_graph_data_parents) const QUOTIENT_NOEXCEPT {
-  const Int num_supernodes = elimination_order_.size();
   permuted_graph_data_parents->Clear();
-  permuted_graph_data_parents->Resize(num_supernodes);
-  for (Int index = 0; index < num_supernodes; ++index) {
+  permuted_graph_data_parents->Resize(num_eliminated_supernodes_);
+  for (Int index = 0; index < num_eliminated_supernodes_; ++index) {
     const Int original_principal = elimination_order_[index];
     const Int original_parent = graph_data_.Parent(original_principal);
     QUOTIENT_ASSERT(original_parent >= 0, "Invalid parent index.");

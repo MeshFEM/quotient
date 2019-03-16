@@ -220,122 +220,48 @@ class QuotientGraph {
 
     // Returns whether or not index 'i' corresponds to the principal member of
     // either an active supervariable or an unabsorbed element.
-    bool ActiveSupernode(Int i) const QUOTIENT_NOEXCEPT {
-      return element_offsets[i] >= 0;
-    }
+    bool ActiveSupernode(Int i) const QUOTIENT_NOEXCEPT;
 
     // Returns the parent index of a merged variable or absorbed element.
-    Int Parent(Int i) const QUOTIENT_NOEXCEPT {
-      QUOTIENT_ASSERT(element_offsets[i] < 0,
-                      "Cannot retrieve parent of active object.");
-      return SYMMETRIC_INDEX(element_offsets[i]);
-    }
+    Int Parent(Int i) const QUOTIENT_NOEXCEPT;
 
     // Sets the parent index of a merged variable or absorbed element.
-    void SetParent(Int i, Int parent) QUOTIENT_NOEXCEPT {
-      element_offsets[i] = SYMMETRIC_INDEX(parent);
-    }
+    void SetParent(Int i, Int parent) QUOTIENT_NOEXCEPT;
 
     // Returns a mutable pointer to the element list of a given variable.
-    Int* ElementList(Int i) QUOTIENT_NOEXCEPT {
-      return &lists[element_offsets[i]];
-    }
+    Int* ElementList(Int i) QUOTIENT_NOEXCEPT;
 
     // Returns an immutable pointer to the element list of a given variable.
-    const Int* ElementList(Int i) const QUOTIENT_NOEXCEPT {
-      return &lists[element_offsets[i]];
-    }
+    const Int* ElementList(Int i) const QUOTIENT_NOEXCEPT;
 
     // Returns a mutable pointer to the structure of a given element.
-    Int* ElementData(Int i) QUOTIENT_NOEXCEPT {
-      return &lists[element_offsets[i]];
-    }
+    Int* ElementData(Int i) QUOTIENT_NOEXCEPT;
 
     // Returns an immutable pointer to the structure of a given element.
-    const Int* ElementData(Int i) const QUOTIENT_NOEXCEPT {
-      return &lists[element_offsets[i]];
-    }
+    const Int* ElementData(Int i) const QUOTIENT_NOEXCEPT;
 
     // Returns a mutable pointer to the adjacency list of a given variable.
-    Int* AdjacencyList(Int i) QUOTIENT_NOEXCEPT {
-      return &lists[element_offsets[i] + element_sizes[i]];
-    }
+    Int* AdjacencyList(Int i) QUOTIENT_NOEXCEPT;
 
     // Returns an immutable pointer to the adjacency list of a given variable.
-    const Int* AdjacencyList(Int i) const QUOTIENT_NOEXCEPT {
-      return &lists[element_offsets[i] + element_sizes[i]];
-    }
+    const Int* AdjacencyList(Int i) const QUOTIENT_NOEXCEPT;
 
     // Returns an immutable reference to the element list length for
     // supervariable i.
-    const Int& ElementListSize(Int i) const QUOTIENT_NOEXCEPT {
-      return element_sizes[i];
-    }
+    const Int& ElementListSize(Int i) const QUOTIENT_NOEXCEPT;
 
     // Returns a mutable reference to the element list length for supervariable
     // i.
-    Int& ElementListSize(Int i) QUOTIENT_NOEXCEPT { return element_sizes[i]; }
+    Int& ElementListSize(Int i) QUOTIENT_NOEXCEPT;
 
     // Returns an immutable reference to the structure length for an element.
-    const Int& ElementSize(Int element) const QUOTIENT_NOEXCEPT {
-      return element_sizes[element];
-    }
+    const Int& ElementSize(Int element) const QUOTIENT_NOEXCEPT;
 
     // Returns a mutable reference to the structure length for an element.
-    Int& ElementSize(Int element) QUOTIENT_NOEXCEPT {
-      return element_sizes[element];
-    }
+    Int& ElementSize(Int element) QUOTIENT_NOEXCEPT;
 
     // Contiguously packs the still-active variables and elements.
-    void Pack() QUOTIENT_NOEXCEPT {
-      const Int offset_save = offset;
-
-      // Overwrite the offsets of all of the active variables and elements
-      // with the first entry of the object and replace the entry with the
-      // symmetric version of the object index (as a flag).
-      const Int num_vertices = element_sizes.Size();
-      for (Int i = 0; i < num_vertices; ++i) {
-        if (ActiveSupernode(i)) {
-          QUOTIENT_ASSERT(element_sizes[i] + adjacency_list_sizes[i] != 0,
-                          "Had a zero-length active variable.");
-          Int* element_list = &lists[element_offsets[i]];
-          element_offsets[i] = element_list[0];
-          element_list[0] = SYMMETRIC_INDEX(i);
-        }
-      }
-
-      // Pack the adjacencies and elements.
-      Int pack_offset = 0;
-      Int read_offset = 0;
-      while (read_offset < offset_save) {
-        const Int entry = lists[read_offset++];
-        if (entry >= 0) {
-          continue;
-        }
-        const Int i = SYMMETRIC_INDEX(entry);
-        const Int element_size = element_sizes[i];
-        const Int adjacency_size = adjacency_list_sizes[i];
-        QUOTIENT_ASSERT(element_size || adjacency_size,
-                        "Packing empty element");
-
-        // The current index is the beginning of an object.
-        const Int displaced_entry = element_offsets[i];
-        element_offsets[i] = pack_offset;
-        lists[pack_offset++] = displaced_entry;
-
-        // Pack the rest of the object.
-        const Int length = element_size + adjacency_size;
-        for (Int k = 1; k < length; ++k) {
-          lists[pack_offset++] = lists[read_offset++];
-        }
-      }
-
-      offset = pack_offset;
-#ifdef QUOTIENT_DEBUG
-      std::cout << "Began with " << offset_save << ", ended with "
-                << pack_offset << std::endl;
-#endif
-    }
+    void Pack() QUOTIENT_NOEXCEPT;
   };
 
   // Data structures related to degree lists and hashed supervariables.
@@ -400,6 +326,9 @@ class QuotientGraph {
 
   // The number of vertices that have been eliminated from the original graph.
   Int num_eliminated_vertices_;
+
+  // The number of supernodes that have been eliminated.
+  Int num_eliminated_supernodes_;
 
   // The principal member of the current pivot.
   Int pivot_;
