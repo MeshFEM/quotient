@@ -40,13 +40,13 @@ static constexpr char kComputePostorder[] = "ComputePostorder";
 
 inline bool QuotientGraph::QuotientGraphData::ActiveSupernode(Int i) const
     QUOTIENT_NOEXCEPT {
-  return element_offsets[i] >= 0;
+  return element_offsets[i] >= -1;
 }
 
 inline Int QuotientGraph::QuotientGraphData::Parent(Int i) const
     QUOTIENT_NOEXCEPT {
   QUOTIENT_ASSERT(element_offsets[i] < 0,
-                  "Cannot rettrieve parent of active object.");
+                  "Cannot retrieve parent of active object.");
   return SYMMETRIC_INDEX(element_offsets[i]);
 }
 
@@ -1245,11 +1245,12 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
   QUOTIENT_STOP_TIMER(timers_, kFinalizePivot);
 }
 
-inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
+inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder)
     QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kComputePostorder);
 
   // Fill the supernode non-principal member lists.
+  // Also, ensure that the root nodes are explicitly marked as such.
   Buffer<Int> nonprincipal_offsets(num_vertices_ + 1, 0);
   Int num_nonprincipal_members = 0;
   for (Int i = 0; i < num_vertices_; ++i) {
@@ -1258,6 +1259,9 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
     QUOTIENT_ASSERT(supernode_size >= 0, "Supernode size was negative.");
     if (supernode_size) {
       num_nonprincipal_members += supernode_size - 1;
+      if (graph_data_.element_offsets[i] >= 0) {
+        graph_data_.SetParent(i, -1);
+      }
     }
   }
   nonprincipal_offsets[num_vertices_] = num_nonprincipal_members;
@@ -1280,10 +1284,34 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
   // Reconstruct the child links from the parent links in a contiguous array
   // (similar to the CSR format) by first counting the number of children of
   // each node.
-  Buffer<Int> children;
+
   Buffer<Int> child_offsets;
-  ChildrenFromParentSubsequence(graph_data_.element_offsets, elimination_order_,
-                                &children, &child_offsets);
+  {
+    Buffer<Int> num_children(num_vertices_, 0);
+    for (Int i = 0; i < num_vertices_; ++i) {
+      if (!graph_data_.signed_supernode_sizes[i]) {
+        continue;
+      }
+      const Int parent = graph_data_.Parent(i);
+      if (parent >= 0) {
+        ++num_children[parent];
+      }
+    }
+    OffsetScan(num_children, &child_offsets);
+  }
+  Buffer<Int> children(num_eliminated_supernodes_);
+  {
+    auto offsets_copy = child_offsets;
+    for (Int i = 0; i < num_vertices_; ++i) {
+      if (!graph_data_.signed_supernode_sizes[i]) {
+        continue;
+      }
+      const Int parent = graph_data_.Parent(i);
+      if (parent >= 0) {
+        children[offsets_copy[parent]++] = i;
+      }
+    }
+  }
 
   // Scan for the roots and launch a pe-order traversal on each of them.
   postorder->Resize(num_vertices_);
@@ -1402,7 +1430,6 @@ inline void QuotientGraph::PermutedAssemblyParents(
   for (Int index = 0; index < num_eliminated_supernodes_; ++index) {
     const Int original_principal = elimination_order_[index];
     const Int original_parent = graph_data_.Parent(original_principal);
-    QUOTIENT_ASSERT(original_parent >= 0, "Invalid parent index.");
 
     const Int permuted_principal = permutation[original_principal];
     const Int permuted_parent =
