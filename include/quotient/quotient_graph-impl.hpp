@@ -230,9 +230,6 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
       num_aggressive_absorptions_(0) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
-  // TODO(Jack Poulson): Eliminate this variable.
-  elimination_order_.reserve(num_vertices_);
-
   graph_data_.signed_supernode_sizes.Resize(num_vertices_, 1);
   graph_data_.dense_supernode.size = 0;
   graph_data_.dense_supernode.principal_member = -1;
@@ -280,9 +277,6 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
       num_aggressive_absorptions_(0) {
   QUOTIENT_START_TIMER(timers_, kSetup);
 
-  // TODO(Jack Poulson): Eliminate this variable.
-  elimination_order_.reserve(num_vertices_);
-
   graph_data_.signed_supernode_sizes.Resize(num_vertices_, 1);
   graph_data_.dense_supernode.size = 0;
   graph_data_.dense_supernode.principal_member = -1;
@@ -317,11 +311,6 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
   InitializeNodeFlags();
 
   QUOTIENT_STOP_TIMER(timers_, kSetup);
-}
-
-inline const std::vector<Int>& QuotientGraph::EliminationOrder() const
-    QUOTIENT_NOEXCEPT {
-  return elimination_order_;
 }
 
 inline Int QuotientGraph::FindAndProcessPivot() QUOTIENT_NOEXCEPT {
@@ -1238,7 +1227,6 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
   graph_data_.ElementSize(pivot_) = num_packed;
   graph_data_.offset += num_packed;
 
-  elimination_order_.push_back(pivot_);
   ++num_eliminated_supernodes_;
   num_eliminated_vertices_ += supernode_size;
 
@@ -1427,21 +1415,21 @@ inline void QuotientGraph::PermutedAssemblyParents(
     Buffer<Int>* permuted_graph_data_parents) const QUOTIENT_NOEXCEPT {
   permuted_graph_data_parents->Clear();
   permuted_graph_data_parents->Resize(num_eliminated_supernodes_);
-  for (Int index = 0; index < num_eliminated_supernodes_; ++index) {
-    const Int original_principal = elimination_order_[index];
-    const Int original_parent = graph_data_.Parent(original_principal);
+  for (Int index = 0; index < num_vertices_; ++index) {
+    if (!graph_data_.signed_supernode_sizes[index]) {
+      continue;
+    }
+    const Int parent = graph_data_.Parent(index);
 
-    const Int permuted_principal = permutation[original_principal];
-    const Int permuted_parent =
-        original_parent >= 0 ? permutation[original_parent] : -1;
+    const Int permuted_index = permutation[index];
+    const Int permuted_parent = parent >= 0 ? permutation[parent] : -1;
 
-    const Int permuted_principal_supernode =
-        permuted_member_to_supernode[permuted_principal];
+    const Int permuted_supernode = permuted_member_to_supernode[permuted_index];
     const Int permuted_parent_supernode =
         permuted_parent >= 0 ? permuted_member_to_supernode[permuted_parent]
                              : -1;
 
-    (*permuted_graph_data_parents)[permuted_principal_supernode] =
+    (*permuted_graph_data_parents)[permuted_supernode] =
         permuted_parent_supernode;
   }
 }

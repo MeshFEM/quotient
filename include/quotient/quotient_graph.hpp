@@ -60,9 +60,6 @@ class QuotientGraph {
   // Returns the number of vertices that have been eliminated from the graph.
   Int NumEliminatedVertices() const QUOTIENT_NOEXCEPT;
 
-  // Returns the ordered list of eliminated principal variables.
-  const std::vector<Int>& EliminationOrder() const QUOTIENT_NOEXCEPT;
-
   // Fills 'postorder' with the postorder of the assembly tree.
   void ComputePostorder(Buffer<Int>* postorder) QUOTIENT_NOEXCEPT;
 
@@ -345,9 +342,6 @@ class QuotientGraph {
 
   // The number of aggressive absorptions that have occurred.
   Int num_aggressive_absorptions_;
-
-  // The ordered list of principal members of eliminated supernodes.
-  std::vector<Int> elimination_order_;
 
 #ifdef QUOTIENT_ENABLE_TIMERS
   // A map from the stage name to the associated timer.

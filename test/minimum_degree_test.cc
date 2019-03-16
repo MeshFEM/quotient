@@ -110,12 +110,6 @@ TEST_CASE("ADD-96 Figures 1-2", "[ADD-96 Figs 1-2]") {
 
       {0}, {1}, {2}, {3}, {4}, {5}, {}, {}, {6, 7, 8}, {9}.
   */
-  const std::vector<Int> kExpectedEliminationOrder{
-      0, 1, 2, 3, 4, 5, 8, 9,
-  };
-  const std::vector<Int> elimination_order = quotient_graph.EliminationOrder();
-  REQUIRE(elimination_order == kExpectedEliminationOrder);
-
   /* This structure is defined directly (modulo translation from 1-based to
      0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]:
 
@@ -221,12 +215,6 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
   quotient::QuotientGraph quotient_graph(graph, control);
   quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(&quotient_graph);
-
-  const std::vector<Int> kExpectedEliminationOrder{
-      0, 1, 2, 3,
-  };
-  const std::vector<Int> elimination_order = quotient_graph.EliminationOrder();
-  REQUIRE(elimination_order == kExpectedEliminationOrder);
 
   /* This structure is defined directly (modulo translation from 1-based to
      0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]. The
@@ -340,12 +328,6 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
   quotient::QuotientGraph quotient_graph(graph, control);
   quotient::MinimumDegreeResult analysis =
       quotient::MinimumDegree(&quotient_graph);
-
-  const std::vector<Int> kExpectedEliminationOrder{
-      0, 1, 2, 3,
-  };
-  const std::vector<Int> elimination_order = quotient_graph.EliminationOrder();
-  REQUIRE(elimination_order == kExpectedEliminationOrder);
 
   /* This structure is defined directly (modulo translation from 1-based to
      0-based indexing) from the bottom-right of Fig. 2 of [ADD-96]. The
