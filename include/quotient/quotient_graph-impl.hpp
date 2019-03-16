@@ -133,7 +133,8 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
   Int num_edges = ConvertEdgeCountsIntoOffsets();
 
   // Pack the edges. We leave extra room for packing element structures.
-  const Int extra_element_space = num_edges;
+  const float kNumEdgesRatio = 0.2f;
+  const Int extra_element_space = kNumEdgesRatio * num_edges + num_vertices_;
   graph_data_.lists.Resize(num_edges + extra_element_space);
   num_edges = 0;
   for (const GraphEdge& edge : edges) {
@@ -142,7 +143,7 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
       graph_data_.lists[num_edges++] = edge.second;
     }
   }
-  graph_data_.offset = graph_data_.offset_baseline = num_edges;
+  graph_data_.offset = num_edges;
 
   InitializeDegreeAndHashLists();
   InitializeNodeFlags();
@@ -179,7 +180,8 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
   Int num_edges = ConvertEdgeCountsIntoOffsets();
 
   // Pack the edges. We leave extra room for packing element structures.
-  const Int extra_element_space = num_edges;
+  const float kNumEdgesRatio = 0.2f;
+  const Int extra_element_space = kNumEdgesRatio * num_edges + num_vertices_;
   graph_data_.lists.Resize(num_edges + extra_element_space);
   num_edges = 0;
   for (const MatrixEntry<Field>& entry : entries) {
@@ -188,7 +190,7 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
       graph_data_.lists[num_edges++] = entry.column;
     }
   }
-  graph_data_.offset = graph_data_.offset_baseline = num_edges;
+  graph_data_.offset = num_edges;
 
   InitializeDegreeAndHashLists();
   InitializeNodeFlags();
@@ -296,17 +298,14 @@ inline Buffer<Int> QuotientGraph::ElementList(Int i) const QUOTIENT_NOEXCEPT {
 inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kComputePivotStructure);
   const Int num_elements = graph_data_.ElementListSize(pivot_);
-  const Int* element_list = graph_data_.ElementList(pivot_);
-
   const Int num_adjacencies = graph_data_.adjacency_list_sizes[pivot_];
-  const Int* adjacency_list = graph_data_.AdjacencyList(pivot_);
-
   const Int pivot_supernode_size = graph_data_.signed_supernode_sizes[pivot_];
 
   // Allocate space for the element using an upper-bound on the size
   // (note that, because of supernodes, this is *not* the degree).
   Int element_size_bound = num_adjacencies;
   for (Int k = 0; k < num_elements; ++k) {
+    const Int* element_list = graph_data_.ElementList(pivot_);
     const Int element = element_list[k];
     const Int element_size = graph_data_.ElementSize(element);
     QUOTIENT_ASSERT(element_size > 0, "Non-positive element size of " +
@@ -315,12 +314,14 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
   }
   if (graph_data_.offset + element_size_bound > Int(graph_data_.lists.Size())) {
 #ifdef QUOTIENT_DEBUG
-    std::cerr << "Repacking elements." << std::endl;
+    std::cout << "Repacking with offset: " << graph_data_.offset
+              << ", element_size_bound: " << element_size_bound
+              << ", lists.Size(): " << graph_data_.lists.Size() << std::endl;
 #endif
-    graph_data_.PackElements(
-        elimination_order_.data(),
-        elimination_order_.data() + elimination_order_.size());
+    graph_data_.Pack();
   }
+  const Int* element_list = graph_data_.ElementList(pivot_);
+  const Int* adjacency_list = graph_data_.AdjacencyList(pivot_);
 
   graph_data_.element_offsets[pivot_] = graph_data_.offset;
   Int* pivot_data = graph_data_.ElementData(pivot_);
@@ -400,7 +401,7 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
   // Set the size of the pivot element.
   graph_data_.ElementSize(pivot_) = pivot_size;
   QUOTIENT_ASSERT(
-      graph_data_.offset + pivot_size < Int(graph_data_.lists.Size()),
+      graph_data_.offset + pivot_size <= Int(graph_data_.lists.Size()),
       "Packed beyond end of element indices.");
 
   degrees_and_hashes_.lists.degrees[pivot_] = pivot_degree;
@@ -1164,11 +1165,9 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder) const
                                 &children, &child_offsets);
 
   // Scan for the roots and launch a pe-order traversal on each of them.
-  // We march through elimination_order in reverse order so that, after a
-  // subsequent reversal, the lowest degree nodes are in the upper-left.
   postorder->Resize(num_vertices_);
   Int* iter = postorder->begin();
-  for (const Int& i : elimination_order_) {
+  for (Int i = 0; i < num_vertices_; ++i) {
     if (!graph_data_.ActiveSupernode(i)) {
       // This element was absorbed into another element.
       continue;

@@ -204,9 +204,6 @@ class QuotientGraph {
     // The position the next element can be stored at.
     Int offset;
 
-    // The baseline position to reset the offset to.
-    Int offset_baseline;
-
     // A list of length 'num_vertices' of the (signed) sizes of each
     // supernode. If index 'i' is not principal, then it is set to zero; if
     // 'i' is a principal variable, then index 'i' is the size of the supernode:
@@ -275,21 +272,55 @@ class QuotientGraph {
       return element_sizes[element];
     }
 
-    // Contiguously pack the still-active elements into 'indices'.
-    void PackElements(const Int* element_beg,
-                      const Int* element_end) QUOTIENT_NOEXCEPT {
-      offset = offset_baseline;
-      for (const Int* iter = element_beg; iter != element_end; ++iter) {
-        const Int element = *iter;
-        if (ActiveSupernode(element)) {
-          const Int element_size = element_sizes[element];
-          Int element_offset = element_offsets[element];
-          element_offsets[element] = offset;
-          for (Int i = 0; i < element_size; ++i) {
-            lists[offset++] = lists[element_offset++];
-          }
+    // Contiguously packs the still-active variables and elements.
+    void Pack() QUOTIENT_NOEXCEPT {
+      const Int offset_save = offset;
+
+      // Overwrite the offsets of all of the active variables and elements
+      // with the first entry of the object and replace the entry with the
+      // symmetric version of the object index (as a flag).
+      const Int num_vertices = element_sizes.Size();
+      for (Int i = 0; i < num_vertices; ++i) {
+        if (ActiveSupernode(i)) {
+          QUOTIENT_ASSERT(element_sizes[i] + adjacency_list_sizes[i] != 0,
+                          "Had a zero-length active variable.");
+          Int* element_list = &lists[element_offsets[i]];
+          element_offsets[i] = element_list[0];
+          element_list[0] = SYMMETRIC_INDEX(i);
         }
       }
+
+      // Pack the adjacencies and elements.
+      Int pack_offset = 0;
+      Int read_offset = 0;
+      while (read_offset < offset_save) {
+        const Int entry = lists[read_offset++];
+        if (entry >= 0) {
+          continue;
+        }
+        const Int i = SYMMETRIC_INDEX(entry);
+        const Int element_size = element_sizes[i];
+        const Int adjacency_size = adjacency_list_sizes[i];
+        QUOTIENT_ASSERT(element_size || adjacency_size,
+                        "Packing empty element");
+
+        // The current index is the beginning of an object.
+        const Int displaced_entry = element_offsets[i];
+        element_offsets[i] = pack_offset;
+        lists[pack_offset++] = displaced_entry;
+
+        // Pack the rest of the object.
+        const Int length = element_size + adjacency_size;
+        for (Int k = 1; k < length; ++k) {
+          lists[pack_offset++] = lists[read_offset++];
+        }
+      }
+
+      offset = pack_offset;
+#ifdef QUOTIENT_DEBUG
+      std::cout << "Began with " << offset_save << ", ended with "
+                << pack_offset << std::endl;
+#endif
     }
   };
 
