@@ -61,24 +61,38 @@ inline void DegreeAndHashLists::RemoveHeadDegree(Int index,
 }
 
 inline void DegreeAndHashLists::RemoveDegree(Int index) QUOTIENT_NOEXCEPT {
+  QUOTIENT_ASSERT(index >= 0 && index < Int(heads.Size()),
+                  "Index of " + std::to_string(index) + " was out of bounds.");
   const Int degree = degrees[index];
+  QUOTIENT_ASSERT(
+      degree >= 0 && degree < Int(heads.Size()),
+      "Degree of " + std::to_string(degree) + " was out of bounds.");
   const Int last = last_member[index];
   const Int next = next_member[index];
   if (last == -1) {
     heads[degree] = next;
   } else {
+    QUOTIENT_ASSERT(
+        last >= 0 && last < Int(heads.Size()),
+        "Last index of " + std::to_string(last) + " was out of bounds.");
     // 'index' was not the head, so simply patch the connections.
     next_member[last] = next;
   }
   if (next != -1) {
+    QUOTIENT_ASSERT(
+        next >= 0 && next < Int(heads.Size()),
+        "Next index of " + std::to_string(next) + " was out of bounds.");
     last_member[next] = last;
   }
 }
 
 inline void DegreeAndHashLists::AddDegree(Int index,
                                           Int degree) QUOTIENT_NOEXCEPT {
-  QUOTIENT_ASSERT(degree >= 0, "Attempted to add negative degree of " +
-                                   std::to_string(degree));
+  QUOTIENT_ASSERT(index >= 0 && index < Int(heads.Size()),
+                  "Index of " + std::to_string(index) + " was out of bounds.");
+  QUOTIENT_ASSERT(
+      degree >= 0 && degree < Int(heads.Size()),
+      "Degree of " + std::to_string(degree) + " was out of bounds.");
   const Int head = heads[degree];
   QUOTIENT_ASSERT(head != index, "Index matched preexisting head.");
   if (head != -1) {
@@ -109,6 +123,8 @@ inline Int DegreeAndHashLists::Hash(Int index) const QUOTIENT_NOEXCEPT {
   // The hash lists are only single-linked (using next_member), so we use the
   // back-link buffer (last_member) over the set of indices reserved for
   // hash lists (the principal members of the pivot structure).
+  QUOTIENT_ASSERT(index >= 0 && index < Int(heads.Size()),
+                  "Index of " + std::to_string(index) + " was out of bounds.");
   return last_member[index];
 }
 
@@ -117,11 +133,15 @@ inline void DegreeAndHashLists::SetHash(Int index,
   // The hash lists are only single-linked (using next_member), so we can
   // use the back-link buffer (last_member) over the set of indices reserved
   // for hash lists (the principal members of the pivot structure).
+  QUOTIENT_ASSERT(index >= 0 && index < Int(heads.Size()),
+                  "Index of " + std::to_string(index) + " was out of bounds.");
   last_member[index] = hash;
 }
 
 inline void DegreeAndHashLists::AddHash(Int index, std::size_t hash,
                                         Int bucket) QUOTIENT_NOEXCEPT {
+  QUOTIENT_ASSERT(index >= 0 && index < Int(heads.Size()),
+                  "Index of " + std::to_string(index) + " was out of bounds.");
   QUOTIENT_ASSERT(bucket >= 0,
                   "Bucket was negative: " + std::to_string(bucket));
   QUOTIENT_ASSERT(bucket < Int(heads.Size()),

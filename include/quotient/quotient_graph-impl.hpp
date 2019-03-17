@@ -426,21 +426,34 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
     num_non_pivot_elements += element_size - 1;
   }
 
-  // Specially handle the zero-element case, where the element is a subset of
-  // the adjacency list.
+  // Specially handle the case where there are no non-pivot elements, where the
+  // element is a subset of the adjacency list.
   Int pivot_size = 0;
   Int pivot_degree = 0;
   if (!num_non_pivot_elements) {
     in_place_pivot_ = true;
 
-    // This object's element and adjacency lists begin at the same position,
-    // and the element structure will be packed into the beginning of the
-    // adjacency list.
+    const Int* adjacency_data = graph_data_.AdjacencyList(pivot_);
     Int* object_data = graph_data_.ElementList(pivot_);
+
+    // Absorb all of the elements whose element lists only contain the pivot.
+    for (Int k = 0; k < num_elements; ++k) {
+      const Int element = object_data[k];
+      QUOTIENT_ASSERT(graph_data_.ActiveSupernode(element),
+                      "Used an absorbed element in pivot structure.");
+      QUOTIENT_ASSERT(graph_data_.ElementSize(element) == 1,
+                      "Had an element size that was not equal to one.");
+
+      // Absorb this element into the pivot.
+      degrees_and_hashes_.lists.degrees[element] -= pivot_supernode_size;
+      graph_data_.SetParent(element, pivot_);
+      graph_data_.ElementSize(element) = 0;
+      node_flags_.flags[element] = 0;
+    }
 
     // Push the supervariables in the pivot adjacency list into the structure.
     for (Int k = 0; k < num_adjacencies; ++k) {
-      const Int i = object_data[k];
+      const Int i = adjacency_data[k];
       const Int supernode_size = graph_data_.signed_supernode_sizes[i];
       QUOTIENT_ASSERT(supernode_size >= 0,
                       "An element was in the adjacency list.");
