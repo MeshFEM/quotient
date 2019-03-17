@@ -330,6 +330,9 @@ class QuotientGraph {
   // The principal member of the current pivot.
   Int pivot_;
 
+  // Whether or not the current pivot is being created in-place.
+  bool in_place_pivot_;
+
   // The representation of the element lists and adjacencies of the nodes
   // in the quotient graph.
   QuotientGraphData graph_data_;

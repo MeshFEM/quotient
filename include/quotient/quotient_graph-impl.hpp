@@ -411,108 +411,143 @@ inline void QuotientGraph::ComputePivotStructure() QUOTIENT_NOEXCEPT {
   const Int num_adjacencies = graph_data_.adjacency_list_sizes[pivot_];
   const Int pivot_supernode_size = graph_data_.signed_supernode_sizes[pivot_];
 
-  // Allocate space for the element using an upper-bound on the size
-  // (note that, because of supernodes, this is *not* the degree).
-  Int element_size_bound = num_adjacencies;
+  // Negate the signed supernode size of the pivot.
+  graph_data_.signed_supernode_sizes[pivot_] = -pivot_supernode_size;
+
+  // Compute the number of elements in the element lists containing the pivot
+  // that are not equal to the pivot.
+  Int num_non_pivot_elements = 0;
   for (Int k = 0; k < num_elements; ++k) {
     const Int* element_list = graph_data_.ElementList(pivot_);
     const Int element = element_list[k];
     const Int element_size = graph_data_.ElementSize(element);
     QUOTIENT_ASSERT(element_size > 0, "Non-positive element size of " +
                                           std::to_string(element_size));
-    element_size_bound += element_size - 1;
+    num_non_pivot_elements += element_size - 1;
   }
-  if (graph_data_.offset + element_size_bound > Int(graph_data_.lists.Size())) {
-#ifdef QUOTIENT_DEBUG
-    std::cout << "Repacking with offset: " << graph_data_.offset
-              << ", element_size_bound: " << element_size_bound
-              << ", lists.Size(): " << graph_data_.lists.Size() << std::endl;
-#endif
-    graph_data_.Pack();
-  }
-  const Int* element_list = graph_data_.ElementList(pivot_);
-  const Int* adjacency_list = graph_data_.AdjacencyList(pivot_);
 
-  graph_data_.element_offsets[pivot_] = graph_data_.offset;
-  Int* pivot_data = graph_data_.ElementData(pivot_);
-
-  // Negate the signed supernode size of the pivot.
-  graph_data_.signed_supernode_sizes[pivot_] = -pivot_supernode_size;
-
-  // Push the supervariables in the pivot adjacency list into the structure.
+  // Specially handle the zero-element case, where the element is a subset of
+  // the adjacency list.
   Int pivot_size = 0;
   Int pivot_degree = 0;
-  for (Int k = 0; k < num_adjacencies; ++k) {
-    const Int i = adjacency_list[k];
-    const Int supernode_size = graph_data_.signed_supernode_sizes[i];
-    QUOTIENT_ASSERT(supernode_size >= 0,
-                    "An element was in the adjacency list.");
-    if (!supernode_size) {
-      continue;
-    }
-    QUOTIENT_ASSERT(graph_data_.ActiveSupernode(i),
-                    "An absorbed element was in the adjacency list.");
+  if (!num_non_pivot_elements) {
+    in_place_pivot_ = true;
 
-    pivot_degree += supernode_size;
-    graph_data_.signed_supernode_sizes[i] = -supernode_size;
+    // This object's element and adjacency lists begin at the same position,
+    // and the element structure will be packed into the beginning of the
+    // adjacency list.
+    Int* object_data = graph_data_.ElementList(pivot_);
 
-    // Store index 'i' into the pivot element.
-    pivot_data[pivot_size++] = i;
-  }
-  graph_data_.adjacency_list_sizes[pivot_] = 0;
-
-  // Push the unique supervariables in the patterns of the pivot element list
-  // into the current structure.
-  for (Int k = 0; k < num_elements; ++k) {
-    const Int element = element_list[k];
-    QUOTIENT_ASSERT(graph_data_.ActiveSupernode(element),
-                    "Used an absorbed element in pivot structure.");
-
-    const Int element_size = graph_data_.ElementSize(element);
-    const Int* element_data = graph_data_.ElementData(element);
-    for (Int j = 0; j < element_size; ++j) {
-      const Int index = element_data[j];
-      const Int supernode_size = graph_data_.signed_supernode_sizes[index];
-      // While no eliminated supernodes should appear in unabsorbed elements,
-      // we have (temporarily) flipped the signs of the supernode sizes of
-      // the members we have already added to this pivot's structure.
-      if (supernode_size <= 0) {
-        continue;
-      }
-      QUOTIENT_ASSERT(graph_data_.ActiveSupernode(index),
-                      "An absorbed element was in an element.");
-
-      pivot_degree += supernode_size;
-      graph_data_.signed_supernode_sizes[index] = -supernode_size;
-
-      // Store index 'index' into the pivot element.
-      pivot_data[pivot_size++] = index;
-    }
-#ifdef QUOTIENT_DEBUG
-    Int degree = 0;
-    for (Int j = 0; j < element_size; ++j) {
-      const Int index = element_data[j];
-      const Int supernode_size = -graph_data_.signed_supernode_sizes[index];
+    // Push the supervariables in the pivot adjacency list into the structure.
+    for (Int k = 0; k < num_adjacencies; ++k) {
+      const Int i = object_data[k];
+      const Int supernode_size = graph_data_.signed_supernode_sizes[i];
       QUOTIENT_ASSERT(supernode_size >= 0,
-                      "Flipped supernode size was expected to be positive.");
-      degree += supernode_size;
+                      "An element was in the adjacency list.");
+      if (supernode_size) {
+        QUOTIENT_ASSERT(graph_data_.ActiveSupernode(i),
+                        "An absorbed element was in the adjacency list.");
+
+        // Store index 'i' into the pivot element.
+        pivot_degree += supernode_size;
+        graph_data_.signed_supernode_sizes[i] = -supernode_size;
+        object_data[pivot_size++] = i;
+      }
     }
-    QUOTIENT_ASSERT(degree == degrees_and_hashes_.lists.degrees[element],
-                    "Degree did not match its cached value.");
+  } else {
+    in_place_pivot_ = false;
+
+    // Allocate space for the element using an upper-bound on the size
+    // (note that, because of supernodes, this is *not* the degree).
+    const Int element_size_bound = num_adjacencies + num_non_pivot_elements;
+    if (graph_data_.offset + element_size_bound >
+        Int(graph_data_.lists.Size())) {
+#ifdef QUOTIENT_DEBUG
+      std::cout << "Repacking with offset: " << graph_data_.offset
+                << ", element_size_bound: " << element_size_bound
+                << ", lists.Size(): " << graph_data_.lists.Size() << std::endl;
+#endif
+      graph_data_.Pack();
+    }
+
+    const Int* element_list = graph_data_.ElementList(pivot_);
+    const Int* adjacency_list = graph_data_.AdjacencyList(pivot_);
+
+    graph_data_.element_offsets[pivot_] = graph_data_.offset;
+    Int* pivot_data = graph_data_.ElementData(pivot_);
+
+    // Push the supervariables in the pivot adjacency list into the structure.
+    for (Int k = 0; k < num_adjacencies; ++k) {
+      const Int i = adjacency_list[k];
+      const Int supernode_size = graph_data_.signed_supernode_sizes[i];
+      QUOTIENT_ASSERT(supernode_size >= 0,
+                      "An element was in the adjacency list.");
+      if (supernode_size) {
+        QUOTIENT_ASSERT(graph_data_.ActiveSupernode(i),
+                        "An absorbed element was in the adjacency list.");
+        // Store index 'i' into the pivot element.
+        pivot_degree += supernode_size;
+        graph_data_.signed_supernode_sizes[i] = -supernode_size;
+        pivot_data[pivot_size++] = i;
+      }
+    }
+
+    // Push the unique supervariables in the patterns of the pivot element list
+    // into the current structure.
+    for (Int k = 0; k < num_elements; ++k) {
+      const Int element = element_list[k];
+      QUOTIENT_ASSERT(graph_data_.ActiveSupernode(element),
+                      "Used an absorbed element in pivot structure.");
+
+      const Int element_size = graph_data_.ElementSize(element);
+      const Int* element_data = graph_data_.ElementData(element);
+      for (Int j = 0; j < element_size; ++j) {
+        const Int index = element_data[j];
+        const Int supernode_size = graph_data_.signed_supernode_sizes[index];
+
+        // While no eliminated supernodes should appear in unabsorbed elements,
+        // we have (temporarily) flipped the signs of the supernode sizes of
+        // the members we have already added to this pivot's structure.
+        if (supernode_size <= 0) {
+          continue;
+        }
+        QUOTIENT_ASSERT(graph_data_.ActiveSupernode(index),
+                        "An absorbed element was in an element.");
+
+        pivot_degree += supernode_size;
+        graph_data_.signed_supernode_sizes[index] = -supernode_size;
+
+        // Store index 'index' into the pivot element.
+        pivot_data[pivot_size++] = index;
+      }
+#ifdef QUOTIENT_DEBUG
+      Int degree = 0;
+      for (Int j = 0; j < element_size; ++j) {
+        const Int index = element_data[j];
+        const Int supernode_size = -graph_data_.signed_supernode_sizes[index];
+        QUOTIENT_ASSERT(supernode_size >= 0,
+                        "Flipped supernode size was expected to be positive.");
+        degree += supernode_size;
+      }
+      QUOTIENT_ASSERT(degree == degrees_and_hashes_.lists.degrees[element],
+                      "Degree did not match its cached value.");
 #endif
 
-    // Absorb this element into the pivot.
-    degrees_and_hashes_.lists.degrees[element] -= pivot_supernode_size;
-    graph_data_.SetParent(element, pivot_);
-    graph_data_.ElementSize(element) = 0;
-    node_flags_.flags[element] = 0;
+      // Absorb this element into the pivot.
+      degrees_and_hashes_.lists.degrees[element] -= pivot_supernode_size;
+      graph_data_.SetParent(element, pivot_);
+      graph_data_.ElementSize(element) = 0;
+      node_flags_.flags[element] = 0;
+    }
+
+    QUOTIENT_ASSERT(
+        graph_data_.offset + pivot_size <= Int(graph_data_.lists.Size()),
+        "Packed beyond end of element indices.");
   }
 
-  // Set the size of the pivot element.
+  // Update the object sizes.
+  graph_data_.adjacency_list_sizes[pivot_] = 0;
   graph_data_.ElementSize(pivot_) = pivot_size;
-  QUOTIENT_ASSERT(
-      graph_data_.offset + pivot_size <= Int(graph_data_.lists.Size()),
-      "Packed beyond end of element indices.");
 
   degrees_and_hashes_.lists.degrees[pivot_] = pivot_degree;
   node_flags_.max_degree = std::max(node_flags_.max_degree, pivot_degree);
@@ -1225,7 +1260,9 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
     }
   }
   graph_data_.ElementSize(pivot_) = num_packed;
-  graph_data_.offset += num_packed;
+  if (!in_place_pivot_) {
+    graph_data_.offset += num_packed;
+  }
 
   ++num_eliminated_supernodes_;
   num_eliminated_vertices_ += supernode_size;

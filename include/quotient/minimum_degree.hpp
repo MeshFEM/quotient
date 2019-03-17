@@ -21,17 +21,17 @@ namespace quotient {
 // Statistics from running the MinimumDegree reordering algorithm.
 struct MinimumDegreeResult {
   // The number of aggressive absorptions that occurred.
-  Int num_aggressive_absorptions;
+  Int num_aggressive_absorptions = 0;
 
   // The number of degree updates performed during the minimum-degree analysis.
   Int num_degree_updates = 0;
 
   // The number of times that supervariables were falsely placed into the
   // same bucket.
-  Int num_hash_bucket_collisions;
+  Int num_hash_bucket_collisions = 0;
 
   // The number of times that supervariables falsely had the same hash value.
-  Int num_hash_collisions;
+  Int num_hash_collisions = 0;
 
   // The number of structural nonzeros in the Cholesky factor.
   Int num_cholesky_nonzeros = 0;
