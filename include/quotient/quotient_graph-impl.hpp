@@ -1116,7 +1116,6 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kMergeVariables);
   const Int pivot_size = graph_data_.ElementSize(pivot_);
   const Int* pivot_data = graph_data_.ElementData(pivot_);
-  const Int shift = node_flags_.shift;
 
   // Add the hashes into the hash lists.
   for (Int i_index = 0; i_index < pivot_size; ++i_index) {
@@ -1189,7 +1188,7 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
           // the need for each thread to have a separate 'flags' buffer.
           for (Int k = 0; k < num_adjacencies_i; ++k) {
             const Int index = adjacency_list_i[k];
-            node_flags_.flags[index] = shift;
+            node_flags_.flags[index] = node_flags_.shift;
           }
           scattered_adjacencies = true;
         }
@@ -1216,11 +1215,7 @@ inline void QuotientGraph::MergeVariables() QUOTIENT_NOEXCEPT {
         }
       }
       if (scattered_adjacencies) {
-        // Reset the flagged adjacencies to the shift minus one.
-        for (Int k = 0; k < num_adjacencies_i; ++k) {
-          const Int index = adjacency_list_i[k];
-          node_flags_.flags[index] = shift - 1;
-        }
+        ++node_flags_.shift;
       }
     }
     degrees_and_hashes_.lists.ClearHashBucket(bucket);

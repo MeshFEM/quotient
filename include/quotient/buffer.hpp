@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "quotient/complex.hpp"
+#include "quotient/integers.hpp"
 
 namespace quotient {
 
@@ -24,7 +25,7 @@ class Buffer {
  public:
   typedef std::allocator<T> Allocator;
   typedef std::allocator_traits<Allocator> AllocatorTraits;
-  typedef std::size_t SizeType;
+  typedef UInt SizeType;
   typedef T* Pointer;
   typedef const T* ConstPointer;
   typedef Pointer Iterator;
@@ -185,7 +186,7 @@ class Buffer<Complex<Real>> {
  public:
   typedef std::allocator<Real> Allocator;
   typedef std::allocator_traits<Allocator> AllocatorTraits;
-  typedef std::size_t SizeType;
+  typedef UInt SizeType;
   typedef Complex<Real>* Pointer;
   typedef const Complex<Real>* ConstPointer;
   typedef Pointer Iterator;
