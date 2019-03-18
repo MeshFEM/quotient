@@ -61,6 +61,13 @@ class QuotientGraph {
   Int NumEliminatedVertices() const QUOTIENT_NOEXCEPT;
 
   // Fills 'postorder' with the postorder of the assembly tree.
+  // This routine is destructive, as it overwrites the buffers:
+  //
+  //   * degrees_and_hashes_.lists.head_member,
+  //   * degrees_and_hashes_.lists.next_member,
+  //   * degrees_and_hashes_.lists.last_member, and
+  //   * node_flags_.flags.
+  //
   void ComputePostorder(Buffer<Int>* postorder) QUOTIENT_NOEXCEPT;
 
   // Overwrites 'permuted_supernode_sizes' with the sizes of the supernodes
@@ -186,7 +193,7 @@ class QuotientGraph {
     // contain SYMMETRIC_INDEX(j). Similarly, if 'e' is an element absorbed
     // into element 'f', index 'e' will contain SYMMETRIC_INDEX(f).
     //
-    // Thus, iff element_offsets[i] >= 0, supervariable or element 'i' is
+    // Thus, iff element_offsets[i] >= -1, supervariable or element 'i' is
     // active.
     Buffer<Int> element_offsets;
 

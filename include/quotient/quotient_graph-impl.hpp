@@ -1284,7 +1284,10 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder)
 
   // Fill the supernode non-principal member lists.
   // Also, ensure that the root nodes are explicitly marked as such.
-  Buffer<Int> nonprincipal_offsets(num_vertices_ + 1, 0);
+  //
+  // We reuse DegreeAndHashLists::heads for storing the nonprincipal offsets.
+  Buffer<Int>& nonprincipal_offsets = degrees_and_hashes_.lists.heads;
+  nonprincipal_offsets.Resize(num_vertices_, 0);
   Int num_nonprincipal_members = 0;
   for (Int i = 0; i < num_vertices_; ++i) {
     nonprincipal_offsets[i] = num_nonprincipal_members;
@@ -1297,20 +1300,28 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder)
       }
     }
   }
-  nonprincipal_offsets[num_vertices_] = num_nonprincipal_members;
-  auto offsets_copy = nonprincipal_offsets;
-  Buffer<Int> nonprincipal_members(num_nonprincipal_members);
-  for (Int i = 0; i < num_vertices_; ++i) {
-    const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
-    if (!supernode_size) {
-      Int principal = i;
-      while (!graph_data_.signed_supernode_sizes[principal]) {
-        QUOTIENT_ASSERT(
-            !graph_data_.ActiveSupernode(principal),
-            "Active supernode while computing supernode principal.");
-        principal = graph_data_.Parent(principal);
+
+  // Reuse the DegreeAndHashLists::next_member buffer for storing the packed
+  // nonprincipal members.
+  Buffer<Int>& nonprincipal_members = degrees_and_hashes_.lists.next_member;
+  nonprincipal_members.Resize(num_nonprincipal_members);
+  {
+    // We use the 'postorder' vector as a temporary for storing the offsets.
+    Buffer<Int>& offsets_copy = *postorder;
+    offsets_copy = nonprincipal_offsets;
+
+    for (Int i = 0; i < num_vertices_; ++i) {
+      const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
+      if (!supernode_size) {
+        Int principal = i;
+        while (!graph_data_.signed_supernode_sizes[principal]) {
+          QUOTIENT_ASSERT(
+              !graph_data_.ActiveSupernode(principal),
+              "Active supernode while computing supernode principal.");
+          principal = graph_data_.Parent(principal);
+        }
+        nonprincipal_members[offsets_copy[principal]++] = i;
       }
-      nonprincipal_members[offsets_copy[principal]++] = i;
     }
   }
 
@@ -1318,9 +1329,16 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder)
   // (similar to the CSR format) by first counting the number of children of
   // each node.
 
-  Buffer<Int> child_offsets;
+  // Reuse the DegreeAndHashLists::last_member buffer for storing the child
+  // offsets.
+  Buffer<Int>& child_offsets = degrees_and_hashes_.lists.last_member;
+  child_offsets.Resize(num_vertices_);
+  Int num_packed_children = 0;
   {
-    Buffer<Int> num_children(num_vertices_, 0);
+    // Reuse the 'postorder' buffer for computing the number of children of
+    // each vertex.
+    Buffer<Int>& num_children = *postorder;
+    num_children.Resize(num_vertices_, 0);
     for (Int i = 0; i < num_vertices_; ++i) {
       if (!graph_data_.signed_supernode_sizes[i]) {
         continue;
@@ -1330,11 +1348,21 @@ inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder)
         ++num_children[parent];
       }
     }
-    OffsetScan(num_children, &child_offsets);
+
+    for (Int i = 0; i < num_vertices_; ++i) {
+      child_offsets[i] = num_packed_children;
+      num_packed_children += num_children[i];
+    }
   }
-  Buffer<Int> children(num_eliminated_supernodes_);
+
+  // We reuse the NodeFlags::flags member buffer for storing the children.
+  Buffer<Int>& children = node_flags_.flags;
+  children.Resize(num_packed_children);
   {
-    auto offsets_copy = child_offsets;
+    // Reuse the 'postorder' buffer for packing the children.
+    Buffer<Int>& offsets_copy = *postorder;
+    offsets_copy = child_offsets;
+
     for (Int i = 0; i < num_vertices_; ++i) {
       if (!graph_data_.signed_supernode_sizes[i]) {
         continue;
@@ -1383,6 +1411,9 @@ inline Int* QuotientGraph::PreorderTree(Int root,
                                         const Buffer<Int>& children,
                                         const Buffer<Int>& child_offsets,
                                         Int* iter) const QUOTIENT_NOEXCEPT {
+  const Int num_nonprincipal = nonprincipal_members.Size();
+  const Int num_children = children.Size();
+
   std::vector<Int> stack;
   stack.reserve(num_vertices_);
 
@@ -1397,7 +1428,9 @@ inline Int* QuotientGraph::PreorderTree(Int root,
     // later call std::reverse to generate a postorder, the principal member of
     // the supernode comes first.
     const Int nonprincipal_beg = nonprincipal_offsets[element];
-    const Int nonprincipal_end = nonprincipal_offsets[element + 1];
+    const Int nonprincipal_end = element == num_vertices_ - 1
+                                     ? num_nonprincipal
+                                     : nonprincipal_offsets[element + 1];
     for (Int j = nonprincipal_end - 1; j >= nonprincipal_beg; --j) {
       (*iter++) = nonprincipal_members[j];
     }
@@ -1405,7 +1438,9 @@ inline Int* QuotientGraph::PreorderTree(Int root,
 
     // Push the children onto the stack.
     const Int child_beg = child_offsets[element];
-    const Int child_end = child_offsets[element + 1];
+    const Int child_end = element == num_vertices_ - 1
+                              ? num_children
+                              : child_offsets[element + 1];
     for (Int index = child_beg; index < child_end; ++index) {
       stack.push_back(children[index]);
     }
@@ -1417,7 +1452,6 @@ inline Int* QuotientGraph::PreorderTree(Int root,
 inline void QuotientGraph::PermutedSupernodeSizes(
     const Buffer<Int>& inverse_permutation,
     Buffer<Int>* permuted_supernode_sizes) const QUOTIENT_NOEXCEPT {
-  permuted_supernode_sizes->Clear();
   permuted_supernode_sizes->Resize(num_eliminated_supernodes_);
 
   Int i_perm = 0;
@@ -1436,7 +1470,6 @@ inline void QuotientGraph::PermutedMemberToSupernode(
     const Buffer<Int>& inverse_permutation,
     Buffer<Int>* permuted_member_to_supernode) const QUOTIENT_NOEXCEPT {
   const Int num_indices = inverse_permutation.Size();
-  permuted_member_to_supernode->Clear();
   permuted_member_to_supernode->Resize(num_indices);
 
   Int permuted_supernode = -1;
@@ -1458,7 +1491,6 @@ inline void QuotientGraph::PermutedAssemblyParents(
     const Buffer<Int>& permutation,
     const Buffer<Int>& permuted_member_to_supernode,
     Buffer<Int>* permuted_graph_data_parents) const QUOTIENT_NOEXCEPT {
-  permuted_graph_data_parents->Clear();
   permuted_graph_data_parents->Resize(num_eliminated_supernodes_);
   for (Int index = 0; index < num_vertices_; ++index) {
     if (!graph_data_.signed_supernode_sizes[index]) {
