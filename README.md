@@ -3,6 +3,7 @@ Minimum Degree reordering algorithm. Loosely speaking it is applicable for
 sparse Symmetric Quasi-SemiDefinite (SQSD) Cholesky factorizations.
 
 [![Join the chat at https://gitter.im/hodge_star/community](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/hodge_star/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Documentation](https://readthedocs.org/projects/quotient/badge/?version=latest)](https://hodgestar.com/quotient/docs/master/)
 
 ### Dependencies
 There are no dependencies for installation of the headers.
@@ -14,47 +15,10 @@ header-only command-line processing C++14 library
 The build system for the examples uses [meson](http://mesonbuild.com) and
 the unit tests use [Catch2](https://github.com/catchorg/Catch2).
 
-### Example usage
-
-Usage through the `quotient::CoordinateGraph` class is fairly straight-forward:
-```c++
-#include "quotient.hpp"
-
-[...]
-
-// Build a symmetric input graph for the (approximate) minimum degree
-// reordering.
-//
-// Alternatively, one could use quotient::CoordinateGraph::FromMatrixMarket
-// to read the graph from a Matrix Market file (e.g., from the Davis sparse
-// matrix collection). But keep in mind that one often needs to enforce
-// explicit symmetry.
-quotient::CoordinateGraph graph;
-graph.Resize(num_vertices);
-graph.ReserveEdgeAdditions(num_edges_upper_bound);
-for (quotient::Int index = 0; index < num_edges_to_add; ++index) {
-  graph.QueueEdgeAddition(edge_source[index], edge_target[index]);
-}
-graph.FlushEdgeQueues();
-
-// Run the Approximate Minimum Degree analysis using the usual external degree
-// approximation.
-quotient::MinimumDegreeControl control;
-control.degree_type = quotient::kAmestoyDegree;
-quotient::QuotientGraph quotient_graph(graph, control);
-const quotient::MinimumDegreeResult analysis = quotient::MinimumDegree(
-    &quotient_graph);
-```
-
-### Running the unit tests
-Assuming that [meson](http://mesonbuild.com), [Catch2](https://github.com/catchorg/Catch2), and [specify](https://gitlab.com/hodge_star/specify) are already installed:
-```
-mkdir build-debug/
-meson build-debug
-cd build-debug
-ninja
-ninja test
-```
+### Quickstart
+Please see the
+[quickstart documentation](https://hodgestar.com/quotient/docs/master/quickstart.html)
+for a brief introduction to the library.
 
 ### Testing performance
 Assuming [meson](http://mesonbuild.com) and [specify](https://gitlab.com/hodge_star/specify) are already installed:
