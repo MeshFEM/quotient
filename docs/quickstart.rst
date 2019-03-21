@@ -171,7 +171,61 @@ contain the edge sequence:
 
 (Approximate) Minimum Degree reorderings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Lorem ipsum [AmestoyEtAl-1996]_.
+In the simplest case (using default options), an (Approximate) Minimum Degree
+[AmestoyEtAl-1996]_ analysis can be run on a symmetric graph stored in a
+:samp:`quotient::CoordinateGraph` via:
+
+.. code-block:: cpp
+
+  #include "quotient.hpp"
+  quotient::MinimumDegreeControl control; 
+  quotient::QuotientGraph quotient_graph(*graph, control);
+  const quotient::MinimumDegreeResult analysis =
+      quotient::MinimumDegree(&quotient_graph);
+
+The implied permutation (and its inverse) which produces the (Approximate)
+Minimum Degree reordering can then be extracted via:
+
+.. code-block:: cpp
+
+  quotient::Buffer<quotient::Int> permutation, inverse_permutation;
+  quotient_graph.ComputePostorder(&inverse_permutation);
+  quotient::InvertPermutation(inverse_permutation, &permutation);
+
+If the sizes of the contiguous (in the permuted ordering) supernodes are
+desired, they can be extracted using the newly formed permutation via:
+
+.. code-block:: cpp
+
+  quotient::Buffer<quotient::Int> supernode_sizes;
+  quotient_graph.PermutedSupernodeSizes(inverse_permutation, &supernode_sizes);
+
+The map from each reordered index into the index of its containing supernode
+can be formed via:
+
+.. code-block:: cpp
+
+  quotient::Buffer<quotient::Int> member_to_supernode;
+  quotient_graph.PermutedMemberToSupernode(inverse_permutation,
+                                           &member_to_supernode);
+
+Said map can then be used to generate the up-links of the supernodal assembly
+forest via:
+
+.. code-block:: cpp
+
+  quotient::Buffer<quotient::Int> parents;
+  quotient_graph.PermutedAssemblyParents(permutation, member_to_supernode,
+                                         &parents);
+
+Said graph can be easily visualized by writing it out to a DOT file:
+
+.. code-block:: cpp
+
+  quotient::ForestToDot("your_filename.gv", parents);
+
+An example exercising all of these routines is available in
+`example/matrix_market_minimum_degree.cc <https://gitlab.com/hodge_star/quotient/blob/master/example/matrix_market_minimum_degree.cc>`_.
 
 Testing performance
 ^^^^^^^^^^^^^^^^^^^
