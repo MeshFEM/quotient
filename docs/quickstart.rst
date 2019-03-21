@@ -5,7 +5,16 @@
 
 Quickstart
 ----------
-Lorem ipsum.
+The primary functionality of the library is a highly-configurable, performant
+implementation of the (Approximate)
+`Minimum Degree reordering algorithm <https://en.wikipedia.org/wiki/Minimum_degree_algorithm>`_ [AmestoyEtAl-1996]_.
+An implementation of an alternative storage mechanism to :samp:`std::vector<T>`
+which avoids default initialization, :samp:`quotient::Buffer<T>`, is also
+provided.
+
+This brief quickstart guide walks through building the examples and tests using
+the `meson <https://mesonbuild.com>`_ build system and provides short overviews
+of the major functionality.
 
 Building the examples and tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -163,5 +172,42 @@ contain the edge sequence:
 (Approximate) Minimum Degree reorderings
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Lorem ipsum [AmestoyEtAl-1996]_.
+
+Testing performance
+^^^^^^^^^^^^^^^^^^^
+The default is for Quotient to use 64-bit integers, but there is a noticeable
+performance difference relative to 32-bit integers due to the work primarily
+consisting of memory-bound index manipulation. As mentioned above, a
+release-mode 64-bit version can be built with:
+
+.. code-block:: bash
+
+  mkdir build-release-64/
+  meson build-release-64 --buildtype=release
+  cd build-release-64
+  ninja
+
+whereas a 32-bit, release-mode version can be built with:
+
+.. code-block:: bash
+
+  mkdir build-release-32/
+  meson build-release-32 --buildtype=release
+  cd build-release-32
+  meson configure -Duse_64bit=false
+  ninja
+
+One could then download and unpack, for example, the
+`LHR34 <https://www.cise.ufl.edu/research/sparse/matrices/Mallya/lhr34.html>`_
+`matrix market description <https://www.cise.ufl.edu/research/sparse/MM/Mallya/lhr34.tar.gz>`_ into :samp:`${HOME}/Data/lhr34.mtx` and then test performance
+with and without aggressive absorption using:
+
+.. code-block:: bash
+
+  time ./matrix_market_minimum_degree --filename="${HOME}/Data/lhr34.mtx" --print_progress=true --aggressive_absorption=true
+  time ./matrix_market_minimum_degree --filename="${HOME}/Data/lhr34.mtx" --print_progress=true --aggressive_absorption=false
+
+References
+^^^^^^^^^^
 
 .. [AmestoyEtAl-1996] Patrick R. Amestoy, Timothy A. Davis, and Iain S. Duff, An Approximate Minimum Degree Reordering Algorithm, SIAM J. Matrix Analysis & Applic., 17 (4), pp. 886--905, 1996. DOI: https://doi.org/10.1137/S0895479894278952
