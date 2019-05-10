@@ -12,21 +12,21 @@
 
 namespace quotient {
 
-Complex<float>::Complex() QUOTIENT_NOEXCEPT : std::complex<float>() {}
+inline Complex<float>::Complex() QUOTIENT_NOEXCEPT : std::complex<float>() {}
 
-Complex<double>::Complex() QUOTIENT_NOEXCEPT : std::complex<double>() {}
+inline Complex<double>::Complex() QUOTIENT_NOEXCEPT : std::complex<double>() {}
 
-Complex<float>::Complex(const Complex<float>& input) QUOTIENT_NOEXCEPT
+inline Complex<float>::Complex(const Complex<float>& input) QUOTIENT_NOEXCEPT
     : std::complex<float>(input.real(), input.imag()) {}
 
-Complex<double>::Complex(const Complex<double>& input) QUOTIENT_NOEXCEPT
+inline Complex<double>::Complex(const Complex<double>& input) QUOTIENT_NOEXCEPT
     : std::complex<double>(input.real(), input.imag()) {}
 
-Complex<float>::Complex(const std::complex<float>& input) QUOTIENT_NOEXCEPT
-    : std::complex<float>(input) {}
+inline Complex<float>::Complex(const std::complex<float>& input)
+    QUOTIENT_NOEXCEPT : std::complex<float>(input) {}
 
-Complex<double>::Complex(const std::complex<double>& input) QUOTIENT_NOEXCEPT
-    : std::complex<double>(input) {}
+inline Complex<double>::Complex(const std::complex<double>& input)
+    QUOTIENT_NOEXCEPT : std::complex<double>(input) {}
 
 template <class RealInputType>
 Complex<float>::Complex(const RealInputType& input) QUOTIENT_NOEXCEPT
