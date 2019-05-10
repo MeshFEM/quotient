@@ -39,13 +39,13 @@ class Complex<float> : public std::complex<float> {
   using std::complex<RealType>::operator/=;
 
   // The default constructor.
-  Complex() QUOTIENT_NOEXCEPT;
+  inline Complex() QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a Complex<Real> variable.
-  Complex(const Complex<RealType>& input) QUOTIENT_NOEXCEPT;
+  inline Complex(const Complex<RealType>& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a std::complex variable.
-  Complex(const std::complex<RealType>& input) QUOTIENT_NOEXCEPT;
+  inline Complex(const std::complex<RealType>& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a real variable.
   template <class RealInputType>
@@ -76,13 +76,13 @@ class Complex<double> : public std::complex<double> {
   using std::complex<RealType>::operator/=;
 
   // The default constructor.
-  Complex() QUOTIENT_NOEXCEPT;
+  inline Complex() QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a Complex<Real> variable.
-  Complex(const Complex<RealType>& input) QUOTIENT_NOEXCEPT;
+  inline Complex(const Complex<RealType>& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a std::complex variable.
-  Complex(const std::complex<RealType>& input) QUOTIENT_NOEXCEPT;
+  inline Complex(const std::complex<RealType>& input) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from a real variable.
   template <class RealInputType>
