@@ -1,3 +1,5 @@
+![](./images/gabriel-50pct.svg)
+
 **quotient** is a C++14 header-only implementation of the (Approximate)
 Minimum Degree reordering algorithm. Loosely speaking it is applicable for
 sparse Symmetric Quasi-SemiDefinite (SQSD) Cholesky factorizations.
