@@ -1,4 +1,4 @@
-![](./images/gabriel-50pct.png)
+![](./images/gabriel-40pct.png)
 
 **quotient** is a C++14 header-only implementation of the (Approximate)
 Minimum Degree reordering algorithm. Loosely speaking it is applicable for
