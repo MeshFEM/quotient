@@ -22,12 +22,62 @@ cxx_args = []
 # Add Catch
 test_deps += subproject('catch2').get_variable('catch2_dep')
 
+# Test if mantis is installed.
+found_mantis = cxx.has_header('mantis.hpp')
+if not found_mantis
+  mantis_proj = subproject('mantis')
+  mantis_dep = mantis_proj.get_variable('mantis_dep')
+  deps += mantis_dep
+endif
+
 # Test if specify is installed.
 found_specify = cxx.has_header('specify.hpp')
 if not found_specify
   specify_proj = subproject('specify')
   specify_dep = specify_proj.get_variable('specify_dep')
   deps += specify_dep
+endif
+
+cpu_family = build_machine.cpu_family()
+if cpu_family == 'x86' or cpu_family == 'x86_64'
+  cxx_args += '-DX86'
+endif
+
+system = build_machine.system()
+if system == 'linux'
+  cxx_args += '-DLINUX'
+endif
+
+# Handle fast (Fortran-like) std::complex arithmetic.
+if cxx.get_id() == 'gcc'
+  message('Using gcc')
+  # Complex arithmetic is greatly accelerated by adopting the Fortran
+  # division and NaN-checking conventions.
+  cxx_args += '-fcx-fortran-rules'
+endif
+
+# Handle the Fused Multiply Add/Subtraction approaches.
+have_fma_intrinsic = false
+if not have_fma_intrinsic and cxx.get_id() == 'gcc' and cxx.version() >= '4.3'
+  if not get_option('disable_gcc_fma')
+    have_fma_intrinsic = true
+    cxx_args += '-DMANTIS_GCC_FUSED_MULTIPLY_ADD'
+  else
+    message('Avoiding GCC __builtin_fma due to disable_gcc_fma option.')
+  endif
+endif
+if not have_fma_intrinsic and cxx.get_id() == 'xlc'
+  if not get_option('disable_xlc_fma')
+    have_fma_intrinsic = true
+    cxx_args += '-DMANTIS_XLC_FUSED_MULTIPLY_ADD'
+  else
+    message('Avoiding XLC __fmadd due to disable_xlc_fma option.')
+  endif
+endif
+
+if get_option('ieee_sum')
+  # Use the more accurate, but slower, summation mechanism.
+  cxx_args += '-DMANTIS_IEEE_SUM'
 endif
 
 # For controlling whether 32-bit or 64-bit integers are used. By default,

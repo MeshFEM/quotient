@@ -14,6 +14,7 @@
 
 #include "quotient/complex.hpp"
 #include "quotient/integers.hpp"
+#include "quotient/macros.hpp"
 
 namespace quotient {
 

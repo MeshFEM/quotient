@@ -1,0 +1,3 @@
+[wrap-git]
+directory = mantis
+url = https://gitlab.com/hodge_star/mantis.git
