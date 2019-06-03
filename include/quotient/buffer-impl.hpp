@@ -150,6 +150,8 @@ Buffer<T>& Buffer<T>::operator=(Buffer<T>&& buffer) QUOTIENT_NOEXCEPT {
   buffer.size_ = 0;
   buffer.capacity_ = 0;
   buffer.data_ = nullptr;
+
+  return *this;
 }
 
 template <typename T>

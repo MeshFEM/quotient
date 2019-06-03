@@ -183,6 +183,8 @@ Buffer<Complex<Real>>& Buffer<Complex<Real>>::operator=(
   buffer.size_ = 0;
   buffer.capacity_ = 0;
   buffer.data_ = nullptr;
+
+  return *this;
 }
 
 template <typename Real>
