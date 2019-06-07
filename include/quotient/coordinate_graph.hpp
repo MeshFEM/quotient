@@ -21,6 +21,12 @@ namespace quotient {
 // A pairing of the source and target vertices of a graph edge.
 typedef std::pair<Int, Int> GraphEdge;
 
+// Pretty-prints a GraphEdge in a manner consistent with MatrixEntry.
+inline std::ostream& operator<<(std::ostream& os, const GraphEdge& edge) {
+  os << "(" << edge.first << ", " << edge.second << ")";
+  return os;
+}
+
 // A tuple of the row, column, and value of a nonzero in a sparse matrix.
 template <class Field>
 struct MatrixEntry {
@@ -58,6 +64,13 @@ struct MatrixEntry {
     return !operator==(other);
   }
 };
+
+// Pretty-prints a MatrixEntry.
+template <class Field>
+std::ostream& operator<<(std::ostream& os, const MatrixEntry<Field>& entry) {
+  os << "(" << entry.row << ", " << entry.column << "): " << entry.value;
+  return os;
+}
 
 // An enum for representing a portion of a square matrix.
 enum EntryMask {
