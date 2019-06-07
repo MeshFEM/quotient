@@ -25,8 +25,15 @@ void ForestToDot(const std::string& filename, const Buffer<Int>& parents);
 
 // Pretty-prints an std::vector<T>.
 template <typename T>
-void PrintVector(const std::vector<T>& vec, const std::string& msg,
-                 std::ostream& os);
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec);
+template <typename T>
+void Print(const std::vector<T>& vec, const std::string& msg, std::ostream& os);
+
+// Pretty-prints a Buffer<T>.
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const Buffer<T>& vec);
+template <typename T>
+void Print(const Buffer<T>& vec, const std::string& msg, std::ostream& os);
 
 }  // namespace quotient
 

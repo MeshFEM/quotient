@@ -33,13 +33,32 @@ inline void ForestToDot(const std::string& filename,
 }
 
 template <typename T>
-void PrintVector(const std::vector<T>& vec, const std::string& msg,
-                 std::ostream& os) {
-  os << msg << ": ";
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
   for (UInt i = 0; i < vec.size(); ++i) {
     os << vec[i] << " ";
   }
-  os << "\n";
+  return os;
+}
+
+template <typename T>
+void Print(const std::vector<T>& vec, const std::string& msg,
+           std::ostream& os) {
+  os << msg << ": ";
+  os << vec << std::endl;
+}
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const Buffer<T>& vec) {
+  for (UInt i = 0; i < vec.Size(); ++i) {
+    os << vec[i] << " ";
+  }
+  return os;
+}
+
+template <typename T>
+void Print(const Buffer<T>& vec, const std::string& msg, std::ostream& os) {
+  os << msg << ": ";
+  os << vec << std::endl;
 }
 
 }  // namespace quotient
