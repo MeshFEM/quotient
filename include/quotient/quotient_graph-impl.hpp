@@ -114,11 +114,15 @@ inline void QuotientGraph::QuotientGraphData::Pack() QUOTIENT_NOEXCEPT {
   const Int num_vertices = element_sizes.Size();
   for (Int i = 0; i < num_vertices; ++i) {
     if (ActiveSupernode(i)) {
-      QUOTIENT_ASSERT(element_sizes[i] + adjacency_list_sizes[i] != 0,
-                      "Had a zero-length active variable.");
-      Int* element_list = &lists[element_offsets[i]];
-      element_offsets[i] = element_list[0];
-      element_list[0] = SYMMETRIC_INDEX(i);
+      if (element_sizes[i] + adjacency_list_sizes[i] == 0) {
+        // This supernode's lists are empty, so we can pack them at the front
+        // and avoid the need to replace the first entry.
+        element_offsets[i] = 0;
+      } else {
+        Int* element_list = &lists[element_offsets[i]];
+        element_offsets[i] = element_list[0];
+        element_list[0] = SYMMETRIC_INDEX(i);
+      }
     }
   }
 
