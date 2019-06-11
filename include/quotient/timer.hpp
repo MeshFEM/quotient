@@ -37,6 +37,9 @@ class Timer {
   // Returns the total time that the timer has run since the last 'Reset'.
   double TotalSeconds() const QUOTIENT_NOEXCEPT;
 
+  // Returns the total number of timings intervals since the last 'Reset'.
+  Int NumIntervals() const QUOTIENT_NOEXCEPT;
+
   // Resets the timer and changes its name to the specified value.
   void Reset(const std::string& name = kDefaultTimerName) QUOTIENT_NOEXCEPT;
 
@@ -55,7 +58,12 @@ class Timer {
 
   // The total number of seconds the timer has run since the last 'Reset'.
   double total_seconds_;
+
+  Int num_intervals_;
 };
+
+// Prints the summary of the timer.
+std::ostream& operator<<(std::ostream& os, const Timer& timer);
 
 }  // namespace quotient
 

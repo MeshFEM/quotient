@@ -21,7 +21,8 @@ inline Timer::Timer(const std::string& name) QUOTIENT_NOEXCEPT
     : name_(name),
       running_(false),
       last_interval_seconds_(0),
-      total_seconds_(0) {}
+      total_seconds_(0),
+      num_intervals_(0) {}
 
 inline const std::string& Timer::Name() const QUOTIENT_NOEXCEPT {
   return name_;
@@ -37,6 +38,7 @@ inline double Timer::Stop() QUOTIENT_NOEXCEPT {
   last_interval_seconds_ = SecondsSinceLastStart();
   total_seconds_ += last_interval_seconds_;
   running_ = false;
+  ++num_intervals_;
   return last_interval_seconds_;
 }
 
@@ -56,11 +58,22 @@ inline double Timer::TotalSeconds() const QUOTIENT_NOEXCEPT {
   return total_seconds_;
 }
 
+inline Int Timer::NumIntervals() const QUOTIENT_NOEXCEPT {
+  return num_intervals_;
+}
+
 inline void Timer::Reset(const std::string& name) QUOTIENT_NOEXCEPT {
   name_ = name;
   total_seconds_ = 0;
   last_interval_seconds_ = 0;
+  num_intervals_ = 0;
   running_ = false;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const Timer& timer) {
+  os << "[" << timer.Name() << "] seconds: " << timer.TotalSeconds()
+     << ", num_intervals: " << timer.NumIntervals();
+  return os;
 }
 
 }  // namespace quotient
