@@ -250,7 +250,10 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
      0, 1, 2, 3.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
-      {0}, {1}, {2}, {3},
+      {0},
+      {1},
+      {2},
+      {3},
   };
   quotient::Buffer<Int> inverse_permutation;
   quotient_graph.ComputePostorder(&inverse_permutation);
@@ -275,21 +278,30 @@ TEST_CASE("ADD-96 Aggressive Absorbtion", "[ADD-96-Agg-Aborb]") {
       1, 2, 3, ROOT.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
-      {0}, {1}, {2}, {3},
+      {0},
+      {1},
+      {2},
+      {3},
   };
   quotient::Buffer<Int> permutation;
   quotient::InvertPermutation(inverse_permutation, &permutation);
   REQUIRE(SetTuplesAreEqual(kExpectedPermutation, permutation));
 
   const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
-      1, 1, 1, 1,
+      1,
+      1,
+      1,
+      1,
   };
   quotient::Buffer<Int> supernode_sizes;
   quotient_graph.PermutedSupernodeSizes(inverse_permutation, &supernode_sizes);
   REQUIRE(kExpectedPermutedSupernodeSizes == supernode_sizes);
 
   const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
-      1, 2, 3, -1,
+      1,
+      2,
+      3,
+      -1,
   };
   quotient::Buffer<Int> member_to_supernode;
   quotient_graph.PermutedMemberToSupernode(inverse_permutation,
@@ -352,7 +364,10 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
      0, 1, 2, 3.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedInversePermutation{
-      {0}, {1}, {2}, {3},
+      {0},
+      {1},
+      {2},
+      {3},
   };
   quotient::Buffer<Int> inverse_permutation;
   quotient_graph.ComputePostorder(&inverse_permutation);
@@ -375,21 +390,30 @@ TEST_CASE("ADD-96 No Aggressive Absorbtion", "[ADD-96-No-Agg-Aborb]") {
       2, 2, 3, ROOT.
   */
   const quotient::Buffer<quotient::Buffer<Int>> kExpectedPermutation{
-      {0}, {1}, {2}, {3},
+      {0},
+      {1},
+      {2},
+      {3},
   };
   quotient::Buffer<Int> permutation;
   quotient::InvertPermutation(inverse_permutation, &permutation);
   REQUIRE(SetTuplesAreEqual(kExpectedPermutation, permutation));
 
   const quotient::Buffer<Int> kExpectedPermutedSupernodeSizes{
-      1, 1, 1, 1,
+      1,
+      1,
+      1,
+      1,
   };
   quotient::Buffer<Int> supernode_sizes;
   quotient_graph.PermutedSupernodeSizes(inverse_permutation, &supernode_sizes);
   REQUIRE(kExpectedPermutedSupernodeSizes == supernode_sizes);
 
   const quotient::Buffer<Int> kExpectedPermutedAssemblyParents{
-      2, 2, 3, -1,
+      2,
+      2,
+      3,
+      -1,
   };
   quotient::Buffer<Int> member_to_supernode;
   quotient_graph.PermutedMemberToSupernode(inverse_permutation,

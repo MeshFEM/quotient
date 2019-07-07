@@ -21,6 +21,13 @@ struct MinimumDegreeControl {
   // Whether aggressive element absorptions are allowed.
   bool aggressive_absorption = true;
 
+  // Whether mass elimination element absorptions are allowed.
+  bool mass_elimination = true;
+
+  // Whether the pivot should be pushed into the front, rather than the back,
+  // of the existing element list.
+  bool push_pivot_into_front = true;
+
   // If a row has at least
   //
   //   max(min_dense_threshold,

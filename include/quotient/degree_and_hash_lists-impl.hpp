@@ -152,15 +152,15 @@ inline void DegreeAndHashLists::AddHash(Int index, std::size_t hash,
     // There is a non-empty degree list of degree 'bucket'.
     const Int head = last_member[heads[bucket]];
     QUOTIENT_ASSERT(index != head, "Tried to set next_member[" +
-                                       std::to_string(index) + "] := " +
-                                       std::to_string(index));
+                                       std::to_string(index) +
+                                       "] := " + std::to_string(index));
     next_member[index] = head;
     last_member[heads[bucket]] = index;
   } else {
     const Int head = SYMMETRIC_INDEX(heads[bucket]);
     QUOTIENT_ASSERT(index != head, "Tried to set next_member[" +
-                                       std::to_string(index) + "] := " +
-                                       std::to_string(index));
+                                       std::to_string(index) +
+                                       "] := " + std::to_string(index));
     next_member[index] = head;
     heads[bucket] = SYMMETRIC_INDEX(index);
   }
