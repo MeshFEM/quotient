@@ -440,14 +440,6 @@ class QuotientGraph {
   // element list of a supernode in the pivot structure, L_p.
   void ResetExternalDegrees() QUOTIENT_NOEXCEPT;
 
-  // Uses the parents_ links for the assembly tree to contiguously fill a
-  // subtree of the post-order rooted at 'index' using the iterator.
-  Int* PreorderTree(Int index, const Buffer<Int>& nonprincipal_members,
-                    const Buffer<Int>& nonprincipal_offsets,
-                    const Buffer<Int>& children,
-                    const Buffer<Int>& child_offsets,
-                    Int* iter) const QUOTIENT_NOEXCEPT;
-
   // A definition of Ashcraft's hash function (as described in [ADD-96]).
   UInt AshcraftVariableHash(Int i) const QUOTIENT_NOEXCEPT;
 

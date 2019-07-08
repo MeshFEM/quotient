@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <numeric>
+#include <stack>
 #include <vector>
 
 #include "quotient/coordinate_graph.hpp"
@@ -37,6 +38,33 @@ static constexpr char kComputePostorder[] = "ComputePostorder";
 #define QUOTIENT_START_TIMER(timer, name)
 #define QUOTIENT_STOP_TIMER(timer, name)
 #endif  // ifdef QUOTIENT_ENABLE_TIMERS
+
+inline Int PostorderTree(Int root, Int offset,
+                         const Buffer<Int>& supernode_lists,
+                         const Buffer<Int>& child_lists,
+                         Buffer<Int>* child_list_heads,
+                         std::stack<Int>* supernode_stack,
+                         Buffer<Int>* postorder) {
+  supernode_stack->push(root);
+  while (!supernode_stack->empty()) {
+    const Int top = supernode_stack->top();
+    const Int child = (*child_list_heads)[top];
+    if (child == -1) {
+      supernode_stack->pop();
+
+      // Push the entire supernode in.
+      Int index = top;
+      while (index != -1) {
+        (*postorder)[offset++] = index;
+        index = supernode_lists[index];
+      }
+    } else {
+      (*child_list_heads)[top] = child_lists[child];
+      supernode_stack->push(child);
+    }
+  }
+  return offset;
+}
 
 inline bool QuotientGraph::QuotientGraphData::ActiveSupernode(Int i) const
     QUOTIENT_NOEXCEPT {
@@ -1390,176 +1418,89 @@ inline void QuotientGraph::FinalizePivot() QUOTIENT_NOEXCEPT {
   QUOTIENT_STOP_TIMER(timers_, kFinalizePivot);
 }
 
-// TODO(Jack Poulson): Switch to using linked lists instead of explicit lists.
 inline void QuotientGraph::ComputePostorder(Buffer<Int>* postorder)
     QUOTIENT_NOEXCEPT {
   QUOTIENT_START_TIMER(timers_, kComputePostorder);
 
-  // Fill the supernode non-principal member lists.
-  // Also, ensure that the root nodes are explicitly marked as such.
-  //
-  // We reuse DegreeAndHashLists::heads for storing the nonprincipal offsets.
-  Buffer<Int>& nonprincipal_offsets = degrees_and_hashes_.lists.heads;
-  nonprincipal_offsets.Resize(num_vertices_, 0);
-  Int num_nonprincipal_members = 0;
+  // Ensure that the root nodes are marked as such.
+  // TODO(Jack Poulson): Consider this moving somewhere before this routine.
   for (Int i = 0; i < num_vertices_; ++i) {
-    nonprincipal_offsets[i] = num_nonprincipal_members;
-    const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
-    QUOTIENT_ASSERT(supernode_size >= 0, "Supernode size was negative.");
-    if (supernode_size) {
-      num_nonprincipal_members += supernode_size - 1;
-      if (graph_data_.element_offsets[i] >= 0) {
-        graph_data_.SetParent(i, -1);
-      }
+    if (graph_data_.signed_supernode_sizes[i] &&
+        graph_data_.element_offsets[i] >= 0) {
+      graph_data_.SetParent(i, -1);
     }
   }
 
-  // Reuse the DegreeAndHashLists::next_member buffer for storing the packed
-  // nonprincipal members.
-  Buffer<Int>& nonprincipal_members = degrees_and_hashes_.lists.next_member;
-  nonprincipal_members.Resize(num_nonprincipal_members);
+  // Construct linked lists for the supernodes.
+  Buffer<Int>& supernode_lists = degrees_and_hashes_.lists.next_member;
+  supernode_lists.Resize(num_vertices_, -1);
   {
-    // We use the 'postorder' vector as a temporary for storing the offsets.
-    Buffer<Int>& offsets_copy = *postorder;
-    offsets_copy = nonprincipal_offsets;
-
+    Buffer<Int>& list_tails = degrees_and_hashes_.lists.heads;
+    list_tails.Resize(num_vertices_, -1);
     for (Int i = 0; i < num_vertices_; ++i) {
-      const Int supernode_size = -graph_data_.signed_supernode_sizes[i];
-      if (!supernode_size) {
+      if (!graph_data_.signed_supernode_sizes[i]) {
+        // Keep moving upward until we get to a principal member.
         Int principal = i;
         while (!graph_data_.signed_supernode_sizes[principal]) {
-          QUOTIENT_ASSERT(
-              !graph_data_.ActiveSupernode(principal),
-              "Active supernode while computing supernode principal.");
           principal = graph_data_.Parent(principal);
         }
-        nonprincipal_members[offsets_copy[principal]++] = i;
+
+        if (list_tails[principal] == -1) {
+          // No nodes have yet been inserted into the supernode, except for
+          // the implicit insertion of the principal member.
+          supernode_lists[principal] = i;
+          list_tails[principal] = i;
+        } else {
+          // This is not the first node to insert.
+          supernode_lists[list_tails[principal]] = i;
+          list_tails[principal] = i;
+        }
       }
     }
   }
 
-  // Reconstruct the child links from the parent links in a contiguous array
-  // (similar to the CSR format) by first counting the number of children of
-  // each node.
-
-  // Reuse the DegreeAndHashLists::last_member buffer for storing the child
-  // offsets.
-  Buffer<Int>& child_offsets = degrees_and_hashes_.lists.last_member;
-  child_offsets.Resize(num_vertices_);
-  Int num_packed_children = 0;
-  {
-    // Reuse the 'postorder' buffer for computing the number of children of
-    // each vertex.
-    Buffer<Int>& num_children = *postorder;
-    num_children.Resize(num_vertices_, 0);
-    for (Int i = 0; i < num_vertices_; ++i) {
-      if (!graph_data_.signed_supernode_sizes[i]) {
-        continue;
-      }
+  // Construct linked lists for the children.
+  Buffer<Int>& child_list_heads = degrees_and_hashes_.lists.heads;
+  child_list_heads.Resize(num_vertices_, -1);
+  Buffer<Int>& child_lists = degrees_and_hashes_.lists.last_member;
+  for (Int i = 0; i < num_vertices_; ++i) {
+    if (graph_data_.signed_supernode_sizes[i]) {
+      // This is a principal member, so insert it into its parent's linked list,
+      // assuming the parent exists.
       const Int parent = graph_data_.Parent(i);
-      if (parent >= 0) {
-        ++num_children[parent];
-      }
-    }
-
-    for (Int i = 0; i < num_vertices_; ++i) {
-      child_offsets[i] = num_packed_children;
-      num_packed_children += num_children[i];
-    }
-  }
-
-  // We reuse the NodeFlags::flags member buffer for storing the children.
-  Buffer<Int>& children = node_flags_.flags;
-  children.Resize(num_packed_children);
-  {
-    // Reuse the 'postorder' buffer for packing the children.
-    Buffer<Int>& offsets_copy = *postorder;
-    offsets_copy = child_offsets;
-
-    for (Int i = 0; i < num_vertices_; ++i) {
-      if (!graph_data_.signed_supernode_sizes[i]) {
-        continue;
-      }
-      const Int parent = graph_data_.Parent(i);
-      if (parent >= 0) {
-        children[offsets_copy[parent]++] = i;
+      if (parent != -1) {
+        child_lists[i] = child_list_heads[parent];
+        child_list_heads[parent] = i;
       }
     }
   }
 
-  // Scan for the roots and launch a pe-order traversal on each of them.
+  // Build the postordering by recursing on each root.
+  Int offset = 0;
+  std::stack<Int> supernode_stack;
   postorder->Resize(num_vertices_);
-  Int* iter = postorder->begin();
   for (Int i = 0; i < num_vertices_; ++i) {
     if (!graph_data_.ActiveSupernode(i)) {
       // This element was absorbed into another element.
       continue;
     }
-    iter = PreorderTree(i, nonprincipal_members, nonprincipal_offsets, children,
-                        child_offsets, iter);
+    offset = PostorderTree(i, offset, supernode_lists, child_lists,
+                           &child_list_heads, &supernode_stack, postorder);
   }
 
-  // Reverse the preordering (to form a postordering) in-place.
-  std::reverse(postorder->begin(), iter);
-
+  // Pack any dense columns into the back.
   if (graph_data_.dense_supernode.size) {
-    // Pack the dense columns into the back.
     for (Int i = 0; i < num_vertices_; ++i) {
       if (!graph_data_.signed_supernode_sizes[i] &&
           graph_data_.ActiveSupernode(i)) {
-        *iter = i;
-        ++iter;
+        (*postorder)[offset++] = i;
       }
     }
   }
 
-  QUOTIENT_ASSERT(iter == postorder->end(),
+  QUOTIENT_ASSERT(offset == num_vertices_,
                   "Postorder had incorrect final offset.");
   QUOTIENT_STOP_TIMER(timers_, kComputePostorder);
-}
-
-inline Int* QuotientGraph::PreorderTree(Int root,
-                                        const Buffer<Int>& nonprincipal_members,
-                                        const Buffer<Int>& nonprincipal_offsets,
-                                        const Buffer<Int>& children,
-                                        const Buffer<Int>& child_offsets,
-                                        Int* iter) const QUOTIENT_NOEXCEPT {
-  const Int num_nonprincipal = nonprincipal_members.Size();
-  const Int num_children = children.Size();
-
-  std::vector<Int> stack;
-  stack.reserve(num_vertices_);
-
-  stack.push_back(root);
-
-  while (!stack.empty()) {
-    // Pop a principal variable from the stack.
-    const Int element = stack.back();
-    stack.pop_back();
-
-    // Push the supernode into the preorder in reverse order so that, when we
-    // later call std::reverse to generate a postorder, the principal member of
-    // the supernode comes first.
-    const Int nonprincipal_beg = nonprincipal_offsets[element];
-    const Int nonprincipal_end = element == num_vertices_ - 1
-                                     ? num_nonprincipal
-                                     : nonprincipal_offsets[element + 1];
-    for (Int j = nonprincipal_end - 1; j >= nonprincipal_beg; --j) {
-      (*iter++) = nonprincipal_members[j];
-    }
-    *(iter++) = element;
-
-    // Push the children onto the stack.
-    const Int child_beg = child_offsets[element];
-    const Int child_end = element == num_vertices_ - 1
-                              ? num_children
-                              : child_offsets[element + 1];
-    for (Int index = child_beg; index < child_end; ++index) {
-      stack.push_back(children[index]);
-    }
-  }
-
-  return iter;
 }
 
 inline void QuotientGraph::PermutedSupernodeSizes(
