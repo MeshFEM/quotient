@@ -1,4 +1,4 @@
 [wrap-git]
 directory = mantis
 url = https://gitlab.com/hodge_star/mantis.git
-revision = head
+revision = ceaed6ffb766b1e6a3cdcac726455d01525d8cd9
