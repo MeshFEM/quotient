@@ -143,6 +143,8 @@ Buffer<T>& Buffer<T>::operator=(const Buffer<T>& buffer) {
 
 template <typename T>
 Buffer<T>& Buffer<T>::operator=(Buffer<T>&& buffer) QUOTIENT_NOEXCEPT {
+  DestructData();
+
   size_ = buffer.size_;
   capacity_ = buffer.capacity_;
   data_ = buffer.data_;
