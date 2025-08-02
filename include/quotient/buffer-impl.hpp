@@ -22,14 +22,15 @@ inline Buffer<T>::Buffer() QUOTIENT_NOEXCEPT : size_(0),
 template <typename T>
 inline void Buffer<T>::DestructData() {
   DestructRange(0, size_);
-  AllocatorTraits::deallocate(allocator_, data_, capacity_);
+  AllocatorTraits::deallocate(allocator_, reinterpret_cast<UnderlyingType *>(data_), UDT::underlying_data_size(capacity_));
 }
 
 template <typename T>
 inline void Buffer<T>::DestructRange(SizeType start, SizeType end) {
   if (!is_trivially_destructible) {
-    for (Iterator iter = data_ + start; iter != data_ + end; ++iter) {
-      iter->~T();
+    UnderlyingType *data = reinterpret_cast<UnderlyingType *>(data_);
+    for (UnderlyingType *iter = UDT::underlying_data_ptr(data_ + start); iter != UDT::underlying_data_ptr(data_ + end); ++iter) {
+      iter->~UnderlyingType();
     }
   }
 }
@@ -42,7 +43,7 @@ inline Buffer<T>::~Buffer() {
 template <typename T>
 inline void Buffer<T>::ConstructRange(SizeType start, SizeType end) {
   if (!is_trivially_constructible) {
-    for (Iterator iter = data_ + start; iter != data_ + end; ++iter) {
+    for (UnderlyingType *iter = UDT::underlying_data_ptr(data_ + start); iter != UDT::underlying_data_ptr(data_ + end); ++iter) {
       AllocatorTraits::construct(allocator_, iter);
     }
   }
@@ -51,7 +52,7 @@ inline void Buffer<T>::ConstructRange(SizeType start, SizeType end) {
 template <typename T>
 inline Buffer<T>::Buffer(SizeType num_elements)
     : size_(num_elements), capacity_(num_elements) {
-  data_ = AllocatorTraits::allocate(allocator_, capacity_);
+  data_ = UDT::allocate(allocator_, num_elements);
   ConstructRange(0, size_);
 }
 
@@ -63,7 +64,7 @@ inline void Buffer<T>::FillConstructRange(SizeType start, SizeType end,
   } else {
     // Contruct the active elements in-place.
     for (Pointer iter = data_ + start; iter != data_ + end; ++iter) {
-      AllocatorTraits::construct(allocator_, iter, value);
+      UDT::value_construct(allocator_, iter, value);
     }
   }
 }
@@ -76,7 +77,7 @@ inline void Buffer<T>::CopyConstructRange(SizeType start, ConstIterator begin,
   } else {
     SizeType offset = start;
     for (ConstIterator iter = begin; iter != end; ++iter, ++offset) {
-      AllocatorTraits::construct(allocator_, data_ + offset, *iter);
+        UDT::value_construct(allocator_, data_ + offset, *iter);
     }
   }
 }
@@ -84,7 +85,7 @@ inline void Buffer<T>::CopyConstructRange(SizeType start, ConstIterator begin,
 template <typename T>
 inline Buffer<T>::Buffer(SizeType num_elements, ConstReference value)
     : size_(num_elements), capacity_(num_elements) {
-  data_ = AllocatorTraits::allocate(allocator_, capacity_);
+  data_ = UDT::allocate(allocator_, num_elements);
   FillConstructRange(0, size_, value);
 }
 
@@ -92,7 +93,7 @@ template <typename T>
 Buffer<T>::Buffer(ConstIterator begin, ConstIterator end) {
   size_ = std::distance(begin, end);
   capacity_ = size_;
-  data_ = AllocatorTraits::allocate(allocator_, capacity_);
+  data_ = UDT::allocate(allocator_, capacity_);
   CopyConstructRange(0, begin, end);
 }
 
@@ -124,7 +125,7 @@ Buffer<T>& Buffer<T>::operator=(const Buffer<T>& buffer) {
     const SizeType num_elements = buffer.Size();
     if (num_elements > capacity_) {
       DestructData();
-      data_ = AllocatorTraits::allocate(allocator_, num_elements);
+      data_ = UDT::allocate(allocator_, num_elements);
       size_ = num_elements;
       capacity_ = num_elements;
       CopyConstructRange(0, buffer.begin(), buffer.end());
@@ -161,10 +162,10 @@ Buffer<T>& Buffer<T>::operator=(const std::vector<T>& vec) {
   const SizeType num_elements = vec.size();
   if (num_elements > capacity_) {
     DestructData();
-    data_ = AllocatorTraits::allocate(allocator_, num_elements);
+    data_ = UDT::allocate(allocator_, num_elements);
     size_ = num_elements;
     capacity_ = num_elements;
-    CopyConstructRange(0, vec.data(), vec.data() + num_elements);
+    CopyConstructRange(0, vec.begin(), vec.end());
   } else if (num_elements >= size_) {
     std::copy(vec.begin(), vec.begin() + size_, data_);
     CopyConstructRange(size_, vec.data() + size_, vec.data() + num_elements);
@@ -219,7 +220,7 @@ template <typename T>
 void Buffer<T>::Resize(SizeType num_elements, ConstReference value) {
   if (num_elements > capacity_) {
     DestructData();
-    data_ = AllocatorTraits::allocate(allocator_, num_elements);
+    data_ = UDT::allocate(allocator_, num_elements);
     size_ = num_elements;
     capacity_ = num_elements;
     FillConstructRange(0, size_, value);
