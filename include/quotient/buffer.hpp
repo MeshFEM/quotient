@@ -64,12 +64,12 @@ struct UnderlyingDataTraits<Complex<Real>> {
 // A simple stand-in for some of the functionality of std::vector that avoids
 // explicit initialization in the single-argument versions of the constructor
 // and in resize. In exchange, it does not have 'push_back' functionality.
-template <typename T>
+template <typename T, class Allocator_ = std::allocator<typename UnderlyingDataTraits<T>::type>>
 class Buffer {
  public:
   typedef UnderlyingDataTraits<T> UDT;
 
-  typedef std::allocator<typename UDT::type> Allocator;
+  typedef Allocator_ Allocator;
   typedef std::allocator_traits<Allocator> AllocatorTraits;
   typedef typename UDT::size_type SizeType;
   typedef typename UDT::type UnderlyingType;
@@ -103,28 +103,28 @@ class Buffer {
   Buffer(ConstPointer begin, ConstPointer end);
 
   // A copy constructor.
-  Buffer(const Buffer<T>& buffer);
+  Buffer(const Buffer& buffer);
 
   // A move constructor.
-  Buffer(Buffer<T>&& buffer) QUOTIENT_NOEXCEPT;
+  Buffer(Buffer&& buffer) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from std::vector<T>.
   Buffer(const std::vector<T>& vec);
 
   // An assignment operator.
-  Buffer<T>& operator=(const Buffer<T>& buffer);
+  Buffer& operator=(const Buffer& buffer);
 
   // A move assignment operator.
-  Buffer<T>& operator=(Buffer<T>&& buffer) QUOTIENT_NOEXCEPT;
+  Buffer& operator=(Buffer&& buffer) QUOTIENT_NOEXCEPT;
 
   // An assignment operator from std::vector<T>.
-  Buffer<T>& operator=(const std::vector<T>& buffer);
+  Buffer& operator=(const std::vector<T>& buffer);
 
   // An equality check against another buffer.
-  bool operator==(const Buffer<T>& buffer) const;
+  bool operator==(const Buffer& buffer) const;
 
   // An inequality check against another buffer.
-  bool operator!=(const Buffer<T>& buffer) const;
+  bool operator!=(const Buffer& buffer) const;
 
   // Resizes the buffer to store the given number of elements and avoids
   // initializing values where possible.
