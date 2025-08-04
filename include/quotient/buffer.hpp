@@ -90,14 +90,14 @@ class Buffer {
   ~Buffer();
 
   // Constructs a buffer of the given length without initializing the data.
-  Buffer(SizeType num_elements);
+  explicit Buffer(SizeType num_elements);
 
   // Constructs a buffer of the given length where each entry is initialized
   // to the specified value.
   Buffer(SizeType num_elements, ConstReference value);
 
   // Constructs the buffer from an initializer list.
-  Buffer(std::initializer_list<T> list);
+  explicit Buffer(std::initializer_list<T> list);
 
   // Constructs a buffer by copying the given iterator range.
   Buffer(ConstPointer begin, ConstPointer end);
@@ -109,7 +109,7 @@ class Buffer {
   Buffer(Buffer&& buffer) QUOTIENT_NOEXCEPT;
 
   // A copy constructor from std::vector<T>.
-  Buffer(const std::vector<T>& vec);
+  explicit Buffer(const std::vector<T>& vec);
 
   // An assignment operator.
   Buffer& operator=(const Buffer& buffer);
