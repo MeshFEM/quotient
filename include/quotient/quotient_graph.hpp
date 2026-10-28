@@ -54,6 +54,11 @@ class QuotientGraph {
   QuotientGraph(Int num_vertices, const Buffer<MatrixEntry<Field>>& edges,
                 const MinimumDegreeControl& control);
 
+  // Initializes from sorted, symmetric CSR, ignoring diagonal entries.
+  template <typename Index>
+  QuotientGraph(Int num_vertices, const Index* offsets, const Index* indices,
+                const MinimumDegreeControl& control);
+
   // Returns the number of vertices in the original graph.
   Int NumVertices() const QUOTIENT_NOEXCEPT;
 

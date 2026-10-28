@@ -345,6 +345,50 @@ inline QuotientGraph::QuotientGraph(Int num_vertices,
   QUOTIENT_STOP_TIMER(timers_, kSetup);
 }
 
+template <typename Index>
+inline QuotientGraph::QuotientGraph(Int num_vertices,
+                                    const Index* offsets, const Index* indices,
+                                    const MinimumDegreeControl& control)
+    : control_(control),
+      num_vertices_(num_vertices),
+      num_eliminated_vertices_(0),
+      num_eliminated_supernodes_(0),
+      num_aggressive_absorptions_(0) {
+  QUOTIENT_START_TIMER(timers_, kSetup);
+
+  graph_data_.signed_supernode_sizes.Resize(num_vertices_, 1);
+  graph_data_.dense_supernode.size = 0;
+  graph_data_.dense_supernode.principal_member = -1;
+
+  // Initialize the counts for the adjacency lists.
+  graph_data_.element_offsets.Resize(num_vertices_);
+  graph_data_.element_sizes.Resize(num_vertices_, 0);
+  graph_data_.adjacency_list_sizes.Resize(num_vertices_, 0);
+  for (Int row = 0; row < num_vertices_; ++row)
+    for (Index entry = offsets[row]; entry < offsets[row + 1]; ++entry)
+      if (indices[entry] != row) ++graph_data_.adjacency_list_sizes[row];
+
+  Int num_edges = ConvertEdgeCountsIntoOffsets();
+
+  // Pack the edges. We leave extra room for packing element structures.
+  // TODO(Jack Poulson): Make this coefficient configurable.
+  const float kNumEdgesRatio = 0.2f;
+  const Int extra_element_space = kNumEdgesRatio * num_edges + num_vertices_;
+  graph_data_.lists.Resize(num_edges + extra_element_space);
+  num_edges = 0;
+  for (Int row = 0; row < num_vertices_; ++row) {
+    if (!graph_data_.signed_supernode_sizes[row]) continue;
+    for (Index entry = offsets[row]; entry < offsets[row + 1]; ++entry)
+      if (indices[entry] != row) graph_data_.lists[num_edges++] = indices[entry];
+  }
+  graph_data_.offset = num_edges;
+
+  InitializeDegreeAndHashLists();
+  InitializeNodeFlags();
+
+  QUOTIENT_STOP_TIMER(timers_, kSetup);
+}
+
 inline Int QuotientGraph::FindAndProcessPivot() QUOTIENT_NOEXCEPT {
   // Get the next pivot.
   GetNextPivot();
